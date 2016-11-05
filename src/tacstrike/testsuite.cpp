@@ -578,12 +578,26 @@ struct Test_Projectors : ITest
 g_TestProjectors;
 
 
+struct Lighting2 : SGRX_LightSampler
+{
+	void SampleLight( const Vec3& pos, Vec3 outcolors[6] )
+	{
+		outcolors[0] = V3(1,0,0) * 0.2f;
+		outcolors[1] = V3(1,1,0) * 0.2f;
+		outcolors[2] = V3(0,1,0) * 0.2f;
+		outcolors[3] = V3(0,0,1) * 0.2f;
+		outcolors[4] = V3(0.5f,0.6f,0.5f) * 0.2f;
+		outcolors[5] = V3(0.7f,0.8f,0.7f) * 0.2f;
+	}
+}
+g_Lighting2;
 
 struct Test_SceneCubemap : ITest
 {
 	virtual StringView GetName() const { return "Scene cubemap test"; }
 	Test_SceneCubemap()
 	{
+		m_time = 0;
 	}
 	void OnInitialize()
 	{
@@ -617,12 +631,26 @@ struct Test_SceneCubemap : ITest
 					Mat4::CreateRotationZ( DEG2RAD( 115.0f ) ) *
 					Mat4::CreateTranslation( V3(x,y,0) * 5 );
 				mih->SetLightingMode( SGRX_LM_Dynamic );
-				g_Lighting1.LightMesh( mih );
+				g_Lighting2.LightMesh( mih );
 				m_meshes.push_back( mih );
 			}
 		}
 		
-		m_cubemap = m_scene->CreateCubemap( 128 );
+		m_cubemap = m_scene->CreateCubemap( 128, V3( 0, 0, 1 ) );
+		
+		mih = m_scene->CreateMeshInstance();
+		mih->SetMesh( GR_GetMesh( "sys:sphere" ) );
+		mih->matrix = Mat4::CreateTranslation( 0, 0, 1 );
+		mih->SetLightingMode( SGRX_LM_Dynamic );
+		SGRX_Material& mtl = mih->GetMaterial(0);
+		mtl.shader = "bumpspecglossm";
+		mtl.textures[0] = GR_GetTexture( "sys:black2d" );
+		mtl.textures[1] = GR_GetTexture( "sys:normal2d" );
+		mtl.textures[2] = GR_GetTexture( "sys:white2d" );
+		mih->OnUpdate();
+		mih->SetMITexture( 2, m_cubemap );
+		g_Lighting1.LightMesh( mih );
+		m_meshes.push_back( mih );
 	}
 	void OnDestroy()
 	{
@@ -632,6 +660,14 @@ struct Test_SceneCubemap : ITest
 	}
 	void Do( float dt, float bf )
 	{
+		m_time += dt;
+		
+		Vec3 tgt = V3(0,0,1);
+		Vec3 dir = V3( cosf( m_time ) * 2, sinf( m_time ) * 2, 1 );
+		m_scene->camera.position = tgt + dir;
+		m_scene->camera.direction = -dir;
+		m_scene->camera.UpdateMatrices();
+		
 		SGRX_RenderScene rs( V4(0), m_scene );
 		GR_RenderScene( rs );
 	}
@@ -639,6 +675,7 @@ struct Test_SceneCubemap : ITest
 	SceneHandle m_scene;
 	TextureHandle m_cubemap;
 	Array< MeshInstHandle > m_meshes;
+	float m_time;
 }
 g_TestSceneCubemap;
 

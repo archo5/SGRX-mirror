@@ -1262,7 +1262,7 @@ struct SciFiBossFightGame : IGame
 	}
 	
 	void OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
-		TextureHandle rtt, DepthStencilSurfHandle dss )
+		SGRX_RTSpec rtt, DepthStencilSurfHandle dss )
 	{
 		IGame::OnDrawSceneGeom( ctrl, info, rtt, dss );
 		

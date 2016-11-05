@@ -2051,15 +2051,32 @@ LightHandle SGRX_Scene::CreateLight()
 	return lt;
 }
 
-TextureHandle SGRX_Scene::CreateCubemap( int size )
+TextureHandle SGRX_Scene::CreateCubemap( int size, Vec3 pos )
 {
 	TextureHandle out = GR_CreateCubeRenderTexture( size, TEXFMT_RT_COLOR_HDR16, 0);// SGRX_MIPS_ALL );
+	if( !out )
+		return NULL;
 	
+	Vec3 fwd[6], up[6];
+	GR_GetCubemapVectors( fwd, up );
+	SGRX_Camera bkCam = camera;
 	for( int i = 0; i < 6; ++i )
 	{
+		camera.position = pos;
+		camera.direction = fwd[ i ];
+		camera.updir = up[ i ];
+		camera.angle = 90;
+		camera.aspect = 1;
+		camera.aamix = 0;
+		camera.znear = 0.01f;
+		camera.zfar = 10000.0f;
+		camera.UpdateMatrices();
+	//	camera.mProj = Mat4::CreateScale(-1,-1,1) * camera.mProj;
+		
 		SGRX_RenderScene rs( V4(0), this, false, SGRX_RTSpec( out, i ) );
 		GR_RenderScene( rs );
 	}
+	camera = bkCam;
 	
 //	out->RenderMips();
 	return out;
@@ -2309,6 +2326,8 @@ TextureHandle GR_CreateRenderTexture( int width, int height, SGRX_TextureFormat 
 	
 	if( mips == SGRX_MIPS_ALL )
 		mips = GR_CalcMipCount( width, height );
+	else if( mips == 0 )
+		mips = 1;
 	TextureInfo ti = { TEXTYPE_2D, mips, width, height, 1, format,
 		TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y };
 	SGRX_ITexture* tex = g_Renderer->CreateRenderTexture( &ti );
@@ -2334,6 +2353,8 @@ TextureHandle GR_CreateCubeRenderTexture( int width, SGRX_TextureFormat format, 
 	
 	if( mips == SGRX_MIPS_ALL )
 		mips = GR_CalcMipCount( width );
+	else if( mips == 0 )
+		mips = 1;
 	TextureInfo ti = { TEXTYPE_CUBE, mips, width, width, 1, format,
 		TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y };
 	SGRX_ITexture* tex = g_Renderer->CreateRenderTexture( &ti );

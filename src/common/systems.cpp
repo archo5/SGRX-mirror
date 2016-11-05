@@ -712,7 +712,7 @@ void GFXSystem::OnDrawSceneWithRefl( SGRX_IRenderControl* ctrl, SGRX_RenderScene
 }
 
 void GFXSystem::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
-	TextureHandle rtt, DepthStencilSurfHandle dss, TextureHandle rttDEPTH )
+	SGRX_RTSpec rtt, DepthStencilSurfHandle dss, TextureHandle rttDEPTH )
 {
 	SGRX_RenderDirector::OnDrawSceneGeom( ctrl, info, rtt, dss, rttDEPTH );
 	

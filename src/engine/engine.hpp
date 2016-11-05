@@ -1623,7 +1623,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 	ENGINE_EXPORT MeshInstHandle CreateMeshInstance();
 	ENGINE_EXPORT LightHandle CreateLight();
 	
-	ENGINE_EXPORT TextureHandle CreateCubemap( int size );
+	ENGINE_EXPORT TextureHandle CreateCubemap( int size, Vec3 pos );
 	
 	ENGINE_EXPORT void OnUpdate();
 	
@@ -2013,6 +2013,8 @@ struct SGRX_RTSpec
 {
 	SGRX_RTSpec( TextureHandle rtt = NULL, int side = 0, int mip = 0 )
 	: rtt(rtt), side(side), mip(mip){}
+	bool IsUsed() const { return rtt != NULL; }
+	bool IsUnused() const { return rtt == NULL; }
 	
 	TextureHandle rtt;
 	int side;
@@ -2022,7 +2024,7 @@ struct SGRX_RTSpec
 struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderControl
 {
 	ENGINE_EXPORT virtual ~SGRX_IRenderControl();
-	ENGINE_EXPORT virtual void SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info, TextureHandle rts[4] ) = 0;
+	ENGINE_EXPORT virtual void SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info, SGRX_RTSpec rts[4] ) = 0;
 	ENGINE_EXPORT virtual void SortRenderItems( SGRX_Scene* scene ) = 0;
 	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, int pass_id ) = 0;
 	ENGINE_EXPORT virtual void RenderMeshes( SGRX_Scene* scene, int pass_id, int maxrepeat, uint8_t types, SGRX_MeshInstance** milist, size_t micount ) = 0;
@@ -2030,16 +2032,16 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderControl
 	
 	// shortcuts
 	FINLINE void SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info,
-		TextureHandle rt0 = NULL, TextureHandle rt1 = NULL, TextureHandle rt2 = NULL, TextureHandle rt3 = NULL )
+		SGRX_RTSpec rt0 = SGRX_RTSpec(), SGRX_RTSpec rt1 = SGRX_RTSpec(), SGRX_RTSpec rt2 = SGRX_RTSpec(), SGRX_RTSpec rt3 = SGRX_RTSpec() )
 	{
-		TextureHandle rts[4] = { rt0, rt1, rt2, rt3 };
+		SGRX_RTSpec rts[4] = { rt0, rt1, rt2, rt3 };
 		SetRenderTargets( dss, info, rts );
 	}
 	FINLINE void SetRenderTargets( SGRX_IDepthStencilSurface* dss, uint8_t flags, uint8_t clearStencil, uint32_t clearColor, float clearDepth,
-		TextureHandle rt0 = NULL, TextureHandle rt1 = NULL, TextureHandle rt2 = NULL, TextureHandle rt3 = NULL )
+		SGRX_RTSpec rt0 = SGRX_RTSpec(), SGRX_RTSpec rt1 = SGRX_RTSpec(), SGRX_RTSpec rt2 = SGRX_RTSpec(), SGRX_RTSpec rt3 = SGRX_RTSpec() )
 	{
 		SGRX_RTClearInfo info = { flags, clearStencil, clearColor, clearDepth };
-		TextureHandle rts[4] = { rt0, rt1, rt2, rt3 };
+		SGRX_RTSpec rts[4] = { rt0, rt1, rt2, rt3 };
 		SetRenderTargets( dss, info, rts );
 	}
 	
@@ -2059,7 +2061,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_RenderDirector
 	
 	ENGINE_EXPORT virtual void OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info );
 	ENGINE_EXPORT virtual void OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
-		TextureHandle rtt, DepthStencilSurfHandle dss, TextureHandle rttDEPTH );
+		SGRX_RTSpec rtt, DepthStencilSurfHandle dss, TextureHandle rttDEPTH );
 	ENGINE_EXPORT virtual void OnDrawFog( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
 		TextureHandle rttDEPTH );
 	
@@ -2157,6 +2159,7 @@ ENGINE_EXPORT ArrayView<SGRX_RenderPass> GR_GetDefaultRenderPasses();
 ENGINE_EXPORT SGRX_RenderDirector* GR_GetDefaultRenderDirector();
 ENGINE_EXPORT void GR_RenderScene( SGRX_RenderScene& info );
 ENGINE_EXPORT RenderStats& GR_GetRenderStats();
+ENGINE_EXPORT void GR_GetCubemapVectors( Vec3 outfwd[6], Vec3 outup[6] );
 
 ENGINE_EXPORT void GR2D_SetWorldMatrix( const Mat4& mtx );
 ENGINE_EXPORT void GR2D_SetViewMatrix( const Mat4& mtx );

@@ -35,7 +35,7 @@
 
 void sgrx_assert_func( const char* code, const char* file, int line )
 {
-	fprintf( stderr, "\n== Error detected: \"%s\", file: %s, line %d ==\n", code, file, line );
+	fprintf( stderr, "\n== Error detected - assertion failed: \"%s\", file: %s, line %d ==\n", code, file, line );
 #if defined( _MSC_VER )
 	__debugbreak();
 #elif defined( __GNUC__ )

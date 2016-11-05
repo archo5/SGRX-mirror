@@ -319,6 +319,9 @@ static int create_srview( ID3D11Device* device,
 		srvd.Texture3D.MostDetailedMip = 0;
 		srvd.Texture3D.MipLevels = -1;
 		break;
+	default:
+		LOG_ERROR << "create_srview - bad texture type: " << type;
+		return 1;
 	}
 	if( FAILED( D3DCALL( device->CreateShaderResourceView( tex, &srvd, outview ) ) ) )
 	{
@@ -618,7 +621,7 @@ struct D3D11Renderer : IRenderer
 	void Modify( const RenderSettings& settings );
 	void SetCurrent(){} // does nothing since there's no thread context pointer
 	
-	void SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, TextureHandle rts[4] );
+	void SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, SGRX_RTSpec rts[4] );
 	void SetViewport( int x0, int y0, int x1, int y1 );
 	void _SetViewport( int x0, int y0, int x1, int y1 );
 	void SetScissorRect( int* rect );
@@ -978,7 +981,7 @@ void D3D11Renderer::Modify( const RenderSettings& settings )
 }
 
 
-void D3D11Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, TextureHandle rts[4] )
+void D3D11Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, SGRX_RTSpec rts[4] )
 {
 	LOG_FUNCTION;
 	
@@ -987,7 +990,7 @@ void D3D11Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthS
 	Vec4 col = Col32ToVec4( info.clearColor );
 	ID3D11DepthStencilView* dsv = NULL;
 	
-	if( rts[0] == NULL && rts[1] == NULL && rts[2] == NULL && rts[3] == NULL )
+	if( rts[0].IsUnused() && rts[1].IsUnused() && rts[2].IsUnused() && rts[3].IsUnused() )
 	{
 		if( info.flags & SGRX_RT_ClearColor )
 			m_ctx->ClearRenderTargetView( m_rtView, &col.x );
@@ -1002,7 +1005,7 @@ void D3D11Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthS
 		uint32_t w = 0, h = 0;
 		for( int i = 0; i < 4; ++i )
 		{
-			SGRX_ITexture* rt = rts[ i ].item;
+			SGRX_ITexture* rt = rts[ i ].rtt;
 			if( rt )
 			{
 				ASSERT( rt->m_isRenderTexture );
@@ -1014,7 +1017,7 @@ void D3D11Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthS
 				if( RT->IsDepthRT() )
 					dsv = RT->GetDSV( 0, 0 );
 				else
-					rtv[ i ] = RT->GetRTV( 0, 0 );
+					rtv[ i ] = RT->GetRTV( rts[ i ].side, rts[ i ].mip );
 			}
 		}
 		if( info.flags & SGRX_RT_ClearColor )

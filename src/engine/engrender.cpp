@@ -88,7 +88,7 @@ IRenderer::~IRenderer()
 {
 }
 
-void IRenderer::SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info, TextureHandle rts[4] )
+void IRenderer::SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info, SGRX_RTSpec rts[4] )
 {
 	SetRenderTargets( info, dss, rts );
 }
@@ -143,7 +143,7 @@ void IRenderer::RenderShadows( SGRX_Scene* scene, int pass_id )
 		GR_PreserveResource( dssh );
 		
 		SGRX_RTClearInfo info = { SGRX_RT_ClearAll, 0, 0, 1 };
-		TextureHandle thlist[4] = { L->shadowTexture, NULL, NULL, NULL };
+		SGRX_RTSpec thlist[4] = { L->shadowTexture, SGRX_RTSpec(), SGRX_RTSpec(), SGRX_RTSpec() };
 		SetRenderTargets( info, dssh, thlist );
 		
 		_RS_Cull_SpotLight_MeshList( scene, L );

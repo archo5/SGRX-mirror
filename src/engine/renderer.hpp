@@ -264,7 +264,7 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 	ENGINE_EXPORT virtual void Modify( const RenderSettings& settings ) = 0;
 	ENGINE_EXPORT virtual void SetCurrent() = 0;
 	
-	ENGINE_EXPORT virtual void SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, TextureHandle rts[4] ) = 0;
+	ENGINE_EXPORT virtual void SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, SGRX_RTSpec rts[4] ) = 0;
 	ENGINE_EXPORT virtual void SetViewport( int x0, int y0, int x1, int y1 ) = 0;
 	ENGINE_EXPORT virtual void SetScissorRect( int* rect ) = 0;
 	
@@ -286,7 +286,7 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 		const SGRX_Camera& cam, RenderItem* start, RenderItem* end ) = 0;
 	
 	// render control
-	ENGINE_EXPORT virtual void SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info, TextureHandle rts[4] );
+	ENGINE_EXPORT virtual void SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info, SGRX_RTSpec rts[4] );
 	ENGINE_EXPORT virtual void SortRenderItems( SGRX_Scene* scene );
 	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, int pass_id );
 	ENGINE_EXPORT virtual void RenderMeshes( SGRX_Scene* scene, int pass_id, int maxrepeat, uint8_t types, SGRX_MeshInstance** milist, size_t micount );

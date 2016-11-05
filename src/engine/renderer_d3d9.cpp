@@ -331,7 +331,7 @@ struct D3D9Renderer : IRenderer
 	void Modify( const RenderSettings& settings );
 	void SetCurrent(){} // does nothing since there's no thread context pointer
 	
-	void SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, TextureHandle rts[4] );
+	void SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, SGRX_RTSpec rts[4] );
 	void SetViewport( int x0, int y0, int x1, int y1 );
 	void SetScissorRect( int* rect );
 	
@@ -581,9 +581,9 @@ void D3D9Renderer::Modify( const RenderSettings& settings )
 }
 
 
-void D3D9Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, TextureHandle rts[4] )
+void D3D9Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, SGRX_RTSpec rts[4] )
 {
-	if( rts[0] == NULL && rts[1] == NULL && rts[2] == NULL && rts[3] == NULL )
+	if( rts[0].IsUnused() && rts[1].IsUnused() && rts[2].IsUnused() && rts[3].IsUnused() )
 	{
 		m_dev->SetRenderTarget( 0, m_backbuf );
 		m_dev->SetRenderTarget( 1, NULL );
@@ -597,7 +597,7 @@ void D3D9Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthSt
 		uint32_t w = 0, h = 0;
 		for( int i = 0; i < 4; ++i )
 		{
-			SGRX_ITexture* rt = rts[ i ];
+			SGRX_ITexture* rt = rts[ i ].rtt;
 			if( rt )
 			{
 				ASSERT( !w || w == rt->m_info.width );

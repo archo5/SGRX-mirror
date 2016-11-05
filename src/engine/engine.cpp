@@ -734,7 +734,7 @@ void Game_OnEvent( const Event& e )
 static void renderer_clear_rts()
 {
 	SGRX_RTClearInfo info = { SGRX_RT_ClearAll, 0, 0, 1 };
-	TextureHandle rts[4] = { NULL, NULL, NULL, NULL };
+	SGRX_RTSpec rts[4] = { SGRX_RTSpec(), SGRX_RTSpec(), SGRX_RTSpec(), SGRX_RTSpec() };
 	g_Renderer->SetRenderTargets( info, NULL, rts );
 }
 
@@ -791,8 +791,8 @@ void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderSce
 	SGRX_Scene* scene = info.scene;
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
-	int W = GR_GetWidth();
-	int H = GR_GetHeight();
+	int W = info.GetOutputWidth();
+	int H = info.GetOutputHeight();
 	int W2 = TMAX( W / 2, 1 ), H2 = TMAX( H / 2, 1 );
 	int W4 = TMAX( W / 4, 1 ), H4 = TMAX( H / 4, 1 );
 	int W8 = TMAX( W / 8, 1 ), H8 = TMAX( H / 8, 1 );
@@ -821,6 +821,7 @@ void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderSce
 		rttHBLUR, rttVBLUR, rttHBLUR2, rttVBLUR2,
 		rttDS1, rttDS2, rttDS3, rttDS4;
 	DepthStencilSurfHandle dssMAIN;
+	SGRX_RTSpec rtspecMAIN = info.renderTarget;
 	if( info.enablePostProcessing )
 	{
 		rttMAIN = GR_GetRenderTarget( W, H, TEXFMT_RT_COLOR_HDR16, RT_MAIN );
@@ -851,10 +852,12 @@ void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderSce
 		
 		ctrl->SetRenderTargets( dssMAIN, SGRX_RT_ClearAll, 0, 0, 1, rttDEPTH );
 		ctrl->RenderTypes( scene, shadow_pass_id, 1, SGRX_TY_Solid );
+		
+		rtspecMAIN = rttMAIN;
 	}
 	
 	// draw things
-	OnDrawSceneGeom( ctrl, info, rttMAIN, dssMAIN, rttDEPTH );
+	OnDrawSceneGeom( ctrl, info, rtspecMAIN, dssMAIN, rttDEPTH );
 	
 	// post-process
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, 1, 1 ) );
@@ -897,7 +900,7 @@ void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderSce
 		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttVBLUR2 );
 		br.SetTexture( rttHBLUR2 ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
 		
-		ctrl->SetRenderTargets( NULL, 0, 0, 0, 1 );
+		ctrl->SetRenderTargets( NULL, 0, 0, 0, 1, info.renderTarget );
 		{
 			const TextureInfo& clutInfo = scene->clutTexture.GetInfo();
 			br.ShaderData[0] = V4(
@@ -965,7 +968,7 @@ void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderSce
 }
 
 void SGRX_RenderDirector::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
-	TextureHandle rtt, DepthStencilSurfHandle dss, TextureHandle rttDEPTH )
+	SGRX_RTSpec rtt, DepthStencilSurfHandle dss, TextureHandle rttDEPTH )
 {
 	SGRX_Scene* scene = info.scene;
 	BatchRenderer& br = GR2D_GetBatchRenderer();
@@ -1272,6 +1275,11 @@ TextureHandle IGame::OnCreateSysTexture( const StringView& key )
 	if( key == "sys:white2d" )
 	{
 		uint32_t data[1] = { 0xffffffff };
+		return GR_CreateTexture( 1, 1, TEXFMT_RGBA8, TEXFLAGS_LERP, 1, data );
+	}
+	if( key == "sys:normal2d" )
+	{
+		uint32_t data[1] = { 0xffff7f7f };
 		return GR_CreateTexture( 1, 1, TEXFMT_RGBA8, TEXFLAGS_LERP, 1, data );
 	}
 	if( key == "sys:lut_default" )
@@ -1603,6 +1611,68 @@ MeshHandle IGame::OnCreateSysMesh( const StringView& key )
 		mesh->m_idata.append( indices, sizeof(indices) );
 		return mesh;
 	}
+	if( key == "sys:sphere" )
+	{
+		int hparts = 32;
+		int vparts = 16;
+		
+		Array< SGRX_Vertex_Decal > verts;
+		Array< uint16_t > indices;
+		
+		for( int h = 0; h <= hparts; ++h )
+		{
+			float hq1 = float(h) / hparts;
+			Vec2 hdir1 = V2( cosf( hq1 * M_PI * 2 ), sinf( hq1 * M_PI * 2 ) );
+			for( int v = 0; v <= vparts; ++v )
+			{
+				float vq1 = float(v) / vparts;
+				float cv1 = cosf( ( vq1 * 2 - 1 ) * M_PI * 0.5f );
+				float sv1 = sinf( ( vq1 * 2 - 1 ) * M_PI * 0.5f );
+				Vec3 dir1 = V3( hdir1.x * cv1, hdir1.y * cv1, sv1 );
+				Vec3 tangent = Vec3Cross( V3(hdir1.x,hdir1.y,0), V3(0,0,1) ).Normalized();
+				SGRX_Vertex_Decal vtx =
+				{
+					dir1, dir1, V3( hq1, 1 - vq1, 0 ),
+					Vec4ToCol32( V4( tangent * 0.5f + 0.5f, 1 ) ),
+					0xffffffff, 0,
+				};
+				verts.push_back( vtx );
+			}
+		}
+		for( int h = 0; h < hparts; ++h )
+		{
+			int h1 = h + 1;
+			for( int v = 0; v < vparts; ++v )
+			{
+				int v1 = v + 1;
+				uint16_t i1 = v + h * ( vparts + 1 );
+				uint16_t i2 = v + h1 * ( vparts + 1 );
+				uint16_t i4 = v1 + h * ( vparts + 1 );
+				uint16_t i3 = v1 + h1 * ( vparts + 1 );
+				uint16_t idcs[6] = { i1, i4, i3, i3, i2, i1 };
+				indices.append( idcs, 6 );
+			}
+		}
+		
+		static const SGRX_MeshPart part =
+		{
+			0, verts.size(), 0, indices.size(),
+			"default",
+			{ "textures/unit.png", "", "", "", "", "", "", "" },
+			0, SGRX_MtlBlend_None,
+			"", Mat4::Identity
+		};
+		
+		MeshHandle mesh = GR_CreateMesh();
+		mesh->SetVertexData( verts.data(), verts.size_bytes(), GR_GetVertexDecl( SGRX_VDECL_DECAL ) );
+		mesh->SetIndexData( indices.data(), indices.size_bytes(), false );
+		mesh->SetPartData( &part, 1 );
+		mesh->m_boundsMin = V3(-1);
+		mesh->m_boundsMax = V3(1);
+		mesh->m_vdata.append( verts.data(), verts.size_bytes() );
+		mesh->m_idata.append( indices.data(), indices.size_bytes() );
+		return mesh;
+	}
 	return NULL;
 }
 
@@ -1610,6 +1680,7 @@ void IGame::OnGetSysMeshList( Array< StringView >& outNames )
 {
 	outNames.push_back( "sys:plane" );
 	outNames.push_back( "sys:cube" );
+	outNames.push_back( "sys:sphere" );
 }
 
 
@@ -1967,6 +2038,30 @@ void GR_RenderScene( SGRX_RenderScene& info )
 RenderStats& GR_GetRenderStats()
 {
 	return g_Renderer->m_stats;
+}
+
+void GR_GetCubemapVectors( Vec3 outfwd[6], Vec3 outup[6] )
+{
+	// order: +X, -X, +Y, -Y, +Z, -Z
+	outfwd[0] = V3(+1,0,0); outup[0] = V3(0,1,0);
+	outfwd[1] = V3(-1,0,0); outup[1] = V3(0,1,0);
+	outfwd[2] = V3(0,+1,0); outup[2] = V3(0,0,1);
+	outfwd[3] = V3(0,-1,0); outup[3] = V3(0,0,-1);
+	outfwd[4] = V3(0,0,+1); outup[4] = V3(0,1,0);
+	outfwd[5] = V3(0,0,-1); outup[5] = V3(0,1,0);
+	
+	// fix-up for shader conventions
+//	for( int i = 0; i < 6; ++i )
+//	{
+//		TSWAP( outfwd[ i ].y, outfwd[ i ].z );
+//		TSWAP( outup[ i ].y, outup[ i ].z );
+//	}
+	
+//	for(int i = 0; i < 6;++i)
+//	{
+//		if( i == 4) continue;
+//		outup[i] = outfwd[ i ];
+//	}
 }
 
 
