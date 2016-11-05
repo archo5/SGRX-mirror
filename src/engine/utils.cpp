@@ -2819,14 +2819,16 @@ SGRX_Log& SGRX_Log::operator << ( ESpec_CallStack )
 }
 SGRX_Log& SGRX_Log::operator << ( const Separator& s ){ sep = s.sep; return *this; }
 SGRX_Log& SGRX_Log::operator << ( bool v ){ if( out ){ prelog(); writef( "[%s / %02X]", v ? "true" : "false", (int) v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( int8_t v ){ if( out ){ prelog(); writef( "%d", (int) v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( uint8_t v ){ if( out ){ prelog(); writef( "%d", (int) v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( int16_t v ){ if( out ){ prelog(); writef( "%d", (int) v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( uint16_t v ){ if( out ){ prelog(); writef( "%d", (int) v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( int32_t v ){ if( out ){ prelog(); writef( "%" PRId32, v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( uint32_t v ){ if( out ){ prelog(); writef( "%" PRIu32, v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( int64_t v ){ if( out ){ prelog(); writef( "%" PRId64, v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( uint64_t v ){ if( out ){ prelog(); writef( "%" PRIu64, v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( signed char v ){ if( out ){ prelog(); writef( "%d", (int) v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( unsigned char v ){ if( out ){ prelog(); writef( "%u", (unsigned) v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( signed short v ){ if( out ){ prelog(); writef( "%d", (int) v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( unsigned short v ){ if( out ){ prelog(); writef( "%u", (unsigned) v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( signed int v ){ if( out ){ prelog(); writef( "%d", (int) v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( unsigned int v ){ if( out ){ prelog(); writef( "%u", (unsigned) v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( signed long v ){ if( out ){ prelog(); writef( "%lld", v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( unsigned long v ){ if( out ){ prelog(); writef( "%llu", v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( signed long long v ){ if( out ){ prelog(); writef( "%" PRId64, v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( unsigned long long v ){ if( out ){ prelog(); writef( "%" PRIu64, v ); } return *this; }
 SGRX_Log& SGRX_Log::operator << ( float v ){ return *this << (double) v; }
 SGRX_Log& SGRX_Log::operator << ( double v ){ if( out ){ prelog(); writef( "%g", v ); } return *this; }
 SGRX_Log& SGRX_Log::operator << ( const void* v ){ if( out ){ prelog(); writef( "[%p]", v ); } return *this; }

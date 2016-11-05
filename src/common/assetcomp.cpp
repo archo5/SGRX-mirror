@@ -1776,7 +1776,7 @@ bool SGRX_SaveImage( const StringView& path, SGRX_ImageFP32* image, const SGRX_T
 				type = TEXTYPE_VOLUME;
 			TextureInfo info = { type, mips.size(),
 				image->GetWidth(), image->GetHeight(),
-				image->GetDepth(), TEXFORMAT_RGBA8, flags };
+				image->GetDepth(), TEXFMT_RGBA8, flags };
 			filedata.append( &info, sizeof(info) );
 			uint32_t datasize = imagedata.size();
 			filedata.append( &datasize, sizeof(datasize) );
@@ -1855,7 +1855,7 @@ TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset
 	}
 	
 	TextureHandle tex = GR_CreateTexture( image->GetWidth(), image->GetHeight(),
-		TEXFORMAT_RGBA8, flags, mips.size(), NULL );
+		TEXFMT_RGBA8, flags, mips.size(), NULL );
 	ByteArray imagedata;
 	for( size_t i = 0; i < mips.size(); ++i )
 	{

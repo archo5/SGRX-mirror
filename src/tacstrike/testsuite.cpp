@@ -621,9 +621,12 @@ struct Test_SceneCubemap : ITest
 				m_meshes.push_back( mih );
 			}
 		}
+		
+		m_cubemap = m_scene->CreateCubemap( 128 );
 	}
 	void OnDestroy()
 	{
+		m_cubemap = NULL;
 		m_meshes.clear();
 		m_scene = NULL;
 	}
@@ -634,6 +637,7 @@ struct Test_SceneCubemap : ITest
 	}
 	
 	SceneHandle m_scene;
+	TextureHandle m_cubemap;
 	Array< MeshInstHandle > m_meshes;
 }
 g_TestSceneCubemap;

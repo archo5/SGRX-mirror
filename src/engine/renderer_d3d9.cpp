@@ -21,16 +21,16 @@ static D3DFORMAT texfmt2d3d( int fmt )
 {
 	switch( fmt )
 	{
-	case TEXFORMAT_BGRX8: return D3DFMT_X8R8G8B8;
-	case TEXFORMAT_BGRA8:
-	case TEXFORMAT_RGBA8: return D3DFMT_A8R8G8B8;
-	case TEXFORMAT_R5G6B5: return D3DFMT_R5G6B5;
+	case TEXFMT_BGRX8: return D3DFMT_X8R8G8B8;
+	case TEXFMT_BGRA8:
+	case TEXFMT_RGBA8: return D3DFMT_A8R8G8B8;
+	case TEXFMT_R5G6B5: return D3DFMT_R5G6B5;
 	
-	case TEXFORMAT_DXT1: return D3DFMT_DXT1;
-	case TEXFORMAT_DXT3: return D3DFMT_DXT3;
-	case TEXFORMAT_DXT5: return D3DFMT_DXT5;
+	case TEXFMT_DXT1: return D3DFMT_DXT1;
+	case TEXFMT_DXT3: return D3DFMT_DXT3;
+	case TEXFMT_DXT5: return D3DFMT_DXT5;
+	default: return D3DFMT_UNKNOWN;
 	}
-	return (D3DFORMAT) 0;
 }
 
 static DWORD F2DW( float f )
@@ -69,7 +69,7 @@ static void texdatacopy( D3DLOCKED_RECT* plr, TextureInfo* texinfo, const void* 
 	for( i = 0; i < copyrowcount; ++i )
 	{
 		memcpy( dst, src, copyrowsize );
-		if( texinfo->format == TEXFORMAT_RGBA8 )
+		if( texinfo->format == TEXFMT_RGBA8 )
 			swap4b2ms( (uint32_t*) dst, copyrowsize / 4, 0xff0000, 16, 0xff, 16 );
 		src += copyrowsize;
 		dst += plr->Pitch;
@@ -99,7 +99,7 @@ static void texdatacopy( D3DLOCKED_BOX* plb, TextureInfo* texinfo, const void* d
 		{
 			uint8_t* rdst = dst + plb->SlicePitch * j + plb->RowPitch * i;
 			memcpy( rdst, src, copyrowsize );
-			if( texinfo->format == TEXFORMAT_RGBA8 )
+			if( texinfo->format == TEXFMT_RGBA8 )
 				swap4b2ms( (uint32_t*) rdst, copyrowsize / 4, 0xff0000, 16, 0xff, 16 );
 			src += copyrowsize;
 		}
@@ -155,7 +155,7 @@ struct D3D9Texture : SGRX_ITexture
 		{
 			uint8_t* dst = (uint8_t*)lr.pBits + lr.Pitch * j;
 			memcpy( dst, ((uint32_t*)data) + w * j, w * 4 );
-			if( m_info.format == TEXFORMAT_RGBA8 )
+			if( m_info.format == TEXFMT_RGBA8 )
 				swap4b2ms( (uint32_t*) dst, w, 0xff0000, 16, 0xff, 16 );
 		}
 		
@@ -195,7 +195,7 @@ struct D3D9Texture : SGRX_ITexture
 			{
 				uint8_t* dst = (uint8_t*)lr.pBits + lr.RowPitch * j + lr.SlicePitch * k;
 				memcpy( dst, ((uint32_t*)data) + w * j + w * h * k, w * 4 );
-				if( m_info.format == TEXFORMAT_RGBA8 )
+				if( m_info.format == TEXFMT_RGBA8 )
 					swap4b2ms( (uint32_t*) dst, w, 0xff0000, 16, 0xff, 16 );
 			}
 		}
@@ -797,19 +797,19 @@ SGRX_ITexture* D3D9Renderer::CreateRenderTexture( TextureInfo* texinfo )
 {
 	LOG_FUNCTION;
 	
-	D3DFORMAT d3dfmt = (D3DFORMAT) 0;
+	D3DFORMAT d3dfmt = D3DFMT_UNKNOWN;
 	HRESULT hr = 0;
 	int width = texinfo->width, height = texinfo->height, format = texinfo->format;
 	
 	switch( format )
 	{
-	case RT_FORMAT_COLOR_HDR16:
+	case TEXFMT_RT_COLOR_HDR16:
 		d3dfmt = D3DFMT_A16B16G16R16F;
 		break;
-	case RT_FORMAT_COLOR_LDR8:
+	case TEXFMT_RT_COLOR_LDR8:
 		d3dfmt = D3DFMT_A8R8G8B8;
 		break;
-	case RT_FORMAT_DEPTH:
+	case TEXFMT_RT_DEPTH_F32:
 		d3dfmt = D3DFMT_R32F;
 		break;
 	default:
@@ -822,7 +822,7 @@ SGRX_ITexture* D3D9Renderer::CreateRenderTexture( TextureInfo* texinfo )
 	IDirect3DSurface9 *CS = NULL, *DS = NULL;
 	D3D9RenderTexture* RT = NULL;
 	
-	if( format == RT_FORMAT_DEPTH )
+	if( format == TEXFMT_RT_DEPTH_F32 )
 	{
 		hr = m_dev->CreateTexture( width, height, 1, D3DUSAGE_RENDERTARGET, d3dfmt, D3DPOOL_DEFAULT, &CT, NULL );
 		if( FAILED( hr ) || !CT )
@@ -902,9 +902,9 @@ SGRX_IDepthStencilSurface* D3D9Renderer::CreateDepthStencilSurface( int width, i
 
 	switch( format )
 	{
-	case RT_FORMAT_COLOR_HDR16:
-	case RT_FORMAT_COLOR_LDR8:
-	case RT_FORMAT_DEPTH:
+	case TEXFMT_RT_COLOR_HDR16:
+	case TEXFMT_RT_COLOR_LDR8:
+	case TEXFMT_RT_DEPTH_F32:
 		break;
 	default:
 		LOG_ERROR << "format ID was not recognized / supported: " << format;

@@ -2053,7 +2053,7 @@ LightHandle SGRX_Scene::CreateLight()
 
 TextureHandle SGRX_Scene::CreateCubemap( int size )
 {
-	TextureHandle out = GR_CreateCubeRenderTexture( size, TEXFORMAT_RGBA16F, 0);// SGRX_MIPS_ALL );
+	TextureHandle out = GR_CreateCubeRenderTexture( size, TEXFMT_RT_COLOR_HDR16, 0);// SGRX_MIPS_ALL );
 	
 	for( int i = 0; i < 6; ++i )
 	{
@@ -2214,7 +2214,7 @@ int GR_CalcMipCount( int width, int height, int depth )
 	return count;
 }
 
-TextureHandle GR_CreateTexture( int width, int height, int format, uint32_t flags, int mips, const void* data )
+TextureHandle GR_CreateTexture( int width, int height, SGRX_TextureFormat format, uint32_t flags, int mips, const void* data )
 {
 	LOG_FUNCTION;
 	
@@ -2234,7 +2234,7 @@ TextureHandle GR_CreateTexture( int width, int height, int format, uint32_t flag
 	return tex;
 }
 
-TextureHandle GR_CreateTexture3D( int width, int height, int depth, int format, uint32_t flags, int mips, const void* data )
+TextureHandle GR_CreateTexture3D( int width, int height, int depth, SGRX_TextureFormat format, uint32_t flags, int mips, const void* data )
 {
 	LOG_FUNCTION;
 	
@@ -2303,7 +2303,7 @@ TextureHandle GR_GetTexture( const StringView& path )
 	return tex;
 }
 
-TextureHandle GR_CreateRenderTexture( int width, int height, int format, int mips )
+TextureHandle GR_CreateRenderTexture( int width, int height, SGRX_TextureFormat format, int mips )
 {
 	LOG_FUNCTION;
 	
@@ -2328,7 +2328,7 @@ TextureHandle GR_CreateRenderTexture( int width, int height, int format, int mip
 	return tex;
 }
 
-TextureHandle GR_CreateCubeRenderTexture( int width, int format, int mips )
+TextureHandle GR_CreateCubeRenderTexture( int width, SGRX_TextureFormat format, int mips )
 {
 	LOG_FUNCTION;
 	
@@ -2353,7 +2353,7 @@ TextureHandle GR_CreateCubeRenderTexture( int width, int format, int mips )
 	return tex;
 }
 
-TextureHandle GR_GetRenderTarget( int width, int height, int format, int extra )
+TextureHandle GR_GetRenderTarget( int width, int height, SGRX_TextureFormat format, int extra )
 {
 	ASSERT( width && height && format );
 	LOG_FUNCTION;
@@ -2369,7 +2369,7 @@ TextureHandle GR_GetRenderTarget( int width, int height, int format, int extra )
 	return rtth;
 }
 
-DepthStencilSurfHandle GR_CreateDepthStencilSurface( int width, int height, int format )
+DepthStencilSurfHandle GR_CreateDepthStencilSurface( int width, int height, SGRX_TextureFormat format )
 {
 	ASSERT( width && height && format );
 	LOG_FUNCTION;
@@ -2388,7 +2388,7 @@ DepthStencilSurfHandle GR_CreateDepthStencilSurface( int width, int height, int 
 	return dss;
 }
 
-DepthStencilSurfHandle GR_GetDepthStencilSurface( int width, int height, int format, int extra )
+DepthStencilSurfHandle GR_GetDepthStencilSurface( int width, int height, SGRX_TextureFormat format, int extra )
 {
 	ASSERT( width && height && format );
 	LOG_FUNCTION;

@@ -164,7 +164,7 @@ void SGRX_IMGUI_NewFrame( float dt )
 		cpixels.resize( width * height );
 		for( int i = 0; i < width * height; ++i )
 			cpixels[ i ] = COLOR_RGBA( 255, 255, 255, pixels[ i ] );
-		g_FontTexture = GR_CreateTexture( width, height, TEXFORMAT_RGBA8, TEXFLAGS_LERP, 1, cpixels.data() );
+		g_FontTexture = GR_CreateTexture( width, height, TEXFMT_RGBA8, TEXFLAGS_LERP, 1, cpixels.data() );
 		io.Fonts->TexID = g_FontTexture.item;
 	}
 	

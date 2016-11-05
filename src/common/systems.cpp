@@ -491,11 +491,11 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 			
 			if( MID.m_lmap.width && MID.m_lmap.height )
 			{
-				TextureHandle lmtex = GR_CreateTexture( MID.m_lmap.width, MID.m_lmap.height, TEXFORMAT_RGBA8,
+				TextureHandle lmtex = GR_CreateTexture( MID.m_lmap.width, MID.m_lmap.height, TEXFMT_RGBA8,
 					TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1, MID.m_lmap.data.data() );
 				MI->SetMITexture( 0, lmtex );
 				
-				TextureHandle nmtex = GR_CreateTexture( MID.m_lmap.width, MID.m_lmap.height, TEXFORMAT_RGBA8,
+				TextureHandle nmtex = GR_CreateTexture( MID.m_lmap.width, MID.m_lmap.height, TEXFMT_RGBA8,
 					TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1, MID.m_lmap.nmdata.data() );
 				MI->SetMITexture( 1, nmtex );
 				
@@ -575,7 +575,7 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 		//	lh-> = L.spotcurve;
 			lh->cookieTexture = GR_GetTexture( "textures/cookies/default.png" );
 			if( L.num_shadow_samples > 0 && L.num_shadow_samples <= 2048 )
-				lh->shadowTexture = GR_CreateRenderTexture( L.num_shadow_samples, L.num_shadow_samples, RT_FORMAT_DEPTH );
+				lh->shadowTexture = GR_CreateRenderTexture( L.num_shadow_samples, L.num_shadow_samples, TEXFMT_RT_DEPTH_F32 );
 			lh->UpdateTransform();
 			m_lightInsts.push_back( lh );
 		}
@@ -670,8 +670,8 @@ void GFXSystem::OnDrawSceneWithRefl( SGRX_IRenderControl* ctrl, SGRX_RenderScene
 	}
 	
 	// RENDER REFLECTIONS
-	TextureHandle rttREFL = GR_GetRenderTarget( reflW, reflH, RT_FORMAT_COLOR_HDR16, RT_REFL );
-	DepthStencilSurfHandle dssREFL = GR_GetDepthStencilSurface( reflW, reflH, RT_FORMAT_COLOR_HDR16, RT_REFL );
+	TextureHandle rttREFL = GR_GetRenderTarget( reflW, reflH, TEXFMT_RT_COLOR_HDR16, RT_REFL );
+	DepthStencilSurfHandle dssREFL = GR_GetDepthStencilSurface( reflW, reflH, TEXFMT_RT_COLOR_HDR16, RT_REFL );
 	
 	GR_PreserveResource( rttREFL );
 	GR_PreserveResource( dssREFL );

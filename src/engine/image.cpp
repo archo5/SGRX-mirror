@@ -22,14 +22,14 @@ size_t TextureInfo_GetTextureSideSize( const TextureInfo* TI )
 	switch( TI->format )
 	{
 	/* bytes per pixel */
-	case TEXFORMAT_BGRA8:
-	case TEXFORMAT_BGRX8:
-	case TEXFORMAT_RGBA8: bpu = 4; break;
-	case TEXFORMAT_R5G6B5: bpu = 2; break;
+	case TEXFMT_BGRA8:
+	case TEXFMT_BGRX8:
+	case TEXFMT_RGBA8: bpu = 4; break;
+	case TEXFMT_R5G6B5: bpu = 2; break;
 	/* bytes per block */
-	case TEXFORMAT_DXT1: bpu = 8; break;
-	case TEXFORMAT_DXT3:
-	case TEXFORMAT_DXT5: bpu = 16; break;
+	case TEXFMT_DXT1: bpu = 8; break;
+	case TEXFMT_DXT3:
+	case TEXFMT_DXT5: bpu = 16; break;
 	}
 	if( TEXFORMAT_ISBLOCK4FORMAT( TI->format ) )
 	{
@@ -59,14 +59,14 @@ void TextureInfo_GetCopyDims( const TextureInfo* TI, size_t* outcopyrowsize,
 	switch( TI->format )
 	{
 	/* bytes per pixel */
-	case TEXFORMAT_BGRA8:
-	case TEXFORMAT_BGRX8:
-	case TEXFORMAT_RGBA8: bpu = 4; break;
-	case TEXFORMAT_R5G6B5: bpu = 2; break;
+	case TEXFMT_BGRA8:
+	case TEXFMT_BGRX8:
+	case TEXFMT_RGBA8: bpu = 4; break;
+	case TEXFMT_R5G6B5: bpu = 2; break;
 	/* bytes per block */
-	case TEXFORMAT_DXT1: bpu = 8; break;
-	case TEXFORMAT_DXT3:
-	case TEXFORMAT_DXT5: bpu = 16; break;
+	case TEXFMT_DXT1: bpu = 8; break;
+	case TEXFMT_DXT3:
+	case TEXFMT_DXT5: bpu = 16; break;
 	}
 	if( TEXFORMAT_ISBLOCK4FORMAT( TI->format ) )
 	{
@@ -167,13 +167,13 @@ static int ddsfmt_to_enginefmt( dds_u32 fmt )
 {
 	switch( fmt )
 	{
-	case DDS_FMT_R8G8B8A8: return TEXFORMAT_RGBA8;
-	case DDS_FMT_B8G8R8A8: return TEXFORMAT_BGRA8;
-	case DDS_FMT_B8G8R8X8: return TEXFORMAT_BGRX8;
-	case DDS_FMT_DXT1: return TEXFORMAT_DXT1;
-	case DDS_FMT_DXT3: return TEXFORMAT_DXT3;
-	case DDS_FMT_DXT5: return TEXFORMAT_DXT5;
-	default: return TEXFORMAT_UNKNOWN;
+	case DDS_FMT_R8G8B8A8: return TEXFMT_RGBA8;
+	case DDS_FMT_B8G8R8A8: return TEXFMT_BGRA8;
+	case DDS_FMT_B8G8R8X8: return TEXFMT_BGRX8;
+	case DDS_FMT_DXT1: return TEXFMT_DXT1;
+	case DDS_FMT_DXT3: return TEXFMT_DXT3;
+	case DDS_FMT_DXT5: return TEXFMT_DXT5;
+	default: return TEXFMT_UNKNOWN;
 	}
 }
 
@@ -442,7 +442,7 @@ bool TextureData_Load( TextureData* TD, IFileReader* fr, const StringView& filen
 		TD->info.width = w;
 		TD->info.height = h;
 		TD->info.depth = 1;
-		TD->info.format = TEXFORMAT_RGBA8;
+		TD->info.format = TEXFMT_RGBA8;
 		TD->info.flags = 0;
 		TD->info.mipcount = 1;
 		goto success_genmips;
@@ -455,7 +455,7 @@ bool TextureData_Load( TextureData* TD, IFileReader* fr, const StringView& filen
 		TD->info.width = w;
 		TD->info.height = h;
 		TD->info.depth = 1;
-		TD->info.format = TEXFORMAT_RGBA8;
+		TD->info.format = TEXFMT_RGBA8;
 		TD->info.flags = 0;
 		TD->info.mipcount = 1;
 		goto success_genmips;
@@ -465,7 +465,7 @@ bool TextureData_Load( TextureData* TD, IFileReader* fr, const StringView& filen
 	goto failure;
 	
 success_genmips:
-	if( TD->info.type == TEXTYPE_2D && ( TD->info.format == TEXFORMAT_RGBA8 || TD->info.format == TEXFORMAT_BGRA8 ) )
+	if( TD->info.type == TEXTYPE_2D && ( TD->info.format == TEXFMT_RGBA8 || TD->info.format == TEXFMT_BGRA8 ) )
 	{
 		LOG_FUNCTION_ARG( "GENERATE_MIPMAPS" );
 		

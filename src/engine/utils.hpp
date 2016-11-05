@@ -252,6 +252,7 @@ inline int getbin( char c ){ return c - '0'; }
 //
 
 
+#define IS_FLAG_SET( var, flag ) (((var)&(flag))==(flag))
 template< class T > FINLINE void TSET_FLAG( T& var, T flag, bool val )
 {
 	if( val )
@@ -1668,6 +1669,13 @@ struct Handle
 	FINLINE T* operator -> () const { return item; }
 	FINLINE T& operator * () const { return *item; }
 	FINLINE operator T* () const { return item; }
+	FINLINE T* Disown()
+	{
+		T* p = item;
+		item = NULL;
+		if( p ) p->_SetRefCount( p->GetRefCount() - 1 );
+		return p;
+	}
 	template< class S > void Serialize( S& arch )
 	{
 		if( S::IsReader && !item )
@@ -2395,6 +2403,7 @@ struct SGRX_RefCounted
 	FINLINE void Acquire(){ sgrx_atomic_inc( &m_refcount ); }
 	FINLINE void Release(){ if( sgrx_atomic_dec( &m_refcount ) <= 0 ) delete this; }
 	FINLINE int32_t GetRefCount() const { return m_refcount; }
+	FINLINE void _SetRefCount( int32_t rc ){ m_refcount = rc; }
 	
 private:
 	volatile int32_t m_refcount;
@@ -3786,14 +3795,16 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Log
 	ENGINE_EXPORT SGRX_Log& operator << ( ESpec_Date );
 	ENGINE_EXPORT SGRX_Log& operator << ( ESpec_CallStack );
 	ENGINE_EXPORT SGRX_Log& operator << ( bool );
-	ENGINE_EXPORT SGRX_Log& operator << ( int8_t );
-	ENGINE_EXPORT SGRX_Log& operator << ( uint8_t );
-	ENGINE_EXPORT SGRX_Log& operator << ( int16_t );
-	ENGINE_EXPORT SGRX_Log& operator << ( uint16_t );
-	ENGINE_EXPORT SGRX_Log& operator << ( int32_t );
-	ENGINE_EXPORT SGRX_Log& operator << ( uint32_t );
-	ENGINE_EXPORT SGRX_Log& operator << ( int64_t );
-	ENGINE_EXPORT SGRX_Log& operator << ( uint64_t );
+	ENGINE_EXPORT SGRX_Log& operator << ( signed char );
+	ENGINE_EXPORT SGRX_Log& operator << ( unsigned char );
+	ENGINE_EXPORT SGRX_Log& operator << ( signed short );
+	ENGINE_EXPORT SGRX_Log& operator << ( unsigned short );
+	ENGINE_EXPORT SGRX_Log& operator << ( signed int );
+	ENGINE_EXPORT SGRX_Log& operator << ( unsigned int );
+	ENGINE_EXPORT SGRX_Log& operator << ( signed long );
+	ENGINE_EXPORT SGRX_Log& operator << ( unsigned long );
+	ENGINE_EXPORT SGRX_Log& operator << ( signed long long );
+	ENGINE_EXPORT SGRX_Log& operator << ( unsigned long long );
 	ENGINE_EXPORT SGRX_Log& operator << ( float );
 	ENGINE_EXPORT SGRX_Log& operator << ( double );
 	ENGINE_EXPORT SGRX_Log& operator << ( const void* );

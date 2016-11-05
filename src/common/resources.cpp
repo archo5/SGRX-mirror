@@ -158,7 +158,7 @@ void LightResource::_UpdateShadows()
 	if( !need && m_light->shadowTexture )
 		m_light->shadowTexture = NULL;
 	else if( need && !m_light->shadowTexture )
-		m_light->shadowTexture = GR_CreateRenderTexture( 512, 512, RT_FORMAT_DEPTH );
+		m_light->shadowTexture = GR_CreateRenderTexture( 512, 512, TEXFMT_RT_DEPTH_F32 );
 }
 
 

@@ -571,21 +571,30 @@ struct ENGINE_EXPORT RenderStats
 #define TEXTYPE_CUBE   2 /* 6 sides, width x width */
 #define TEXTYPE_VOLUME 3 /* 1 side, width x height x depth */
 
-#define TEXFORMAT_UNKNOWN 0
-#define TEXFORMAT_RGBA8  1
-#define TEXFORMAT_BGRA8  2
-#define TEXFORMAT_BGRX8  3
-#define TEXFORMAT_R5G6B5 5
-#define TEXFORMAT_RGBA16F 7
-#define TEXFORMAT_DXT1   11
-#define TEXFORMAT_DXT3   13
-#define TEXFORMAT_DXT5   15
-#define TEXFORMAT_ISBLOCK4FORMAT( x ) ((x)==TEXFORMAT_DXT1||(x)==TEXFORMAT_DXT3||(x)==TEXFORMAT_DXT5)
+enum SGRX_TextureFormat
+{
+	TEXFF_BLOCKFMT = 0x2000,
+	TEXFF_RTFMT = 0x4000,
+	TEXFF_RTCOLFMT = TEXFF_RTFMT | 0x400,
+	TEXFF_RTDEPTHFMT = TEXFF_RTFMT | 0x800,
+	
+	TEXFMT_UNKNOWN = 0,
+	TEXFMT_RGBA8 = 1,
+	TEXFMT_BGRA8 = 2,
+	TEXFMT_BGRX8 = 3,
+	TEXFMT_R5G6B5 = 5,
+	
+	TEXFMT_DXT1 = TEXFF_BLOCKFMT | 1,
+	TEXFMT_DXT3 = TEXFF_BLOCKFMT | 3,
+	TEXFMT_DXT5 = TEXFF_BLOCKFMT | 5,
+	
+	TEXFMT_RT_COLOR_HDR16 = TEXFF_RTCOLFMT | 1,
+	TEXFMT_RT_COLOR_LDR8 = TEXFF_RTCOLFMT | 2,
+	TEXFMT_RT_DEPTH_F32 = TEXFF_RTDEPTHFMT | 1,
+	TEXFMT_RT_DEPTH_D24S8 = TEXFF_RTDEPTHFMT | 2,
+};
 
-#define RT_FORMAT_DEPTH       0x4000
-#define RT_FORMAT_COLOR_HDR16 0x4001 // 16bit unlimited color range
-#define RT_FORMAT_COLOR_LDR8  0x4002 // 8bit [0;1] color range
-#define RT_FORMAT_USE_MSAA    0x8000
+#define TEXFORMAT_ISBLOCK4FORMAT( f ) (((f)&TEXFF_BLOCKFMT)!=0)
 
 struct TextureInfo /* 12 bytes */
 {
@@ -594,7 +603,7 @@ struct TextureInfo /* 12 bytes */
 	uint16_t width;
 	uint16_t height;
 	uint16_t depth;
-	uint16_t format; /* TEXFORMAT / RT_FORMAT */
+	uint16_t format; /* SGRX_TextureFormat */
 	uint16_t flags; /* TEXFLAGS */
 };
 
@@ -2107,14 +2116,14 @@ ENGINE_EXPORT int GR_GetHeight();
 
 #define SGRX_MIPS_ALL -1
 ENGINE_EXPORT int GR_CalcMipCount( int width, int height = 0, int depth = 0 );
-ENGINE_EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, uint32_t flags, int mips, const void* data );
-ENGINE_EXPORT TextureHandle GR_CreateTexture3D( int width, int height, int depth, int format, uint32_t flags, int mips, const void* data );
+ENGINE_EXPORT TextureHandle GR_CreateTexture( int width, int height, SGRX_TextureFormat format, uint32_t flags, int mips, const void* data );
+ENGINE_EXPORT TextureHandle GR_CreateTexture3D( int width, int height, int depth, SGRX_TextureFormat format, uint32_t flags, int mips, const void* data );
 ENGINE_EXPORT TextureHandle GR_GetTexture( const StringView& path );
-ENGINE_EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, int format, int mips = 1 );
-ENGINE_EXPORT TextureHandle GR_CreateCubeRenderTexture( int width, int format, int mips = 1 );
-ENGINE_EXPORT TextureHandle GR_GetRenderTarget( int width, int height, int format, int extra );
-ENGINE_EXPORT DepthStencilSurfHandle GR_CreateDepthStencilSurface( int width, int height, int format );
-ENGINE_EXPORT DepthStencilSurfHandle GR_GetDepthStencilSurface( int width, int height, int format, int extra = 0 );
+ENGINE_EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, SGRX_TextureFormat format, int mips = 1 );
+ENGINE_EXPORT TextureHandle GR_CreateCubeRenderTexture( int width, SGRX_TextureFormat format, int mips = 1 );
+ENGINE_EXPORT TextureHandle GR_GetRenderTarget( int width, int height, SGRX_TextureFormat format, int extra );
+ENGINE_EXPORT DepthStencilSurfHandle GR_CreateDepthStencilSurface( int width, int height, SGRX_TextureFormat format );
+ENGINE_EXPORT DepthStencilSurfHandle GR_GetDepthStencilSurface( int width, int height, SGRX_TextureFormat format, int extra = 0 );
 ENGINE_EXPORT VertexShaderHandle GR_GetVertexShader( const StringView& path );
 ENGINE_EXPORT PixelShaderHandle GR_GetPixelShader( const StringView& path );
 ENGINE_EXPORT RenderStateHandle GR_GetRenderState( const SGRX_RenderState& state );

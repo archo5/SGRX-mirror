@@ -139,7 +139,7 @@ void IRenderer::RenderShadows( SGRX_Scene* scene, int pass_id )
 			continue;
 		
 		const TextureInfo& TI = L->shadowTexture.GetInfo();
-		DepthStencilSurfHandle dssh = GR_GetDepthStencilSurface( TI.width, TI.height, TI.format );
+		DepthStencilSurfHandle dssh = GR_GetDepthStencilSurface( TI.width, TI.height, (SGRX_TextureFormat) TI.format );
 		GR_PreserveResource( dssh );
 		
 		SGRX_RTClearInfo info = { SGRX_RT_ClearAll, 0, 0, 1 };

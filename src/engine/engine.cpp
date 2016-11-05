@@ -823,18 +823,18 @@ void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderSce
 	DepthStencilSurfHandle dssMAIN;
 	if( info.enablePostProcessing )
 	{
-		rttMAIN = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_MAIN );
-		rttDEPTH = GR_GetRenderTarget( W, H, RT_FORMAT_DEPTH, RT_DEPTH );
-		rttHPASS = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_HPASS );
-		rttDS1 = GR_GetRenderTarget( W2, H2, RT_FORMAT_COLOR_HDR16, RT_DS1 );
-		rttDS2 = GR_GetRenderTarget( W4, H4, RT_FORMAT_COLOR_HDR16, RT_DS2 );
-		rttHBLUR = GR_GetRenderTarget( W4, H4, RT_FORMAT_COLOR_HDR16, RT_HBLUR );
-		rttVBLUR = GR_GetRenderTarget( W4, H4, RT_FORMAT_COLOR_HDR16, RT_VBLUR );
-		rttDS3 = GR_GetRenderTarget( W8, H8, RT_FORMAT_COLOR_HDR16, RT_DS3 );
-		rttDS4 = GR_GetRenderTarget( W16, H16, RT_FORMAT_COLOR_HDR16, RT_DS4 );
-		rttHBLUR2 = GR_GetRenderTarget( W16, H16, RT_FORMAT_COLOR_HDR16, RT_HBLUR2 );
-		rttVBLUR2 = GR_GetRenderTarget( W16, H16, RT_FORMAT_COLOR_HDR16, RT_VBLUR2 );
-		dssMAIN = GR_GetDepthStencilSurface( W, H, RT_FORMAT_COLOR_HDR16, RT_MAIN );
+		rttMAIN = GR_GetRenderTarget( W, H, TEXFMT_RT_COLOR_HDR16, RT_MAIN );
+		rttDEPTH = GR_GetRenderTarget( W, H, TEXFMT_RT_DEPTH_F32, RT_DEPTH );
+		rttHPASS = GR_GetRenderTarget( W, H, TEXFMT_RT_COLOR_HDR16, RT_HPASS );
+		rttDS1 = GR_GetRenderTarget( W2, H2, TEXFMT_RT_COLOR_HDR16, RT_DS1 );
+		rttDS2 = GR_GetRenderTarget( W4, H4, TEXFMT_RT_COLOR_HDR16, RT_DS2 );
+		rttHBLUR = GR_GetRenderTarget( W4, H4, TEXFMT_RT_COLOR_HDR16, RT_HBLUR );
+		rttVBLUR = GR_GetRenderTarget( W4, H4, TEXFMT_RT_COLOR_HDR16, RT_VBLUR );
+		rttDS3 = GR_GetRenderTarget( W8, H8, TEXFMT_RT_COLOR_HDR16, RT_DS3 );
+		rttDS4 = GR_GetRenderTarget( W16, H16, TEXFMT_RT_COLOR_HDR16, RT_DS4 );
+		rttHBLUR2 = GR_GetRenderTarget( W16, H16, TEXFMT_RT_COLOR_HDR16, RT_HBLUR2 );
+		rttVBLUR2 = GR_GetRenderTarget( W16, H16, TEXFMT_RT_COLOR_HDR16, RT_VBLUR2 );
+		dssMAIN = GR_GetDepthStencilSurface( W, H, TEXFMT_RT_COLOR_HDR16, RT_MAIN );
 		
 		GR_PreserveResource( rttMAIN );
 		GR_PreserveResource( rttDEPTH );
@@ -1262,17 +1262,17 @@ TextureHandle IGame::OnCreateSysTexture( const StringView& key )
 	if( key == "sys:black2d" )
 	{
 		uint32_t data[1] = { 0xff000000 };
-		return GR_CreateTexture( 1, 1, TEXFORMAT_RGBA8, TEXFLAGS_LERP, 1, data );
+		return GR_CreateTexture( 1, 1, TEXFMT_RGBA8, TEXFLAGS_LERP, 1, data );
 	}
 	if( key == "sys:blackt2d" )
 	{
 		uint32_t data[1] = { 0x00000000 };
-		return GR_CreateTexture( 1, 1, TEXFORMAT_RGBA8, TEXFLAGS_LERP, 1, data );
+		return GR_CreateTexture( 1, 1, TEXFMT_RGBA8, TEXFLAGS_LERP, 1, data );
 	}
 	if( key == "sys:white2d" )
 	{
 		uint32_t data[1] = { 0xffffffff };
-		return GR_CreateTexture( 1, 1, TEXFORMAT_RGBA8, TEXFLAGS_LERP, 1, data );
+		return GR_CreateTexture( 1, 1, TEXFMT_RGBA8, TEXFLAGS_LERP, 1, data );
 	}
 	if( key == "sys:lut_default" )
 	{
@@ -1281,7 +1281,7 @@ TextureHandle IGame::OnCreateSysTexture( const StringView& key )
 			COLOR_RGB(0,0,0), COLOR_RGB(255,0,0), COLOR_RGB(0,255,0), COLOR_RGB(255,255,0),
 			COLOR_RGB(0,0,255), COLOR_RGB(255,0,255), COLOR_RGB(0,255,255), COLOR_RGB(255,255,255),
 		};
-		return GR_CreateTexture3D( 2, 2, 2, TEXFORMAT_RGBA8,
+		return GR_CreateTexture3D( 2, 2, 2, TEXFMT_RGBA8,
 			TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y | TEXFLAGS_CLAMP_Z, 1, data );
 	}
 	

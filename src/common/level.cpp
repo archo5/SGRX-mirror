@@ -1178,11 +1178,11 @@ bool GameLevel::Load( const StringView& levelname )
 				if( !LM.lmap.width || !LM.lmap.height )
 					continue;
 				
-				TextureHandle lmtex = GR_CreateTexture( LM.lmap.width, LM.lmap.height, TEXFORMAT_RGBA8,
+				TextureHandle lmtex = GR_CreateTexture( LM.lmap.width, LM.lmap.height, TEXFMT_RGBA8,
 					TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1, LM.lmap.data.data() );
 				MR->m_meshInst->SetMITexture( 0, lmtex );
 				
-				TextureHandle nmtex = GR_CreateTexture( LM.lmap.width, LM.lmap.height, TEXFORMAT_RGBA8,
+				TextureHandle nmtex = GR_CreateTexture( LM.lmap.width, LM.lmap.height, TEXFMT_RGBA8,
 					TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1, LM.lmap.nmdata.data() );
 				MR->m_meshInst->SetMITexture( 1, nmtex );
 			}
