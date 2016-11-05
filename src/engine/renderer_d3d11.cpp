@@ -203,26 +203,6 @@ struct RTInfo : SGRX_Log::Loggable< RTInfo >
 };
 
 
-static int create_rstate( ID3D11Device* device, D3D11_RASTERIZER_DESC* rdesc, ID3D11RasterizerState** out )
-{
-	return FAILED( D3DCALL( device->CreateRasterizerState( rdesc, out ) ) );
-}
-
-static int create_blendstate( ID3D11Device* device, D3D11_BLEND_DESC* rdesc, ID3D11BlendState** out )
-{
-	return FAILED( D3DCALL( device->CreateBlendState( rdesc, out ) ) );
-}
-
-static int create_dsstate( ID3D11Device* device, D3D11_DEPTH_STENCIL_DESC* dsdesc, ID3D11DepthStencilState** out )
-{
-	return FAILED( D3DCALL( device->CreateDepthStencilState( dsdesc, out ) ) );
-}
-
-static int create_sampstate( ID3D11Device* device, D3D11_SAMPLER_DESC* rdesc, ID3D11SamplerState** out )
-{
-	return FAILED( D3DCALL( device->CreateSamplerState( rdesc, out ) ) );
-}
-
 static int create_rtt( ID3D11Device* device, const RTInfo& rti, int msamples, bool ds, bool srs, ID3D11Texture2D** outtex )
 {
 	D3D11_TEXTURE2D_DESC dtd;
@@ -243,15 +223,47 @@ static int create_rtt( ID3D11Device* device, const RTInfo& rti, int msamples, bo
 	return FAILED( D3DCALL( device->CreateTexture2D( &dtd, NULL, outtex ) ) );
 }
 
-static int create_rtview( ID3D11Device* device, const RTInfo& rti, ID3D11Resource* tex, ID3D11RenderTargetView** outview )
+static int create_rtview( ID3D11Device* device, const RTInfo& rti, ID3D11Resource* tex, ID3D11RenderTargetView** outview, int mip = 0, int slice = 0 )
 {
-	return FAILED( D3DCALL( device->CreateRenderTargetView( tex, NULL, outview ) ) );
+	D3D11_RENDER_TARGET_VIEW_DESC desc = { rti.d3dfmt, D3D11_RTV_DIMENSION_UNKNOWN, 0 };
+	switch( rti.type )
+	{
+	case TEXTYPE_2D:
+		desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		desc.Texture2D.MipSlice = mip;
+		break;
+	case TEXTYPE_CUBE:
+		desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+		desc.Texture2DArray.MipSlice = mip;
+		desc.Texture2DArray.FirstArraySlice = slice;
+		desc.Texture2DArray.ArraySize = 1;
+		break;
+	case TEXTYPE_VOLUME:
+		desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE3D;
+		desc.Texture3D.MipSlice = mip;
+		desc.Texture3D.FirstWSlice = slice;
+		desc.Texture3D.WSize = 1;
+		break;
+	}
+	return FAILED( D3DCALL( device->CreateRenderTargetView( tex, &desc, outview ) ) );
 }
 
-static int create_dsview( ID3D11Device* device, const RTInfo& rti, ID3D11Resource* tex, ID3D11DepthStencilView** outview )
+static int create_dsview( ID3D11Device* device, const RTInfo& rti, ID3D11Resource* tex, ID3D11DepthStencilView** outview, int mip = 0, int slice = 0 )
 {
-	D3D11_DEPTH_STENCIL_VIEW_DESC desc = { rti.d3dfmt, D3D11_DSV_DIMENSION_TEXTURE2D, 0 };
-	desc.Texture2D.MipSlice = 0;
+	D3D11_DEPTH_STENCIL_VIEW_DESC desc = { rti.d3dfmt, D3D11_DSV_DIMENSION_UNKNOWN, 0 };
+	switch( rti.type )
+	{
+	case TEXTYPE_2D:
+		desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+		desc.Texture2D.MipSlice = mip;
+		break;
+	case TEXTYPE_CUBE:
+		desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
+		desc.Texture2DArray.MipSlice = mip;
+		desc.Texture2DArray.FirstArraySlice = slice;
+		desc.Texture2DArray.ArraySize = 1;
+		break;
+	}
 	return FAILED( D3DCALL( device->CreateDepthStencilView( tex, &desc, outview ) ) );
 }
 
@@ -368,13 +380,7 @@ static BackupVertexData g_initial_backup_vertex_data = {0};
 
 struct D3D11Texture : SGRX_ITexture
 {
-	union
-	{
-		ID3D11Texture2D* tex2d;
-		ID3D11Texture3D* tex3d;
-		ID3D11Resource* res;
-	}
-	m_ptr;
+	ID3D11Resource* m_texture;
 	ID3D11SamplerState* m_sampState;
 	ID3D11ShaderResourceView* m_rsrcView;
 	struct D3D11Renderer* m_renderer;
@@ -385,13 +391,15 @@ struct D3D11Texture : SGRX_ITexture
 	}
 	virtual ~D3D11Texture();
 	
+	ID3D11Texture2D*& _Texture2D(){ return *(ID3D11Texture2D**)&m_texture; }
+	ID3D11Texture3D*& _Texture3D(){ return *(ID3D11Texture3D**)&m_texture; }
+	
 	bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h );
 	bool UploadRGBA8Part3D( void* data, int mip, int x, int y, int z, int w, int h, int d );
 };
 
 struct D3D11RenderTexture : D3D11Texture
 {
-	// texture = m_ptr.tex2d
 	ID3D11RenderTargetView* CRV; /* color RT view */
 	ID3D11DepthStencilView* DSV; /* depth/stencil view */
 	
@@ -757,7 +765,7 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 		D3D11_TEXTURE_ADDRESS_WRAP,
 		0, 1, D3D11_COMPARISON_NEVER, {0,0,0,0}, 0, D3D11_FLOAT32_MAX
 	};
-	if( create_sampstate( device, &sdesc, &R->m_sampState ) )
+	if( FAILED( D3DCALL( device->CreateSamplerState( &sdesc, &R->m_sampState ) ) ) )
 		return NULL;
 	// depth sampler state
 	D3D11_SAMPLER_DESC sdesc2 =
@@ -768,7 +776,7 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 		D3D11_TEXTURE_ADDRESS_WRAP,
 		0, 1, D3D11_COMPARISON_LESS, {0,0,0,0}, 0, D3D11_FLOAT32_MAX
 	};
-	if( create_sampstate( device, &sdesc2, &R->m_depthSampState ) )
+	if( FAILED( D3DCALL( device->CreateSamplerState( &sdesc2, &R->m_depthSampState ) ) ) )
 		return NULL;
 	
 	// default vertex data
@@ -999,7 +1007,7 @@ D3D11Texture::~D3D11Texture()
 	m_renderer->m_ownTextures.unset( this );
 	SAFE_RELEASE( m_rsrcView );
 	SAFE_RELEASE( m_sampState );
-	SAFE_RELEASE( m_ptr.res );
+	SAFE_RELEASE( m_texture );
 }
 
 bool D3D11Texture::UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h )
@@ -1024,7 +1032,7 @@ bool D3D11Texture::UploadRGBA8Part( void* data, int mip, int x, int y, int w, in
 		D3D11_MAPPED_SUBRESOURCE msr;
 		
 		bool whole = x == 0 && y == 0 && w == m_info.width && h == m_info.height;
-		HRESULT hr = m_renderer->m_ctx->Map( m_ptr.res, mip, whole ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE, 0, &msr );
+		HRESULT hr = m_renderer->m_ctx->Map( m_texture, mip, whole ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE, 0, &msr );
 		if( FAILED( hr ) )
 		{
 			LOG_ERROR << "failed to map D3D11 texture";
@@ -1038,12 +1046,12 @@ bool D3D11Texture::UploadRGBA8Part( void* data, int mip, int x, int y, int w, in
 			memcpy( dst, ((uint32_t*)data) + w * j, w * 4 );
 		}
 		
-		m_renderer->m_ctx->Unmap( m_ptr.res, mip );
+		m_renderer->m_ctx->Unmap( m_texture, mip );
 	}
 	else
 	{
 		D3D11_BOX box = { x, y, 0, x + w, y + h, 1 };
-		m_renderer->m_ctx->UpdateSubresource( m_ptr.res, mip, &box, data, w * 4, 0 );
+		m_renderer->m_ctx->UpdateSubresource( m_texture, mip, &box, data, w * 4, 0 );
 	}
 	
 	return true;
@@ -1071,7 +1079,7 @@ bool D3D11Texture::UploadRGBA8Part3D( void* data, int mip, int x, int y, int z, 
 		D3D11_MAPPED_SUBRESOURCE msr;
 		
 		bool whole = x == 0 && y == 0 && z == 0 && w == m_info.width && h == m_info.height && d == m_info.depth;
-		HRESULT hr = m_renderer->m_ctx->Map( m_ptr.res, mip, whole ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE, 0, &msr );
+		HRESULT hr = m_renderer->m_ctx->Map( m_texture, mip, whole ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE, 0, &msr );
 		if( FAILED( hr ) )
 		{
 			LOG_ERROR << "failed to map D3D11 texture";
@@ -1088,12 +1096,12 @@ bool D3D11Texture::UploadRGBA8Part3D( void* data, int mip, int x, int y, int z, 
 			}
 		}
 		
-		m_renderer->m_ctx->Unmap( m_ptr.res, mip );
+		m_renderer->m_ctx->Unmap( m_texture, mip );
 	}
 	else
 	{
 		D3D11_BOX box = { x, y, z, x + w, y + h, z + d };
-		m_renderer->m_ctx->UpdateSubresource( m_ptr.res, mip, &box, data, w * 4, w * h * 4 );
+		m_renderer->m_ctx->UpdateSubresource( m_texture, mip, &box, data, w * 4, w * h * 4 );
 	}
 	
 	return true;
@@ -1192,7 +1200,7 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, const void* d
 			texinfo->flags & TEXFLAGS_CLAMP_Z ? D3D11_TEXTURE_ADDRESS_CLAMP : D3D11_TEXTURE_ADDRESS_WRAP,
 			0, 16, D3D11_COMPARISON_NEVER, {0,0,0,0}, 0, D3D11_FLOAT32_MAX
 		};
-		if( create_sampstate( m_dev, &sdesc, &samp ) )
+		if( FAILED( D3DCALL( m_dev->CreateSamplerState( &sdesc, &samp ) ) ) )
 		{
 			SAFE_RELEASE( tex2d );
 			SAFE_RELEASE( srv );
@@ -1202,7 +1210,7 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, const void* d
 		D3D11Texture* T = new D3D11Texture;
 		T->m_renderer = this;
 		T->m_info = *texinfo;
-		T->m_ptr.tex2d = tex2d;
+		T->_Texture2D() = tex2d;
 		T->m_sampState = samp;
 		T->m_rsrcView = srv;
 		m_ownTextures.set( T, true );
@@ -1278,7 +1286,7 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, const void* d
 			texinfo->flags & TEXFLAGS_CLAMP_Z ? D3D11_TEXTURE_ADDRESS_CLAMP : D3D11_TEXTURE_ADDRESS_WRAP,
 			0, 16, D3D11_COMPARISON_NEVER, {0,0,0,0}, 0, D3D11_FLOAT32_MAX
 		};
-		if( create_sampstate( m_dev, &sdesc, &samp ) )
+		if( FAILED( D3DCALL( m_dev->CreateSamplerState( &sdesc, &samp ) ) ) )
 		{
 			SAFE_RELEASE( tex3d );
 			SAFE_RELEASE( srv );
@@ -1288,7 +1296,7 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, const void* d
 		D3D11Texture* T = new D3D11Texture;
 		T->m_renderer = this;
 		T->m_info = *texinfo;
-		T->m_ptr.tex3d = tex3d;
+		T->_Texture3D() = tex3d;
 		T->m_sampState = samp;
 		T->m_rsrcView = srv;
 		m_ownTextures.set( T, true );
@@ -1319,16 +1327,16 @@ SGRX_ITexture* D3D11Renderer::CreateRenderTexture( TextureInfo* texinfo )
 	{
 		LOG_FUNCTION_ARG( "DEPTH_RT" );
 		
-		if( create_rtt( m_dev, rti, 0, true, true, &RT->m_ptr.tex2d ) ||
-			create_dsview( m_dev, rti, RT->m_ptr.tex2d, &RT->DSV ) )
+		if( create_rtt( m_dev, rti, 0, true, true, &RT->_Texture2D() ) ||
+			create_dsview( m_dev, rti, RT->_Texture2D(), &RT->DSV ) )
 			return NULL;
 	}
 	else
 	{
 		LOG_FUNCTION_ARG( "COLOR_RT" );
 		
-		if( create_rtt( m_dev, rti, 0, false, true, &RT->m_ptr.tex2d ) ||
-			create_rtview( m_dev, rti, RT->m_ptr.tex2d, &RT->CRV ) )
+		if( create_rtt( m_dev, rti, 0, false, true, &RT->_Texture2D() ) ||
+			create_rtview( m_dev, rti, RT->_Texture2D(), &RT->CRV ) )
 			return NULL;
 	}
 	
@@ -1341,7 +1349,7 @@ SGRX_ITexture* D3D11Renderer::CreateRenderTexture( TextureInfo* texinfo )
 		};
 		desc.Texture2D.MostDetailedMip = 0;
 		desc.Texture2D.MipLevels = -1;
-		if( FAILED( D3DCALL( m_dev->CreateShaderResourceView( RT->m_ptr.tex2d, &desc, &RT->m_rsrcView ) ) ) )
+		if( FAILED( D3DCALL( m_dev->CreateShaderResourceView( RT->_Texture2D(), &desc, &RT->m_rsrcView ) ) ) )
 			return NULL;
 	}
 	
@@ -1351,7 +1359,7 @@ SGRX_ITexture* D3D11Renderer::CreateRenderTexture( TextureInfo* texinfo )
 		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
 		0, 1, D3D11_COMPARISON_NEVER, {0,0,0,0}, 0, D3D11_FLOAT32_MAX
 	};
-	if( create_sampstate( m_dev, &sdesc, &RT->m_sampState ) )
+	if( FAILED( D3DCALL( m_dev->CreateSamplerState( &sdesc, &RT->m_sampState ) ) ) )
 	{
 		return NULL;
 	}
@@ -1610,7 +1618,7 @@ void D3D11RenderState::SetState( const SGRX_RenderState& state )
 		state.multisampleEnable,
 		TRUE
 	};
-	if( create_rstate( m_renderer->m_dev, &rdesc, &m_RS ) )
+	if( FAILED( D3DCALL( m_renderer->m_dev->CreateRasterizerState( &rdesc, &m_RS ) ) ) )
 	{
 		// error, use default or something
 	}
@@ -1629,7 +1637,7 @@ void D3D11RenderState::SetState( const SGRX_RenderState& state )
 		};
 		bdesc.RenderTarget[ i ] = tbdesc;
 	}
-	if( create_blendstate( m_renderer->m_dev, &bdesc, &m_BS ) )
+	if( FAILED( D3DCALL( m_renderer->m_dev->CreateBlendState( &bdesc, &m_BS ) ) ) )
 	{
 		// error, use default or something
 	}
@@ -1655,8 +1663,9 @@ void D3D11RenderState::SetState( const SGRX_RenderState& state )
 			compFuncs[ state.stencilBackFunc ],
 		},
 	};
-	if( create_dsstate( m_renderer->m_dev, &dsdesc, &m_DS ) )
+	if( FAILED( D3DCALL( m_renderer->m_dev->CreateDepthStencilState( &dsdesc, &m_DS ) ) ) )
 	{
+		// error, use default or something
 	}
 }
 
