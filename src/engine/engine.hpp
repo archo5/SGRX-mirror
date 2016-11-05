@@ -605,6 +605,24 @@ struct TextureInfo /* 12 bytes */
 	uint16_t depth;
 	uint16_t format; /* SGRX_TextureFormat */
 	uint16_t flags; /* TEXFLAGS */
+	
+	void Log( SGRX_Log& to ) const
+	{
+		to << "type=";
+		switch( type )
+		{
+		case TEXTYPE_2D: to << "2D"; break;
+		case TEXTYPE_CUBE: to << "CUBE"; break;
+		case TEXTYPE_VOLUME: to << "VOLUME"; break;
+		default: to << "UNKNOWN(" << type << ")"; break;
+		}
+		to << ", mips=" << mipcount;
+		to << ", width=" << width;
+		to << ", height=" << height;
+		to << ", depth=" << depth;
+		to << ", format=" << format;
+		to << ", flags=" << flags;
+	}
 };
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_ITexture : SGRX_RCRsrc

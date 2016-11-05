@@ -2825,10 +2825,10 @@ SGRX_Log& SGRX_Log::operator << ( signed short v ){ if( out ){ prelog(); writef(
 SGRX_Log& SGRX_Log::operator << ( unsigned short v ){ if( out ){ prelog(); writef( "%u", (unsigned) v ); } return *this; }
 SGRX_Log& SGRX_Log::operator << ( signed int v ){ if( out ){ prelog(); writef( "%d", (int) v ); } return *this; }
 SGRX_Log& SGRX_Log::operator << ( unsigned int v ){ if( out ){ prelog(); writef( "%u", (unsigned) v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( signed long v ){ if( out ){ prelog(); writef( "%lld", v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( unsigned long v ){ if( out ){ prelog(); writef( "%llu", v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( signed long long v ){ if( out ){ prelog(); writef( "%" PRId64, v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( unsigned long long v ){ if( out ){ prelog(); writef( "%" PRIu64, v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( signed long v ){ if( out ){ prelog(); writef( "%d", v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( unsigned long v ){ if( out ){ prelog(); writef( "%u", v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( signed long long v ){ if( out ){ prelog(); writef( "%lld", v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( unsigned long long v ){ if( out ){ prelog(); writef( "%llu", v ); } return *this; }
 SGRX_Log& SGRX_Log::operator << ( float v ){ return *this << (double) v; }
 SGRX_Log& SGRX_Log::operator << ( double v ){ if( out ){ prelog(); writef( "%g", v ); } return *this; }
 SGRX_Log& SGRX_Log::operator << ( const void* v ){ if( out ){ prelog(); writef( "[%p]", v ); } return *this; }

@@ -127,9 +127,11 @@ static HRESULT _D3DCall( HRESULT result, const char* call, int line )
 {
 	if( FAILED( result ) )
 	{
-		LOG_ERROR << "D3D11 call failed: " << call
-			<< "\nresult: " << result
-			<< "\nfile: " << __FILE__
+		SGRX_Log log = LOG_ERROR;
+		log << "D3D11 call failed: " << call
+			<< "\nresult: ";
+		log.writef( "0x%08X", result );
+		log << "\nfile: " << __FILE__
 			<< "\nline: " << line;
 	}
 	return result;
@@ -139,6 +141,8 @@ static HRESULT _D3DCall( HRESULT result, const char* call, int line )
 
 struct RTInfo : SGRX_Log::Loggable< RTInfo >
 {
+	RTInfo() : type(0), width(0), height(0), depth(0), format(0),
+		d3dfmt( DXGI_FORMAT_UNKNOWN ){}
 	RTInfo( TextureInfo* ti )
 	{
 		type = ti->type;
@@ -197,31 +201,49 @@ struct RTInfo : SGRX_Log::Loggable< RTInfo >
 	{
 		return d3dfmt == DXGI_FORMAT_D32_FLOAT ? DXGI_FORMAT_R32_TYPELESS : d3dfmt;
 	}
+	DXGI_FORMAT GetSRVFormat() const
+	{
+		return d3dfmt == DXGI_FORMAT_D32_FLOAT ? DXGI_FORMAT_R32_FLOAT : d3dfmt;
+	}
 	
 	int type, width, height, depth, format;
 	DXGI_FORMAT d3dfmt;
 };
 
 
-static int create_rtt( ID3D11Device* device, const RTInfo& rti, int msamples, bool ds, bool srs, ID3D11Texture2D** outtex )
+static int create_rtt_( ID3D11Device* device, const RTInfo& rti, int msamples, bool ds, bool srs, ID3D11Resource** outtex )
 {
-	D3D11_TEXTURE2D_DESC dtd;
-	memset( &dtd, 0, sizeof(dtd) );
-	
-	dtd.Width = rti.width;
-	dtd.Height = rti.height;
-	dtd.MipLevels = 1;
-	dtd.ArraySize = 1;
-	dtd.Format = rti.GetTextureFormat();
-	dtd.SampleDesc.Count = msamples > 1 ? TMAX( 1, TMIN( 16, msamples ) ) : 1;
-	dtd.SampleDesc.Quality = msamples > 1 ? 1 : 0;
-	dtd.Usage = D3D11_USAGE_DEFAULT;
-	dtd.BindFlags = ds ? D3D11_BIND_DEPTH_STENCIL : D3D11_BIND_RENDER_TARGET;
-	if( srs )
-		dtd.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
-	
-	return FAILED( D3DCALL( device->CreateTexture2D( &dtd, NULL, outtex ) ) );
+	switch( rti.type )
+	{
+	case TEXTYPE_2D:
+	case TEXTYPE_CUBE: {
+		bool isCube = rti.type == TEXTYPE_CUBE;
+		D3D11_TEXTURE2D_DESC dtd;
+		memset( &dtd, 0, sizeof(dtd) );
+		
+		dtd.Width = rti.width;
+		dtd.Height = isCube ? rti.width : rti.height;
+		dtd.MipLevels = 1;
+		dtd.ArraySize = isCube ? 6 : 1;
+		dtd.Format = rti.GetTextureFormat();
+		dtd.SampleDesc.Count = msamples > 1 ? TMAX( 1, TMIN( 16, msamples ) ) : 1;
+		dtd.SampleDesc.Quality = msamples > 1 ? 1 : 0;
+		dtd.Usage = D3D11_USAGE_DEFAULT;
+		dtd.BindFlags = ds ? D3D11_BIND_DEPTH_STENCIL : D3D11_BIND_RENDER_TARGET;
+		if( srs )
+			dtd.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
+		if( isCube )
+			dtd.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
+		
+		return FAILED( D3DCALL( device->CreateTexture2D( &dtd, NULL, (ID3D11Texture2D**) outtex ) ) );
+	} break;
+	default:
+		LOG_ERROR << "create_rtt - bad texture type: " << rti.type;
+		return 1;
+	}
 }
+#define create_rtt( dev, rti, ms, ds, srs, outtex ) \
+	create_rtt_( dev, rti, ms, ds, srs, (ID3D11Resource**) (outtex) )
 
 static int create_rtview( ID3D11Device* device, const RTInfo& rti, ID3D11Resource* tex, ID3D11RenderTargetView** outview, int mip = 0, int slice = 0 )
 {
@@ -244,6 +266,9 @@ static int create_rtview( ID3D11Device* device, const RTInfo& rti, ID3D11Resourc
 		desc.Texture3D.FirstWSlice = slice;
 		desc.Texture3D.WSize = 1;
 		break;
+	default:
+		LOG_ERROR << "create_rtview - bad texture type: " << rti.type;
+		return 1;
 	}
 	return FAILED( D3DCALL( device->CreateRenderTargetView( tex, &desc, outview ) ) );
 }
@@ -263,8 +288,46 @@ static int create_dsview( ID3D11Device* device, const RTInfo& rti, ID3D11Resourc
 		desc.Texture2DArray.FirstArraySlice = slice;
 		desc.Texture2DArray.ArraySize = 1;
 		break;
+	default:
+		LOG_ERROR << "create_rtview - bad texture type: " << rti.type;
+		return 1;
 	}
 	return FAILED( D3DCALL( device->CreateDepthStencilView( tex, &desc, outview ) ) );
+}
+
+static int create_srview( ID3D11Device* device,
+	ID3D11Resource* tex,
+	int type,
+	DXGI_FORMAT format,
+	ID3D11ShaderResourceView** outview )
+{
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvd = { format };
+	switch( type )
+	{
+	case TEXTYPE_2D:
+		srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		srvd.Texture2D.MostDetailedMip = 0;
+		srvd.Texture2D.MipLevels = -1;
+		break;
+	case TEXTYPE_CUBE:
+		srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+		srvd.TextureCube.MostDetailedMip = 0;
+		srvd.TextureCube.MipLevels = -1;
+		break;
+	case TEXTYPE_VOLUME:
+		srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
+		srvd.Texture3D.MostDetailedMip = 0;
+		srvd.Texture3D.MipLevels = -1;
+		break;
+	}
+	if( FAILED( D3DCALL( device->CreateShaderResourceView( tex, &srvd, outview ) ) ) )
+	{
+		LOG_ERROR << "could not create D3D11 shader resource view for texture"
+			<< " (type=" << type
+			<< ", format=" << format << ")";
+		return 1;
+	}
+	return 0;
 }
 
 static int upload_buf( ID3D11DeviceContext* ctx, ID3D11Buffer* buf,
@@ -400,15 +463,27 @@ struct D3D11Texture : SGRX_ITexture
 
 struct D3D11RenderTexture : D3D11Texture
 {
-	ID3D11RenderTargetView* CRV; /* color RT view */
-	ID3D11DepthStencilView* DSV; /* depth/stencil view */
+	/* cached views */
+	int RTVmip;
+	int RTVside;
+	ID3D11RenderTargetView* RTView;
+	int DSVmip;
+	int DSVside;
+	ID3D11DepthStencilView* DSView;
+	RTInfo m_rtinfo;
 	
-	D3D11RenderTexture() : D3D11Texture(true), CRV(NULL), DSV(NULL){}
+	D3D11RenderTexture() : D3D11Texture(true),
+		RTVmip(-1), RTVside(-1), RTView(NULL),
+		DSVmip(-1), DSVside(-1), DSView(NULL){}
 	virtual ~D3D11RenderTexture()
 	{
-		SAFE_RELEASE( CRV );
-		SAFE_RELEASE( DSV );
+		SAFE_RELEASE( RTView );
+		SAFE_RELEASE( DSView );
 	}
+	
+	bool IsDepthRT(){ return IS_FLAG_SET( m_info.format, TEXFF_RTDEPTHFMT ); }
+	ID3D11RenderTargetView* GetRTV( int side, int mip );
+	ID3D11DepthStencilView* GetDSV( int side, int mip );
 };
 
 struct D3D11DepthStencilSurface : SGRX_IDepthStencilSurface
@@ -936,9 +1011,10 @@ void D3D11Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthS
 				w = rt->m_info.width;
 				h = rt->m_info.height;
 				SGRX_CAST( D3D11RenderTexture*, RT, rt );
-				rtv[ i ] = RT->CRV;
-				if( RT->DSV )
-					dsv = RT->DSV;
+				if( RT->IsDepthRT() )
+					dsv = RT->GetDSV( 0, 0 );
+				else
+					rtv[ i ] = RT->GetRTV( 0, 0 );
 			}
 		}
 		if( info.flags & SGRX_RT_ClearColor )
@@ -1164,29 +1240,8 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, const void* d
 			return NULL;
 		}
 		
-		D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
-		memset( &srvd, 0, sizeof(srvd) );
-		srvd.Format = dtd.Format;
-		if( texinfo->type == TEXTYPE_CUBE )
+		if( create_srview( m_dev, tex2d, texinfo->type, dtd.Format, &srv ) )
 		{
-			srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-			srvd.TextureCube.MostDetailedMip = 0;
-			srvd.TextureCube.MipLevels = -1;
-		}
-		else
-		{
-			srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-			srvd.Texture2D.MostDetailedMip = 0;
-			srvd.Texture2D.MipLevels = -1;
-		}
-		
-		if( FAILED( D3DCALL( m_dev->CreateShaderResourceView( tex2d, &srvd, &srv ) ) ) )
-		{
-			LOG_ERROR << "could not create D3D11 shader resource view for texture (type: "
-				<< ( texinfo->type == TEXTYPE_CUBE ? "CUBE" : "2D" )
-				<< ", w: " << texinfo->width << ", h: " << texinfo->height
-				<< ", mips: " << texinfo->mipcount << ", fmt: " << texinfo->format
-				<< ", d3dfmt: " << texfmt2d3d( texinfo->format );
 			SAFE_RELEASE( tex2d );
 			return NULL;
 		}
@@ -1260,19 +1315,8 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, const void* d
 			return NULL;
 		}
 		
-		D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
-		memset( &srvd, 0, sizeof(srvd) );
-		srvd.Format = dtd.Format;
-		srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
-		srvd.Texture3D.MostDetailedMip = 0;
-		srvd.Texture3D.MipLevels = -1;
-		
-		if( FAILED( D3DCALL( m_dev->CreateShaderResourceView( tex3d, &srvd, &srv ) ) ) )
+		if( create_srview( m_dev, tex3d, texinfo->type, dtd.Format, &srv ) )
 		{
-			LOG_ERROR << "could not create D3D11 shader resource view for texture (type: 3D"
-				<< ", w: " << texinfo->width << ", h: " << texinfo->height
-				<< ", mips: " << texinfo->mipcount << ", fmt: " << texinfo->format
-				<< ", d3dfmt: " << texfmt2d3d( texinfo->format );
 			SAFE_RELEASE( tex3d );
 			return NULL;
 		}
@@ -1308,6 +1352,44 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, const void* d
 }
 
 
+ID3D11RenderTargetView* D3D11RenderTexture::GetRTV( int side, int mip )
+{
+	if( m_info.type == TEXTYPE_CUBE )
+		ASSERT( side >= 0 && side < 6 );
+	else
+		ASSERT( side == 0 ); // TODO VOLUME?
+	ASSERT( mip >= 0 && mip < m_info.mipcount );
+	
+	if( side != RTVside || mip != RTVmip )
+	{
+		SAFE_RELEASE( RTView );
+		if( create_rtview( m_renderer->m_dev, m_rtinfo, m_texture, &RTView, mip, side ) )
+			return NULL;
+		RTVside = side;
+		RTVmip = mip;
+	}
+	return RTView;
+}
+
+ID3D11DepthStencilView* D3D11RenderTexture::GetDSV( int side, int mip )
+{
+	if( m_info.type == TEXTYPE_CUBE )
+		ASSERT( side >= 0 && side < 6 );
+	else
+		ASSERT( side == 0 );
+	ASSERT( mip >= 0 && mip < m_info.mipcount );
+	
+	if( side != DSVside || mip != DSVmip )
+	{
+		SAFE_RELEASE( DSView );
+		if( create_dsview( m_renderer->m_dev, m_rtinfo, m_texture, &DSView, mip, side ) )
+			return NULL;
+		DSVside = side;
+		DSVmip = mip;
+	}
+	return DSView;
+}
+
 SGRX_ITexture* D3D11Renderer::CreateRenderTexture( TextureInfo* texinfo )
 {
 	LOG_FUNCTION;
@@ -1327,30 +1409,21 @@ SGRX_ITexture* D3D11Renderer::CreateRenderTexture( TextureInfo* texinfo )
 	{
 		LOG_FUNCTION_ARG( "DEPTH_RT" );
 		
-		if( create_rtt( m_dev, rti, 0, true, true, &RT->_Texture2D() ) ||
-			create_dsview( m_dev, rti, RT->_Texture2D(), &RT->DSV ) )
+		if( create_rtt( m_dev, rti, 0, true, true, &RT->m_texture ) )
 			return NULL;
 	}
 	else
 	{
 		LOG_FUNCTION_ARG( "COLOR_RT" );
 		
-		if( create_rtt( m_dev, rti, 0, false, true, &RT->_Texture2D() ) ||
-			create_rtview( m_dev, rti, RT->_Texture2D(), &RT->CRV ) )
+		if( create_rtt( m_dev, rti, 0, false, true, &RT->m_texture ) )
 			return NULL;
 	}
 	
 	// shader resource view
+	if( create_srview( m_dev, RT->m_texture, rti.type, rti.GetSRVFormat(), &RT->m_rsrcView ) )
 	{
-		D3D11_SHADER_RESOURCE_VIEW_DESC desc =
-		{
-			rti.d3dfmt == DXGI_FORMAT_D32_FLOAT ? DXGI_FORMAT_R32_FLOAT : rti.d3dfmt,
-			D3D11_SRV_DIMENSION_TEXTURE2D
-		};
-		desc.Texture2D.MostDetailedMip = 0;
-		desc.Texture2D.MipLevels = -1;
-		if( FAILED( D3DCALL( m_dev->CreateShaderResourceView( RT->_Texture2D(), &desc, &RT->m_rsrcView ) ) ) )
-			return NULL;
+		return NULL;
 	}
 	
 	// sampler state
@@ -1366,6 +1439,7 @@ SGRX_ITexture* D3D11Renderer::CreateRenderTexture( TextureInfo* texinfo )
 	
 	RT->m_renderer = this;
 	RT->m_info = *texinfo;
+	RT->m_rtinfo = rti;
 	m_ownTextures.set( RT, true );
 	return RT.Disown();
 }
