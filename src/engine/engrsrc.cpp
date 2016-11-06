@@ -1966,6 +1966,7 @@ SGRX_Scene::SGRX_Scene() :
 	debugDrawFlags( 0 ),
 	director( GR_GetDefaultRenderDirector() ),
 	cullScene( NULL ),
+	frontCCW( false ),
 	fogColor( Vec3::Create( 0.5 ) ),
 	fogHeightFactor( 0 ),
 	fogDensity( 0.01f ),
@@ -2051,36 +2052,152 @@ LightHandle SGRX_Scene::CreateLight()
 	return lt;
 }
 
-TextureHandle SGRX_Scene::CreateCubemap( int size, Vec3 pos )
+
+struct CubemapRenderer
 {
-	TextureHandle out = GR_CreateCubeRenderTexture( size, TEXFMT_RT_COLOR_HDR16, 0);// SGRX_MIPS_ALL );
-	if( !out )
-		return NULL;
+	CubemapRenderer()
+	{
+		GR_GetCubemapVectors( fwd, up );
+		m_vertexDecl = GR_GetVertexDecl( "pf3" );
+		m_vertexShader = GR_GetVertexShader( "sys_cubemap_render" );
+		m_pixelShader = GR_GetPixelShader( "sys_cubemap_render" );
+		m_vtxInputMap = GR_GetVertexInputMapping( m_vertexShader, m_vertexDecl );
+		
+		SGRX_RenderState rsdesc;
+		rsdesc.Init();
+		rsdesc.depthEnable = false;
+		rsdesc.multisampleEnable = false;
+		rsdesc.cullMode = SGRX_RS_CullMode_None;
+		m_renderStateCopy = GR_GetRenderState( rsdesc );
+		rsdesc.blendStates[0].blendEnable = true;
+		rsdesc.blendStates[0].srcBlend = SGRX_RS_Blend_One;
+		rsdesc.blendStates[0].dstBlend = SGRX_RS_Blend_One;
+		m_renderStateAdd = GR_GetRenderState( rsdesc );
+	}
+	void Transfer( TextureHandle target, int tgtMip, TextureHandle source )
+	{
+		Mat4 viewMtx = GR2D_GetBatchRenderer().viewMatrix;
+		SGRX_RTClearInfo clearInfo = { SGRX_RT_ClearColor, 0, COLOR_RGB(200,50,200), 0 };
+		for( int side = 0; side < 6; ++side )
+		{
+			static_cast<SGRX_IRenderControl*>(g_Renderer)->SetRenderTargets(
+				NULL, clearInfo, SGRX_RTSpec( target, side, tgtMip ) );
+			
+			int width = target.GetInfo().width / int(pow( 2, tgtMip ));
+			GR2D_SetViewport( 0, 0, width, width );
+			GR2D_SetViewMatrix(
+				Mat4::CreateLookAt( V3(0), fwd[ side ], up[ side ] ) *
+				Mat4::CreateScale( -1, 1, 1 ) *
+				Mat4::CreatePerspective( 90, 1, 0, 0.01f, 100.0f ) );
+			_DrawCubemapSide( side, false, source );
+		}
+		GR2D_SetViewMatrix( viewMtx );
+		GR2D_UnsetViewport();
+	}
+	void _DrawCubemapSide( int side, bool additive, TextureHandle source )
+	{
+		Vec3 ydir = -up[ side ];
+		Vec3 zdir = fwd[ side ];
+		Vec3 xdir = Vec3Cross( ydir, zdir ).Normalized();
+		
+		Vec3 cubemapVerts[4] =
+		{
+			zdir - xdir - ydir,
+			zdir + xdir - ydir,
+			zdir - xdir + ydir,
+			zdir + xdir + ydir,
+		};
+		
+		SGRX_ImmDrawData immdd =
+		{
+			cubemapVerts, SGRX_ARRAY_SIZE(cubemapVerts),
+			PT_TriangleStrip,
+			m_vertexDecl,
+			m_vtxInputMap,
+			m_vertexShader,
+			m_pixelShader,
+			additive ? m_renderStateAdd : m_renderStateCopy,
+			NULL, 0, // shader data
+		};
+		immdd.textures[ 0 ] = source;
+		g_Renderer->DrawImmediate( immdd );
+	}
+	void _DrawCubemap( bool additive, TextureHandle source )
+	{
+		for( int side = 0; side < 6; ++side )
+			_DrawCubemapSide( side, additive, source );
+	}
 	
 	Vec3 fwd[6], up[6];
-	GR_GetCubemapVectors( fwd, up );
+	
+	VertexDeclHandle m_vertexDecl;
+	VertexShaderHandle m_vertexShader;
+	PixelShaderHandle m_pixelShader;
+	VtxInputMapHandle m_vtxInputMap;
+	RenderStateHandle m_renderStateCopy;
+	RenderStateHandle m_renderStateAdd;
+};
+
+TextureHandle SGRX_Scene::CreateCubemap( int size, Vec3 pos )
+{
+	TextureHandle cubemap = GR_CreateCubeRenderTexture( size, TEXFMT_RT_COLOR_HDR16, SGRX_MIPS_ALL );
+	
+	CubemapRenderer cmr;
+	
+	// render scene to cubemap
+	TextureHandle lod0map = GR_CreateCubeRenderTexture( size, TEXFMT_RT_COLOR_HDR16, 1 );
 	SGRX_Camera bkCam = camera;
+	frontCCW = !frontCCW;
 	for( int i = 0; i < 6; ++i )
 	{
 		camera.position = pos;
-		camera.direction = fwd[ i ];
-		camera.updir = up[ i ];
+		camera.direction = cmr.fwd[ i ];
+		camera.updir = cmr.up[ i ];
 		camera.angle = 90;
 		camera.aspect = 1;
 		camera.aamix = 0;
 		camera.znear = 0.01f;
 		camera.zfar = 10000.0f;
 		camera.UpdateMatrices();
-	//	camera.mProj = Mat4::CreateScale(-1,-1,1) * camera.mProj;
+		camera.mProj = Mat4::CreateScale(-1,1,1) * camera.mProj;
 		
-		SGRX_RenderScene rs( V4(0), this, false, SGRX_RTSpec( out, i ) );
+		// render side into lod0
+		SGRX_RenderScene rs( V4(0), this, false, SGRX_RTSpec( lod0map, i ) );
 		GR_RenderScene( rs );
 	}
+	frontCCW = !frontCCW;
 	camera = bkCam;
 	
-//	out->RenderMips();
-	return out;
+	// render lod0 into output cubemap
+	cmr.Transfer( cubemap, 0, lod0map );
+	
+	// convolve the cubemap
+	TextureHandle prevLODMap = lod0map;
+	int miplevels = GR_CalcMipCount( size );
+	for( int mip = 1; mip < miplevels; ++mip )
+	{
+		int lodSize = size / int(pow( 2, mip ));
+		TextureHandle curLODMap = GR_CreateCubeRenderTexture( lodSize, TEXFMT_RT_COLOR_HDR16, 1 );
+		TextureHandle curAccMap = GR_CreateCubeRenderTexture( lodSize, TEXFMT_RT_COLOR_HDR16, 1 );
+		
+		for( int i = 0; i < 6; ++i )
+		{
+			// render cubemap with different offsets into accumulator
+			cmr.Transfer( curAccMap, 0, prevLODMap );
+			
+			// resolve accumulator into current LOD
+			cmr.Transfer( curLODMap, 0, curAccMap );
+		}
+		
+		// render lodN into output cubemap
+		cmr.Transfer( cubemap, mip, curLODMap );
+		
+		prevLODMap = curLODMap;
+	}
+	
+	return cubemap;
 }
+
 
 void SGRX_Scene::OnUpdate()
 {

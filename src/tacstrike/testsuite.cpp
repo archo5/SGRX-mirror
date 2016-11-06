@@ -578,20 +578,39 @@ struct Test_Projectors : ITest
 g_TestProjectors;
 
 
-struct Lighting2 : SGRX_LightSampler
+struct PosLightSampler : SGRX_LightSampler
 {
+	int x, y;
 	void SampleLight( const Vec3& pos, Vec3 outcolors[6] )
 	{
-		outcolors[0] = V3(1,0,0) * 0.2f;
-		outcolors[1] = V3(1,1,0) * 0.2f;
-		outcolors[2] = V3(0,1,0) * 0.2f;
-		outcolors[3] = V3(0,0,1) * 0.2f;
-		outcolors[4] = V3(0.5f,0.6f,0.5f) * 0.2f;
-		outcolors[5] = V3(0.7f,0.8f,0.7f) * 0.2f;
+		for( int i = 0; i < 6; ++i )
+			outcolors[i] = V3(x*0.5f+0.5f,y*0.5f+0.5f,1) * 0.2f;
 	}
-}
-g_Lighting2;
+};
 
+void GetCubemapVectors( Vec3 outfwd[6], Vec3 outup[6] )
+{
+	// order: +X, -X, +Y, -Y, +Z, -Z
+	outfwd[0] = V3(+1,0,0); outup[0] = V3(0,1,0);
+	outfwd[1] = V3(-1,0,0); outup[1] = V3(0,1,0);
+	outfwd[2] = V3(0,+1,0); outup[2] = V3(0,0,-1);
+	outfwd[3] = V3(0,-1,0); outup[3] = V3(0,0,1);
+	outfwd[4] = V3(0,0,+1); outup[4] = V3(0,1,0);
+	outfwd[5] = V3(0,0,-1); outup[5] = V3(0,1,0);
+	
+	// fix-up for shader conventions
+//	for( int i = 0; i < 6; ++i )
+//	{
+//		TSWAP( outfwd[ i ].y, outfwd[ i ].z );
+//		TSWAP( outup[ i ].y, outup[ i ].z );
+//	}
+	
+//	for(int i = 0; i < 6;++i)
+//	{
+//		if( i == 4) continue;
+//		outup[i] = outfwd[ i ];
+//	}
+}
 struct Test_SceneCubemap : ITest
 {
 	virtual StringView GetName() const { return "Scene cubemap test"; }
@@ -608,31 +627,46 @@ struct Test_SceneCubemap : ITest
 		m_scene->camera.angle = 90;
 		m_scene->camera.UpdateMatrices();
 		
-		MeshHandle mesh = GR_GetMesh( "sys:plane" );
 		MeshInstHandle mih = m_scene->CreateMeshInstance();
-		mih->SetMesh( mesh );
+		mih->SetMesh( GR_GetMesh( "sys:plane" ) );
 		mih->matrix = Mat4::CreateScale( 10, 10, 1 );
 		mih->SetLightingMode( SGRX_LM_Dynamic );
 		g_Lighting1.LightMesh( mih );
 		m_meshes.push_back( mih );
 		
-		for( int y = -1; y <= 1; ++y )
+		for( int z = -1; z <= 1; ++z )
 		{
-			for( int x = -1; x <= 1; ++x )
+			for( int y = -1; y <= 1; ++y )
 			{
-				if( x == 0 && y == 0 )
-					continue;
-				
-				mesh = GR_GetMesh( "meshes/chars/tstest.ssm" );
-				mih = m_scene->CreateMeshInstance();
-				mih->SetMesh( mesh );
-				mih->matrix =
-					Mat4::CreateScale( V3(3) ) *
-					Mat4::CreateRotationZ( DEG2RAD( 115.0f ) ) *
-					Mat4::CreateTranslation( V3(x,y,0) * 5 );
-				mih->SetLightingMode( SGRX_LM_Dynamic );
-				g_Lighting2.LightMesh( mih );
-				m_meshes.push_back( mih );
+				for( int x = -1; x <= 1; ++x )
+				{
+					if( x == 0 && y == 0 && z == 0 )
+						continue;
+					
+					PosLightSampler pls;
+					pls.x = x;
+					pls.y = y;
+					
+					mih = m_scene->CreateMeshInstance();
+					if( z == 0 )
+					{
+						mih->SetMesh( GR_GetMesh( "meshes/chars/tstest.ssm" ) );
+						mih->matrix =
+							Mat4::CreateScale( V3(3) ) *
+							Mat4::CreateRotationZ( DEG2RAD( 115.0f ) ) *
+							Mat4::CreateTranslation( V3(x,y,0) * 5 );
+					}
+					else
+					{
+						mih->SetMesh( GR_GetMesh( "sys:sphere" ) );
+						mih->matrix =
+							Mat4::CreateScale( V3(0.1f) ) *
+							Mat4::CreateTranslation( V3(x*1,y*1,z+1) );
+					}
+					mih->SetLightingMode( SGRX_LM_Dynamic );
+					pls.LightMesh( mih );
+					m_meshes.push_back( mih );
+				}
 			}
 		}
 		
@@ -646,7 +680,7 @@ struct Test_SceneCubemap : ITest
 		mtl.shader = "bumpspecglossm";
 		mtl.textures[0] = GR_GetTexture( "sys:black2d" );
 		mtl.textures[1] = GR_GetTexture( "sys:normal2d" );
-		mtl.textures[2] = GR_GetTexture( "sys:white2d" );
+		mtl.textures[2] = GR_GetTexture( "textures/specglossgrid.png" );// "sys:white2d" );
 		mih->OnUpdate();
 		mih->SetMITexture( 2, m_cubemap );
 		g_Lighting1.LightMesh( mih );
@@ -666,7 +700,10 @@ struct Test_SceneCubemap : ITest
 		Vec3 dir = V3( cosf( m_time ) * 2, sinf( m_time ) * 2, 1 );
 		m_scene->camera.position = tgt + dir;
 		m_scene->camera.direction = -dir;
+		m_scene->camera.znear = 0.1f;
 		m_scene->camera.UpdateMatrices();
+		
+	//	m_scene->CreateCubemap( 128, V3( 0, 0, 1 ) );
 		
 		SGRX_RenderScene rs( V4(0), m_scene );
 		GR_RenderScene( rs );

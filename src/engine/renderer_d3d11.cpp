@@ -141,7 +141,7 @@ static HRESULT _D3DCall( HRESULT result, const char* call, int line )
 
 struct RTInfo : SGRX_Log::Loggable< RTInfo >
 {
-	RTInfo() : type(0), width(0), height(0), depth(0), format(0),
+	RTInfo() : type(0), width(0), height(0), depth(0), format(0), mipcount(1),
 		d3dfmt( DXGI_FORMAT_UNKNOWN ){}
 	RTInfo( TextureInfo* ti )
 	{
@@ -150,6 +150,7 @@ struct RTInfo : SGRX_Log::Loggable< RTInfo >
 		height = ti->height;
 		depth = ti->depth;
 		format = ti->format;
+		mipcount = ti->mipcount;
 		
 		switch( format )
 		{
@@ -170,7 +171,7 @@ struct RTInfo : SGRX_Log::Loggable< RTInfo >
 	RTInfo( int width, int height, DXGI_FORMAT d3dfmt )
 		: type( TEXTYPE_2D ),
 		width( width ), height( height ), depth( 0 ),
-		format( 0 ), d3dfmt( d3dfmt )
+		format( 0 ), mipcount( 1 ), d3dfmt( d3dfmt )
 	{
 	}
 	bool IsFormatGood() const
@@ -183,7 +184,8 @@ struct RTInfo : SGRX_Log::Loggable< RTInfo >
 	{
 		log << "type=" << ( type == TEXTYPE_VOLUME ? "volume" : ( type == TEXTYPE_CUBE ? "cube" : "2D" ) )
 			<< ", format=" << format
-			<< ", d3dfmt=" << d3dfmt;
+			<< ", d3dfmt=" << d3dfmt
+			<< ", mipcount=" << mipcount;
 		switch( type )
 		{
 		case TEXTYPE_2D:
@@ -206,7 +208,7 @@ struct RTInfo : SGRX_Log::Loggable< RTInfo >
 		return d3dfmt == DXGI_FORMAT_D32_FLOAT ? DXGI_FORMAT_R32_FLOAT : d3dfmt;
 	}
 	
-	int type, width, height, depth, format;
+	int type, width, height, depth, format, mipcount;
 	DXGI_FORMAT d3dfmt;
 };
 
@@ -223,7 +225,7 @@ static int create_rtt_( ID3D11Device* device, const RTInfo& rti, int msamples, b
 		
 		dtd.Width = rti.width;
 		dtd.Height = isCube ? rti.width : rti.height;
-		dtd.MipLevels = 1;
+		dtd.MipLevels = rti.mipcount;
 		dtd.ArraySize = isCube ? 6 : 1;
 		dtd.Format = rti.GetTextureFormat();
 		dtd.SampleDesc.Count = msamples > 1 ? TMAX( 1, TMIN( 16, msamples ) ) : 1;
@@ -530,14 +532,17 @@ struct D3D11PixelShader : SGRX_IPixelShader
 struct D3D11RenderState : SGRX_IRenderState
 {
 	ID3D11RasterizerState* m_RS;
+	ID3D11RasterizerState* m_RS_FCCW; // + front counterclockwise
 	ID3D11BlendState* m_BS;
 	ID3D11DepthStencilState* m_DS;
 	struct D3D11Renderer* m_renderer;
 	
-	D3D11RenderState( struct D3D11Renderer* r ) : m_RS( NULL ), m_BS( NULL ), m_DS( NULL ), m_renderer( r ){}
+	D3D11RenderState( struct D3D11Renderer* r ) : m_RS( NULL ),
+		m_RS_FCCW( NULL ), m_BS( NULL ), m_DS( NULL ), m_renderer( r ){}
 	~D3D11RenderState()
 	{
 		SAFE_RELEASE( m_RS );
+		SAFE_RELEASE( m_RS_FCCW );
 		SAFE_RELEASE( m_BS );
 		SAFE_RELEASE( m_DS );
 	}
@@ -645,7 +650,7 @@ struct D3D11Renderer : IRenderer
 	bool ResetDevice();
 	void SetVertexShader( const SGRX_IVertexShader* shd );
 	void SetPixelShader( const SGRX_IPixelShader* shd );
-	void SetRenderState( const SGRX_IRenderState* rsi );
+	void SetRenderState( const SGRX_IRenderState* rsi, bool fccw );
 	
 //	FINLINE int GetWidth() const { return m_params.BackBufferWidth; }
 //	FINLINE int GetHeight() const { return m_params.BackBufferHeight; }
@@ -1681,6 +1686,7 @@ void D3D11RenderState::SetState( const SGRX_RenderState& state )
 	};
 	
 	SAFE_RELEASE( m_RS );
+	SAFE_RELEASE( m_RS_FCCW );
 	SAFE_RELEASE( m_BS );
 	SAFE_RELEASE( m_DS );
 	
@@ -1699,12 +1705,17 @@ void D3D11RenderState::SetState( const SGRX_RenderState& state )
 	{
 		// error, use default or something
 	}
+	rdesc.FrontCounterClockwise = TRUE;
+	if( FAILED( D3DCALL( m_renderer->m_dev->CreateRasterizerState( &rdesc, &m_RS_FCCW ) ) ) )
+	{
+		// error, use default or something
+	}
 	
 	// batch vertex blending states
 	D3D11_BLEND_DESC bdesc = { FALSE, state.separateBlend };
 	for( int i = 0; i < SGRX_RS_MAX_RENDER_TARGETS; ++i )
 	{
-		const SGRX_RenderState::BlendState& bs = state.blendStates[ i ];
+		const SGRX_RenderState::BlendState& bs = state.blendStates[ state.separateBlend ? i : 0 ];
 		D3D11_RENDER_TARGET_BLEND_DESC tbdesc =
 		{
 			bs.blendEnable,
@@ -2114,7 +2125,7 @@ void D3D11Renderer::DrawImmediate( SGRX_ImmDrawData& idd )
 	
 	SetVertexShader( idd.vertexShader );
 	SetPixelShader( idd.pixelShader );
-	SetRenderState( idd.renderState );
+	SetRenderState( idd.renderState, false );
 	
 	m_vertbuf_batchverts.Upload( m_dev, m_ctx, idd.vertices, idd.vertexDecl->m_info.size * idd.vertexCount );
 	if( idd.shdata && idd.shvcount )
@@ -2204,7 +2215,7 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat
 			RI++;
 			continue;
 		}
-		SetRenderState( SRS.RS );
+		SetRenderState( SRS.RS, scene->frontCCW );
 		SetVertexShader( SRS.VS );
 		SetPixelShader( SRS.PS );
 		SGRX_CAST( D3D11VertexInputMapping*, VIM, SRS.VIM.item );
@@ -2319,12 +2330,12 @@ void D3D11Renderer::SetPixelShader( const SGRX_IPixelShader* shd )
 	m_ctx->PSSetShader( S ? S->m_PS : NULL, NULL, 0 );
 }
 
-void D3D11Renderer::SetRenderState( const SGRX_IRenderState* rsi )
+void D3D11Renderer::SetRenderState( const SGRX_IRenderState* rsi, bool fccw )
 {
 	ASSERT( rsi );
 	SGRX_CAST( const D3D11RenderState*, RS, rsi );
 	
-	m_ctx->RSSetState( RS->m_RS );
+	m_ctx->RSSetState( fccw ? RS->m_RS_FCCW : RS->m_RS );
 	m_ctx->OMSetBlendState( RS->m_BS, &RS->m_info.blendFactor.x, 0xffffffff );
 	m_ctx->OMSetDepthStencilState( RS->m_DS, RS->m_info.stencilRef );
 }

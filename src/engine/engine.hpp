@@ -1652,6 +1652,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 	struct SGRX_RenderDirector* director;
 	SGRX_CullScene* cullScene;
 	SGRX_Camera camera;
+	bool frontCCW;
 	
 	Vec3 fogColor;
 	float fogHeightFactor;

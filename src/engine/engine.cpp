@@ -2045,23 +2045,10 @@ void GR_GetCubemapVectors( Vec3 outfwd[6], Vec3 outup[6] )
 	// order: +X, -X, +Y, -Y, +Z, -Z
 	outfwd[0] = V3(+1,0,0); outup[0] = V3(0,1,0);
 	outfwd[1] = V3(-1,0,0); outup[1] = V3(0,1,0);
-	outfwd[2] = V3(0,+1,0); outup[2] = V3(0,0,1);
-	outfwd[3] = V3(0,-1,0); outup[3] = V3(0,0,-1);
+	outfwd[2] = V3(0,+1,0); outup[2] = V3(0,0,-1);
+	outfwd[3] = V3(0,-1,0); outup[3] = V3(0,0,1);
 	outfwd[4] = V3(0,0,+1); outup[4] = V3(0,1,0);
 	outfwd[5] = V3(0,0,-1); outup[5] = V3(0,1,0);
-	
-	// fix-up for shader conventions
-//	for( int i = 0; i < 6; ++i )
-//	{
-//		TSWAP( outfwd[ i ].y, outfwd[ i ].z );
-//		TSWAP( outup[ i ].y, outup[ i ].z );
-//	}
-	
-//	for(int i = 0; i < 6;++i)
-//	{
-//		if( i == 4) continue;
-//		outup[i] = outfwd[ i ];
-//	}
 }
 
 

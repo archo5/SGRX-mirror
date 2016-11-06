@@ -1,0 +1,32 @@
+#include "__eq"
+
+#if VS
+
+float4x4 mWorld : register(c0);
+float4x4 mViewProj : register(c4);
+
+void main
+(
+	float3 ipos : POSITION0,
+	out float3 odir : TEXCOORD0,
+	out float4 opos : SV_POSITION
+)
+{
+	opos = mul( mViewProj, mul( mWorld, float4( ipos, 1 ) ) );
+	odir = ipos;
+}
+
+
+#elif PS
+
+NEEDS_TEXTURE_CUBE(0);
+
+void main( float3 idir : TEXCOORD0
+	ARG_OUT_RT0 )
+{
+	RT0 = TEXSAMPLE_CUBE_LOD( Tex0, idir, 0 );
+}
+
+
+#endif // VS/PS
+

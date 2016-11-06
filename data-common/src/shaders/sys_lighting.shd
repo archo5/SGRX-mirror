@@ -303,7 +303,7 @@ __CODE__
 #endif // defined(VCOL)
 	totalDiffuse *= LIGHT_MULTIPLIER;
 	totalDiffuse += /* gAmbLightColor + */ outAmbientDiffuseLight;
-	totalSpecular += outAmbientSpecularLight + TEXSAMPLE_CUBE_LOD( InstTex2, refWorld.xzy, 0 ).rgb;
+	totalSpecular += outAmbientSpecularLight + TEXSAMPLE_CUBE_BIAS( InstTex2, refWorld, log(outSpecularPower)*2+1 ).rgb;
 	totalSpecular += TEXSAMPLE_2D( InstTex3, projPos.xy / projPos.w * float2(-0.5,-0.5) + 0.5 );
 	
 	/* DIRECTIONAL LIGHT *--disabled--/
