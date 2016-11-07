@@ -1480,16 +1480,11 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat,
 		D3D9VertexDecl* VD = (D3D9VertexDecl*) M->m_vertexDecl.item;
 		SGRX_DrawItem* DI = &MI->m_drawItems[ part_id ];
 		const SGRX_Material& MTL = MI->GetMaterial( part_id );
+		const SGRX_XShdInst::Pass& XPS = DI->XSH->passes[ pass_id ];
 		
-		SGRX_SRSData& SRS = MI->GetSRSData( pass_id, part_id );
-		if( SRS.RS == NULL || SRS.VS == NULL || SRS.PS == NULL )
-		{
-			RI++;
-			continue;
-		}
-		SetRenderState( SRS.RS );
-		SetVertexShader( SRS.VS );
-		SetPixelShader( SRS.PS );
+		SetRenderState( XPS.renderState );
+		SetVertexShader( XPS.vertexShader );
+		SetPixelShader( XPS.pixelShader );
 		
 		// instance state
 		for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )

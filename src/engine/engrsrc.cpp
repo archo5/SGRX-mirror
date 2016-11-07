@@ -1673,15 +1673,39 @@ XShdInstHandle GR_CreateXShdInstance( const SGRX_XShaderDef& def )
 	return h;
 }
 
-XShdInstHandle GR_CreateXShdInstance( StringView shader )
+XShdInstHandle GR_CreateXShdInstance( const SGRX_MeshInstance* MI, const SGRX_Material& mtl )
 {
-	String mtlname = String_Concat( "mtl:", shader );
-	XShdInstHandle h = new SGRX_XShdInst;
-	for( int i = 0; i < XSHD_PASS_COUNT; ++i )
+	static const SGRX_RenderPass passes[] =
 	{
-		h->passes[ i ].vertexShader = GR_GetVertexShader( mtlname );
-		h->passes[ i ].pixelShader = GR_GetPixelShader( mtlname );
+		{ true, false, 0, 0, "sys_lighting" }, // shadow pass
+		{ false, true, 16, 0, "sys_lighting" }, // base + 16 point lights
+		{ false, false, 16, 0, "sys_lighting" }, // 16 point lights
+		{ false, false, 0, 2, "sys_lighting" }, // 2 spotlights
+	};
+	
+	XShdInstHandle h = new SGRX_XShdInst;
+	
+	for( int i = 0; i < (int) SGRX_ARRAY_SIZE( passes ); ++i )
+	{
+		SGRX_XShdInst::Pass pass;
+		pass.order = i * 1000 + 1500;
+		
+		// load render state
+		SGRX_RenderState rs;
+		rs.Init();
+		g_Game->OnMakeRenderState( passes[ i ], mtl, rs );
+		pass.renderState = GR_GetRenderState( rs );
+		
+		// load shaders
+		g_Game->OnLoadMtlShaders( passes[ i ], "", mtl, MI,
+			pass.vertexShader, pass.pixelShader );
+		
+		pass.vtxInputMap = GR_GetVertexInputMapping(
+			pass.vertexShader, MI->GetMesh()->m_vertexDecl );
+		
+		h->passes.push_back( pass );
 	}
+	
 	return h;
 }
 
@@ -1734,31 +1758,11 @@ void SGRX_MeshInstance::_Precache()
 			else
 				type = SGRX_TY_Solid;
 			m_drawItems[ i ].MI = this;
+			m_drawItems[ i ].XSH = GR_CreateXShdInstance( this, materials[ i ] );
 			m_drawItems[ i ].part = i;
 			m_drawItems[ i ].type = type;
 			m_drawItems[ i ]._lightbuf_begin = NULL;
 			m_drawItems[ i ]._lightbuf_end = NULL;
-		}
-		
-		m_srsData.resize( dicnt * _scene->m_passes.size() );
-		for( size_t diid = 0; diid < dicnt; ++diid )
-		{
-			for( size_t pid = 0; pid < _scene->m_passes.size(); ++pid )
-			{
-				SGRX_SRSData& srs = GetSRSData( pid, diid );
-				
-				// load render state
-				SGRX_RenderState rs;
-				rs.Init();
-				g_Game->OnMakeRenderState( _scene->m_passes[ pid ], materials[ diid ], rs );
-				srs.RS = GR_GetRenderState( rs );
-				
-				// load shaders
-				g_Game->OnLoadMtlShaders( _scene->m_passes[ pid ], _scene->m_defines, materials[ diid ], this, srs.VS, srs.PS );
-				
-				// create/load vertex input mapping
-				srs.VIM = GR_GetVertexInputMapping( srs.VS, m_mesh->m_vertexDecl );
-			}
 		}
 		
 		m_invalid = false;

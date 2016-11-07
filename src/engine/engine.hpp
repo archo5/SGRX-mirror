@@ -1114,17 +1114,16 @@ struct SGRX_XShaderDef
 	bool _XSD_LoadProps( HashTable< StringView, SV2SVMap >& allprops, Array< StringView >& defines, StringView text );
 };
 
-enum SGRX_XShd_PassType
+enum SGRX_XShd_PassOrderNumber
 {
-	XSP_Shadow,
-	XSP_Base,
-	XSP_PointLight,
-	XSP_SpotLight,
-	XSP_BaseNoDiff,
-	XSP_PointLightNoDiff,
-	XSP_SpotLightNoDiff,
-	XSP_Unlit,
-	XSHD_PASS_COUNT,
+	XSP_Shadow = 1000,
+	XSP_Base = 2000,
+	XSP_PointLight = 3000,
+	XSP_SpotLight = 4000,
+//	XSP_BaseNoDiff = 5000,
+//	XSP_PointLightNoDiff = 6000,
+//	XSP_SpotLightNoDiff = 7000,
+//	XSP_Unlit = 8000,
 };
 struct IF_GCC(ENGINE_EXPORT) SGRX_XShdInst : SGRX_RCRsrc
 {
@@ -1134,15 +1133,17 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_XShdInst : SGRX_RCRsrc
 		VertexShaderHandle vertexShader;
 		PixelShaderHandle pixelShader;
 		int16_t order;
-		bool enabled;
+		
+		// post-init extension
+		VtxInputMapHandle vtxInputMap;
 	};
 	
-	Pass passes[ XSHD_PASS_COUNT ];
+	Array< Pass > passes;
 };
 typedef Handle< SGRX_XShdInst > XShdInstHandle;
 
 XShdInstHandle GR_CreateXShdInstance( const SGRX_XShaderDef& def );
-XShdInstHandle GR_CreateXShdInstance( StringView shader );
+XShdInstHandle GR_CreateXShdInstance( const SGRX_MeshInstance* MI, const SGRX_Material& mtl );
 
 
 
@@ -1402,8 +1403,9 @@ struct SGRX_DrawItem
 	ENGINE_EXPORT SGRX_DrawItem();
 	
 	SGRX_MeshInstance* MI;
+	XShdInstHandle XSH;
 	uint16_t part;
-	uint8_t type;
+	uint8_t type; // SGRX_TY_*
 	
 	/* frame cache */
 	SGRX_DrawItemLight* _lightbuf_begin;
@@ -1418,14 +1420,6 @@ enum SGRX_LightingMode
 	SGRX_LM_Decal = 3, // lighting from vertex data
 };
 
-
-struct SGRX_SRSData
-{
-	VertexShaderHandle VS;
-	PixelShaderHandle PS;
-	RenderStateHandle RS;
-	VtxInputMapHandle VIM;
-};
 
 struct SGRX_MeshInstance : SGRX_RCXFItem
 {
@@ -1473,10 +1467,6 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 		OnUpdate();
 	}
 	FINLINE SGRX_LightingMode GetLightingMode() const { return m_lightingMode; }
-	FINLINE SGRX_SRSData& GetSRSData( uint8_t pass, size_t part )
-	{
-		return m_srsData[ m_drawItems.size() * pass + part ];
-	}
 	FINLINE uint16_t GetMaterialCount() const { return (uint16_t) materials.size(); }
 	FINLINE void SetMaterialCount( uint16_t n ){ materials.resize( n ); OnUpdate(); }
 	FINLINE SGRX_Material& GetMaterial( uint16_t i ){ return materials[ i ]; }
@@ -1500,7 +1490,6 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 	
 	bool m_invalid;
 	Array< SGRX_DrawItem > m_drawItems; // =*pass
-	Array< SGRX_SRSData > m_srsData; // =*part*pass
 };
 
 struct MeshInstHandle : Handle< SGRX_MeshInstance >
@@ -2116,7 +2105,7 @@ struct IF_GCC(ENGINE_EXPORT) IGame : SGRX_RefCounted
 	
 	ENGINE_EXPORT virtual void OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material& mtl, SGRX_RenderState& out );
 	ENGINE_EXPORT virtual void OnLoadMtlShaders( const SGRX_RenderPass& pass, const StringView& defines, const SGRX_Material& mtl,
-		SGRX_MeshInstance* MI, VertexShaderHandle& VS, PixelShaderHandle& PS );
+		const SGRX_MeshInstance* MI, VertexShaderHandle& VS, PixelShaderHandle& PS );
 	ENGINE_EXPORT virtual TextureHandle OnCreateSysTexture( const StringView& key );
 	ENGINE_EXPORT virtual HFileReader OnLoadTexture( const StringView& key, uint32_t& outusageflags, uint8_t& outlod );
 	ENGINE_EXPORT virtual void GetShaderCacheFilename( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, String& name );

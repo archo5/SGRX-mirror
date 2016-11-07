@@ -2208,17 +2208,12 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat
 	//	D3D11VertexDecl* VD = (D3D11VertexDecl*) M->m_vertexDecl.item;
 		SGRX_DrawItem* DI = &MI->m_drawItems[ part_id ];
 		const SGRX_Material& MTL = MI->GetMaterial( part_id );
+		const SGRX_XShdInst::Pass& XPS = DI->XSH->passes[ pass_id ];
 		
-		SGRX_SRSData& SRS = MI->GetSRSData( pass_id, part_id );
-		if( SRS.RS == NULL || SRS.VS == NULL || SRS.PS == NULL || SRS.VIM == NULL )
-		{
-			RI++;
-			continue;
-		}
-		SetRenderState( SRS.RS, scene->frontCCW );
-		SetVertexShader( SRS.VS );
-		SetPixelShader( SRS.PS );
-		SGRX_CAST( D3D11VertexInputMapping*, VIM, SRS.VIM.item );
+		SetRenderState( XPS.renderState, scene->frontCCW );
+		SetVertexShader( XPS.vertexShader );
+		SetPixelShader( XPS.pixelShader );
+		SGRX_CAST( D3D11VertexInputMapping*, VIM, XPS.vtxInputMap.item );
 		m_ctx->IASetInputLayout( VIM->m_inputLayout );
 		
 		// instance state

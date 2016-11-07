@@ -1201,7 +1201,7 @@ void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material&
 
 void IGame::OnLoadMtlShaders( const SGRX_RenderPass& pass,
 	const StringView& defines, const SGRX_Material& mtl,
-	SGRX_MeshInstance* MI, VertexShaderHandle& VS, PixelShaderHandle& PS )
+	const SGRX_MeshInstance* MI, VertexShaderHandle& VS, PixelShaderHandle& PS )
 {
 	if( pass.isBasePass == false && pass.isShadowPass == false &&
 		( ( mtl.flags & SGRX_MtlFlag_Unlit ) != 0 || MI->GetLightingMode() == SGRX_LM_Unlit ) )
