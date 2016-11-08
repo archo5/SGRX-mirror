@@ -1579,22 +1579,16 @@ struct IF_GCC(ENGINE_EXPORT) SceneRaycastCallback_Sorting : SceneRaycastCallback
 	Array< SceneRaycastInfo >* m_sortarea;
 };
 
-struct SGRX_RenderPass
+// pass type IDs
+enum SGRX_PassType
 {
-	bool isShadowPass;
-	bool isBasePass;
-	uint8_t numPL;
-	uint8_t numSL;
-	StringView shader;
+	SGRX_PassType_Unknown = 0,
+	SGRX_PassType_Shadow  = 1,
+	SGRX_PassType_Base    = 2,
+	SGRX_PassType_Point   = 3,
+	SGRX_PassType_Spot    = 4,
+	SGRX_PassType_Unlit   = 5,
 };
-
-// FindPass requirement flags
-#define SGRX_FP_Shadow  0x0001
-#define SGRX_FP_Base    0x0002
-#define SGRX_FP_Point   0x0004
-#define SGRX_FP_Spot    0x0008
-#define SGRX_FP_NoPoint 0x0040
-#define SGRX_FP_NoSpot  0x0080
 
 // scene debug draw flags
 #define SGRX_SceneDbgDraw_AllLights    0x0001
@@ -1604,11 +1598,6 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 {
 	ENGINE_EXPORT SGRX_Scene();
 	ENGINE_EXPORT virtual ~SGRX_Scene();
-	ENGINE_EXPORT void SetRenderPasses( const SGRX_RenderPass* passes, size_t count );
-	FINLINE void SetRenderPasses( ArrayView<SGRX_RenderPass> passes )
-		{ SetRenderPasses( passes.data(), passes.size() ); }
-	ENGINE_EXPORT int FindPass( uint32_t flags, StringView shader = SV() );
-	ENGINE_EXPORT void SetDefines( StringView defines );
 	ENGINE_EXPORT MeshInstHandle CreateMeshInstance();
 	ENGINE_EXPORT LightHandle CreateLight();
 	
@@ -1632,8 +1621,6 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 	
 	HashTable< SGRX_MeshInstance*, NoValue > m_meshInstances;
 	HashTable< SGRX_Light*, NoValue > m_lights;
-	Array< SGRX_RenderPass > m_passes;
-	StringView m_defines;
 	Vec4 m_timevals; // temporary?
 	MeshInstHandle m_projMeshInst;
 	
@@ -2016,9 +2003,9 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderControl
 	ENGINE_EXPORT virtual ~SGRX_IRenderControl();
 	ENGINE_EXPORT virtual void SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info, SGRX_RTSpec rts[4] ) = 0;
 	ENGINE_EXPORT virtual void SortRenderItems( SGRX_Scene* scene ) = 0;
-	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, int pass_id ) = 0;
-	ENGINE_EXPORT virtual void RenderMeshes( SGRX_Scene* scene, int pass_id, int maxrepeat, uint8_t types, SGRX_MeshInstance** milist, size_t micount ) = 0;
-	ENGINE_EXPORT virtual void RenderTypes( SGRX_Scene* scene, int pass_id, int maxrepeat, uint8_t types ) = 0;
+	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, SGRX_PassType passtype ) = 0;
+	ENGINE_EXPORT virtual void RenderMeshes( SGRX_Scene* scene, SGRX_PassType passtype, int maxrepeat, uint8_t types, SGRX_MeshInstance** milist, size_t micount ) = 0;
+	ENGINE_EXPORT virtual void RenderTypes( SGRX_Scene* scene, SGRX_PassType passtype, int maxrepeat, uint8_t types ) = 0;
 	
 	// shortcuts
 	FINLINE void SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info,
@@ -2103,9 +2090,6 @@ struct IF_GCC(ENGINE_EXPORT) IGame : SGRX_RefCounted
 	virtual void OnEvent( const Event& e ){}
 	virtual void OnTick( float dt, uint32_t gametime ){}
 	
-	ENGINE_EXPORT virtual void OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material& mtl, SGRX_RenderState& out );
-	ENGINE_EXPORT virtual void OnLoadMtlShaders( const SGRX_RenderPass& pass, const StringView& defines, const SGRX_Material& mtl,
-		const SGRX_MeshInstance* MI, VertexShaderHandle& VS, PixelShaderHandle& PS );
 	ENGINE_EXPORT virtual TextureHandle OnCreateSysTexture( const StringView& key );
 	ENGINE_EXPORT virtual HFileReader OnLoadTexture( const StringView& key, uint32_t& outusageflags, uint8_t& outlod );
 	ENGINE_EXPORT virtual void GetShaderCacheFilename( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, String& name );
@@ -2145,7 +2129,6 @@ ENGINE_EXPORT void GR_PreserveResourcePtr( SGRX_RefCounted* rsrc );
 template< class T > void GR_PreserveResource( T& handle ){ GR_PreserveResourcePtr( handle.item ); }
 
 ENGINE_EXPORT SceneHandle GR_CreateScene();
-ENGINE_EXPORT ArrayView<SGRX_RenderPass> GR_GetDefaultRenderPasses();
 ENGINE_EXPORT SGRX_RenderDirector* GR_GetDefaultRenderDirector();
 ENGINE_EXPORT void GR_RenderScene( SGRX_RenderScene& info );
 ENGINE_EXPORT RenderStats& GR_GetRenderStats();

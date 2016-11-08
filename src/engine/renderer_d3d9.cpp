@@ -349,7 +349,7 @@ struct D3D9Renderer : IRenderer
 	void SetMatrix( bool view, const Mat4& mtx );
 	void DrawImmediate( SGRX_ImmDrawData& idd );
 	
-	virtual void DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
+	virtual void DoRenderItems( SGRX_Scene* scene, SGRX_PassType passtype, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
 	
 #if 0
 	void _RS_RenderPass_Projectors( size_t pass_id );
@@ -1435,10 +1435,9 @@ void D3D9Renderer::DrawImmediate( SGRX_ImmDrawData& idd )
 	100-115: instance data
 */
 
-void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end )
+void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, SGRX_PassType passtype, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end )
 {
-	SGRX_RenderPass& PASS = scene->m_passes[ pass_id ];
-	if( PASS.isShadowPass )
+	if( passtype == SGRX_PassType_Shadow )
 		maxrepeat = 1;
 	
 	SGRX_RPCoreData coredata =
@@ -1480,7 +1479,7 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat,
 		D3D9VertexDecl* VD = (D3D9VertexDecl*) M->m_vertexDecl.item;
 		SGRX_DrawItem* DI = &MI->m_drawItems[ part_id ];
 		const SGRX_Material& MTL = MI->GetMaterial( part_id );
-		const SGRX_XShdInst::Pass& XPS = DI->XSH->passes[ pass_id ];
+		const SGRX_XShdInst::Pass& XPS = DI->XSH->passes[ passtype - 1 ]; /* TODO HACK */
 		
 		SetRenderState( XPS.renderState );
 		SetVertexShader( XPS.vertexShader );
@@ -1507,18 +1506,18 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat,
 		
 		for( int numruns = 0; numruns < maxrepeat; ++numruns )
 		{
-			if( PASS.isShadowPass == false )
+			if( passtype != SGRX_PassType_Shadow )
 			{
 				SGRX_RPPointLightData PLData[ 32 ];
 				SGRX_RPSpotLightDataPS SLDataPS[ 2 ];
 				SGRX_RPSpotLightDataVS SLDataVS[ 2 ];
 				SGRX_Light* SLDataLT[ 2 ];
 				LightCount LC = SGRX_Renderer_FindLights( cam, DI,
-					TMIN( int(PASS.numPL), 32 ),
-					TMIN( int(PASS.numSL), 2 ),
+					/* TMIN( int(PASS.numPL), */ 32 /* ) */,
+					/* TMIN( int(PASS.numSL), */ 2 /* ) */,
 					PLData, SLDataPS, SLDataVS, SLDataLT );
 				
-				if( PASS.isBasePass == false && LC.numPL + LC.numSL <= 0 )
+				if( passtype != SGRX_PassType_Base && LC.numPL + LC.numSL <= 0 )
 					break;
 				
 				if( LC.numPL )
@@ -1548,8 +1547,10 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat,
 				MP.vertexOffset, 0, MP.vertexCount, MP.indexOffset, MP.indexCount / 3 );
 			
 			m_stats.numDrawCalls++;
-			m_stats.numMDrawCalls += PASS.isShadowPass == false;
-			m_stats.numSDrawCalls += PASS.isShadowPass != false;
+			if( passtype == SGRX_PassType_Shadow )
+				m_stats.numSDrawCalls++;
+			else
+				m_stats.numMDrawCalls++;
 		}
 		RI++;
 	}

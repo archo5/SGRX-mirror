@@ -1673,14 +1673,124 @@ XShdInstHandle GR_CreateXShdInstance( const SGRX_XShaderDef& def )
 	return h;
 }
 
+
+
+
+
+struct RenderPass
+{
+	bool isShadowPass;
+	bool isBasePass;
+	int numPL;
+	int numSL;
+};
+
+void OnMakeRenderState( const RenderPass& pass, const SGRX_Material& mtl, SGRX_RenderState& out )
+{
+	out.cullMode = mtl.flags & SGRX_MtlFlag_Nocull ? SGRX_RS_CullMode_None : SGRX_RS_CullMode_Back;
+	
+	if( pass.isShadowPass == false )
+	{
+		bool decal = ( mtl.flags & SGRX_MtlFlag_Decal ) != 0;
+		bool ltovr = pass.isBasePass == false && pass.isShadowPass == false;
+		out.depthBias = decal ? -1e-5f : 0;
+		out.depthWriteEnable = ( ltovr || decal || mtl.blendMode != SGRX_MtlBlend_None ) == false;
+		out.blendStates[ 0 ].blendEnable = ltovr || mtl.blendMode != SGRX_MtlBlend_None;
+		if( ltovr || mtl.blendMode == SGRX_MtlBlend_Additive )
+		{
+			out.blendStates[ 0 ].srcBlend = SGRX_RS_Blend_SrcAlpha;
+			out.blendStates[ 0 ].dstBlend = SGRX_RS_Blend_One;
+		}
+		else if( mtl.blendMode == SGRX_MtlBlend_Multiply )
+		{
+			out.blendStates[ 0 ].srcBlend = SGRX_RS_Blend_Zero;
+			out.blendStates[ 0 ].dstBlend = SGRX_RS_Blend_SrcColor;
+		}
+		else
+		{
+			out.blendStates[ 0 ].srcBlend = SGRX_RS_Blend_SrcAlpha;
+			out.blendStates[ 0 ].dstBlend = SGRX_RS_Blend_InvSrcAlpha;
+		}
+	}
+	else
+	{
+		out.depthBias = 1e-5f;
+		out.slopeDepthBias = 0.5f;
+		out.cullMode = SGRX_RS_CullMode_None;
+	}
+}
+
+void OnLoadMtlShaders( const RenderPass& pass,
+	const StringView& defines, const SGRX_Material& mtl,
+	const SGRX_MeshInstance* MI, VertexShaderHandle& VS, PixelShaderHandle& PS )
+{
+	if( pass.isBasePass == false && pass.isShadowPass == false &&
+		( ( mtl.flags & SGRX_MtlFlag_Unlit ) != 0 || MI->GetLightingMode() == SGRX_LM_Unlit ) )
+	{
+		PS = NULL;
+		VS = NULL;
+		return;
+	}
+	
+	String name = "mtl:";
+	name.append( mtl.shader );
+	name.append( ":" );
+	name.append( "sys_lighting" ); // pass.shader );
+	
+	if( pass.isShadowPass )
+		name.append( ":SHADOW_PASS" );
+	else
+	{
+		char bfr[32];
+		// lighting mode
+		{
+			sgrx_snprintf( bfr, 32, "%d", MI->GetLightingMode() );
+			name.append( ":LMODE " );
+			name.append( bfr );
+		}
+		if( pass.isBasePass )
+			name.append( ":BASE_PASS" );
+		if( pass.numPL )
+		{
+			sgrx_snprintf( bfr, 32, "%d", pass.numPL );
+			name.append( ":NUM_POINTLIGHTS " );
+			name.append( bfr );
+		}
+		if( pass.numSL )
+		{
+			sgrx_snprintf( bfr, 32, "%d", pass.numSL );
+			name.append( ":NUM_SPOTLIGHTS " );
+			name.append( bfr );
+		}
+	}
+	
+	// misc. parameters
+	name.append( ":" );
+	name.append( defines ); // scene defines
+	
+	if( mtl.flags & SGRX_MtlFlag_VCol )
+		name.append( ":VCOL" ); // color multiplied by vertex color
+	if( mtl.flags & SGRX_MtlFlag_Decal )
+		name.append( ":DECAL" ); // ???
+	
+	PS = GR_GetPixelShader( name );
+	
+	if( MI->IsSkinned() )
+		name.append( ":SKIN" );
+	
+	VS = GR_GetVertexShader( name );
+}
+
+
+
 XShdInstHandle GR_CreateXShdInstance( const SGRX_MeshInstance* MI, const SGRX_Material& mtl )
 {
-	static const SGRX_RenderPass passes[] =
+	static const RenderPass passes[] =
 	{
-		{ true, false, 0, 0, "sys_lighting" }, // shadow pass
-		{ false, true, 16, 0, "sys_lighting" }, // base + 16 point lights
-		{ false, false, 16, 0, "sys_lighting" }, // 16 point lights
-		{ false, false, 0, 2, "sys_lighting" }, // 2 spotlights
+		{ true, false, 0, 0 }, // shadow pass
+		{ false, true, 16, 0 }, // base + 16 point lights
+		{ false, false, 16, 0 }, // 16 point lights
+		{ false, false, 0, 2 }, // 2 spotlights
 	};
 	
 	XShdInstHandle h = new SGRX_XShdInst;
@@ -1693,11 +1803,11 @@ XShdInstHandle GR_CreateXShdInstance( const SGRX_MeshInstance* MI, const SGRX_Ma
 		// load render state
 		SGRX_RenderState rs;
 		rs.Init();
-		g_Game->OnMakeRenderState( passes[ i ], mtl, rs );
+		OnMakeRenderState( passes[ i ], mtl, rs );
 		pass.renderState = GR_GetRenderState( rs );
 		
 		// load shaders
-		g_Game->OnLoadMtlShaders( passes[ i ], "", mtl, MI,
+		OnLoadMtlShaders( passes[ i ], "", mtl, MI,
 			pass.vertexShader, pass.pixelShader );
 		
 		pass.vtxInputMap = GR_GetVertexInputMapping(
@@ -1949,23 +2059,6 @@ void SceneRaycastCallback_Sorting::AddResult( SceneRaycastInfo* info )
 
 
 
-static SGRX_RenderPass g_DefaultRenderPasses[] =
-{
-	{ true, false, 0, 0, "sys_lighting" }, // shadow pass
-	{ false, true, 16, 0, "sys_lighting" }, // base + 16 point lights
-	{ false, false, 16, 0, "sys_lighting" }, // 16 point lights
-	{ false, false, 0, 2, "sys_lighting" }, // 2 spotlights
-	{ false, true, 16, 0, "sys_lighting:MOD_NODIFFCOL" }, // base + 16 point lights
-	{ false, false, 16, 0, "sys_lighting:MOD_NODIFFCOL" }, // 16 point lights
-	{ false, false, 0, 2, "sys_lighting:MOD_NODIFFCOL" }, // 2 spotlights
-	{ false, true, 0, 0, "sys_lighting:MOD_UNLIT" }, // unlit pass
-};
-
-ArrayView<SGRX_RenderPass> GR_GetDefaultRenderPasses()
-{
-	return ArrayView<SGRX_RenderPass>( g_DefaultRenderPasses, SGRX_ARRAY_SIZE( g_DefaultRenderPasses ) );
-}
-
 SGRX_Scene::SGRX_Scene() :
 	debugDrawFlags( 0 ),
 	director( GR_GetDefaultRenderDirector() ),
@@ -1992,9 +2085,6 @@ SGRX_Scene::SGRX_Scene() :
 	camera.zfar = 1000;
 	camera.UpdateMatrices();
 	
-	m_defines = ":MOD_BLENDCOLOR 0";
-	SetRenderPasses( g_DefaultRenderPasses, SGRX_ARRAY_SIZE(g_DefaultRenderPasses) );
-	
 	m_projMeshInst = CreateMeshInstance();
 	m_projMeshInst->sortidx = 255;
 }
@@ -2004,42 +2094,6 @@ SGRX_Scene::~SGRX_Scene()
 	m_projMeshInst = NULL;
 	
 	if( VERBOSE ) LOG << "Deleted scene: " << this;
-}
-
-void SGRX_Scene::SetRenderPasses( const SGRX_RenderPass* passes, size_t count )
-{
-	m_passes.assign( passes, count );
-	OnUpdate();
-}
-
-int SGRX_Scene::FindPass( uint32_t flags, StringView shader )
-{
-	for( size_t i = 0; i < m_passes.size(); ++i )
-	{
-		const SGRX_RenderPass& RP = m_passes[ i ];
-		if( !!( flags & SGRX_FP_Shadow ) != RP.isShadowPass )
-			continue;
-		if( !!( flags & SGRX_FP_Base ) != RP.isBasePass )
-			continue;
-		if( !!( flags & SGRX_FP_Point ) && RP.numPL == 0 )
-			continue;
-		if( !!( flags & SGRX_FP_Spot ) && RP.numSL == 0 )
-			continue;
-		if( !!( flags & SGRX_FP_NoPoint ) && RP.numPL != 0 )
-			continue;
-		if( !!( flags & SGRX_FP_NoSpot ) && RP.numSL != 0 )
-			continue;
-		if( shader.size() > 0 && RP.shader.contains( shader ) == false )
-			continue;
-		return i;
-	}
-	return -1;
-}
-
-void SGRX_Scene::SetDefines( StringView defines )
-{
-	m_defines = defines;
-	OnUpdate();
 }
 
 MeshInstHandle SGRX_Scene::CreateMeshInstance()

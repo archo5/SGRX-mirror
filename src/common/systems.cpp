@@ -663,10 +663,9 @@ void GFXSystem::OnDrawSceneWithRefl( SGRX_IRenderControl* ctrl, SGRX_RenderScene
 	SGRX_Viewport* origViewport = info.viewport;
 	
 	// initial actions
-	int shadow_pass_id = scene->FindPass( SGRX_FP_Shadow );
 	if( m_curMode != SGRX_RDMode_Unlit )
 	{
-		ctrl->RenderShadows( scene, shadow_pass_id );
+		ctrl->RenderShadows( scene, SGRX_PassType_Shadow );
 	}
 	
 	// RENDER REFLECTIONS

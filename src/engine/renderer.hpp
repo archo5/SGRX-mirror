@@ -282,15 +282,15 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 	ENGINE_EXPORT virtual void SetMatrix( bool view, const Mat4& mtx ) = 0;
 	ENGINE_EXPORT virtual void DrawImmediate( SGRX_ImmDrawData& idd ) = 0;
 	
-	ENGINE_EXPORT virtual void DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat,
+	ENGINE_EXPORT virtual void DoRenderItems( SGRX_Scene* scene, SGRX_PassType passtype, int maxrepeat,
 		const SGRX_Camera& cam, RenderItem* start, RenderItem* end ) = 0;
 	
 	// render control
 	ENGINE_EXPORT virtual void SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info, SGRX_RTSpec rts[4] );
 	ENGINE_EXPORT virtual void SortRenderItems( SGRX_Scene* scene );
-	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, int pass_id );
-	ENGINE_EXPORT virtual void RenderMeshes( SGRX_Scene* scene, int pass_id, int maxrepeat, uint8_t types, SGRX_MeshInstance** milist, size_t micount );
-	ENGINE_EXPORT virtual void RenderTypes( SGRX_Scene* scene, int pass_id, int maxrepeat, uint8_t types );
+	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, SGRX_PassType passtype );
+	ENGINE_EXPORT virtual void RenderMeshes( SGRX_Scene* scene, SGRX_PassType passtype, int maxrepeat, uint8_t types, SGRX_MeshInstance** milist, size_t micount );
+	ENGINE_EXPORT virtual void RenderTypes( SGRX_Scene* scene, SGRX_PassType passtype, int maxrepeat, uint8_t types );
 	
 	// render queue helpers
 	ENGINE_EXPORT uint64_t _RS_GenSortKey( const Mat4& view, SGRX_MeshInstance* MI, uint32_t part_id );

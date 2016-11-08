@@ -806,13 +806,13 @@ void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderSce
 	
 	GR_PreserveResource( pppsh_final );
 	GR_PreserveResource( pppsh_highpass );
+	GR_PreserveResource( pppsh_transfer );
 	GR_PreserveResource( pppsh_blur );
 	
-	int shadow_pass_id = scene->FindPass( SGRX_FP_Shadow );
 	// initial actions
 	if( m_curMode != SGRX_RDMode_Unlit )
 	{
-		ctrl->RenderShadows( scene, shadow_pass_id );
+		ctrl->RenderShadows( scene, SGRX_PassType_Shadow );
 	}
 	ctrl->SortRenderItems( scene );
 	
@@ -851,7 +851,7 @@ void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderSce
 		GR_PreserveResource( dssMAIN );
 		
 		ctrl->SetRenderTargets( dssMAIN, SGRX_RT_ClearAll, 0, 0, 1, rttDEPTH );
-		ctrl->RenderTypes( scene, shadow_pass_id, 1, SGRX_TY_Solid );
+		ctrl->RenderTypes( scene, SGRX_PassType_Shadow, 1, SGRX_TY_Solid );
 		
 		rtspecMAIN = rttMAIN;
 	}
@@ -979,34 +979,27 @@ void SGRX_RenderDirector::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_Rende
 	
 	if( m_curMode == SGRX_RDMode_Unlit )
 	{
-		int unlit_pass_id = scene->FindPass( SGRX_FP_Base | SGRX_FP_NoPoint | SGRX_FP_NoSpot, ":MOD_UNLIT" );
-		
-		ctrl->RenderTypes( scene, unlit_pass_id, 1, SGRX_TY_Solid );
+		ctrl->RenderTypes( scene, SGRX_PassType_Unlit, 1, SGRX_TY_Solid );
 		
 		OnDrawFog( ctrl, info, rttDEPTH );
 		
-		ctrl->RenderTypes( scene, unlit_pass_id, 1, SGRX_TY_Decal );
-		ctrl->RenderTypes( scene, unlit_pass_id, 1, SGRX_TY_Transparent );
+		ctrl->RenderTypes( scene, SGRX_PassType_Unlit, 1, SGRX_TY_Decal );
+		ctrl->RenderTypes( scene, SGRX_PassType_Unlit, 1, SGRX_TY_Transparent );
 	}
 	else
 	{
-		StringView shdef = m_curMode == SGRX_RDMode_NoDiffCol ? ":MOD_NODIFFCOL" : "";
-		int base_pass_id = scene->FindPass( SGRX_FP_Base, shdef );
-		int point_pass_id = scene->FindPass( SGRX_FP_Point, shdef );
-		int spot_pass_id = scene->FindPass( SGRX_FP_Spot, shdef );
-		
-		ctrl->RenderTypes( scene, base_pass_id, 1, SGRX_TY_Solid );
-		ctrl->RenderTypes( scene, point_pass_id, 4, SGRX_TY_Solid );
-		ctrl->RenderTypes( scene, spot_pass_id, 4, SGRX_TY_Solid );
+		ctrl->RenderTypes( scene, SGRX_PassType_Base, 1, SGRX_TY_Solid );
+		ctrl->RenderTypes( scene, SGRX_PassType_Point, 4, SGRX_TY_Solid );
+		ctrl->RenderTypes( scene, SGRX_PassType_Spot, 4, SGRX_TY_Solid );
 		
 		OnDrawFog( ctrl, info, rttDEPTH );
 		
-		ctrl->RenderTypes( scene, base_pass_id, 1, SGRX_TY_Decal );
-		ctrl->RenderTypes( scene, point_pass_id, 4, SGRX_TY_Decal );
-		ctrl->RenderTypes( scene, spot_pass_id, 4, SGRX_TY_Decal );
-		ctrl->RenderTypes( scene, base_pass_id, 1, SGRX_TY_Transparent );
-		ctrl->RenderTypes( scene, point_pass_id, 4, SGRX_TY_Transparent );
-		ctrl->RenderTypes( scene, spot_pass_id, 4, SGRX_TY_Transparent );
+		ctrl->RenderTypes( scene, SGRX_PassType_Base, 1, SGRX_TY_Decal );
+		ctrl->RenderTypes( scene, SGRX_PassType_Point, 4, SGRX_TY_Decal );
+		ctrl->RenderTypes( scene, SGRX_PassType_Spot, 4, SGRX_TY_Decal );
+		ctrl->RenderTypes( scene, SGRX_PassType_Base, 1, SGRX_TY_Transparent );
+		ctrl->RenderTypes( scene, SGRX_PassType_Point, 4, SGRX_TY_Transparent );
+		ctrl->RenderTypes( scene, SGRX_PassType_Spot, 4, SGRX_TY_Transparent );
 	}
 	
 	if( info.postdraw )
@@ -1162,102 +1155,6 @@ int IGame::OnArgument( char* arg, int argcleft, char** argvleft )
 		return 1;
 	}
 	return 0;
-}
-
-void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material& mtl, SGRX_RenderState& out )
-{
-	out.cullMode = mtl.flags & SGRX_MtlFlag_Nocull ? SGRX_RS_CullMode_None : SGRX_RS_CullMode_Back;
-	
-	if( pass.isShadowPass == false )
-	{
-		bool decal = ( mtl.flags & SGRX_MtlFlag_Decal ) != 0;
-		bool ltovr = pass.isBasePass == false && pass.isShadowPass == false;
-		out.depthBias = decal ? -1e-5f : 0;
-		out.depthWriteEnable = ( ltovr || decal || mtl.blendMode != SGRX_MtlBlend_None ) == false;
-		out.blendStates[ 0 ].blendEnable = ltovr || mtl.blendMode != SGRX_MtlBlend_None;
-		if( ltovr || mtl.blendMode == SGRX_MtlBlend_Additive )
-		{
-			out.blendStates[ 0 ].srcBlend = SGRX_RS_Blend_SrcAlpha;
-			out.blendStates[ 0 ].dstBlend = SGRX_RS_Blend_One;
-		}
-		else if( mtl.blendMode == SGRX_MtlBlend_Multiply )
-		{
-			out.blendStates[ 0 ].srcBlend = SGRX_RS_Blend_Zero;
-			out.blendStates[ 0 ].dstBlend = SGRX_RS_Blend_SrcColor;
-		}
-		else
-		{
-			out.blendStates[ 0 ].srcBlend = SGRX_RS_Blend_SrcAlpha;
-			out.blendStates[ 0 ].dstBlend = SGRX_RS_Blend_InvSrcAlpha;
-		}
-	}
-	else
-	{
-		out.depthBias = 1e-5f;
-		out.slopeDepthBias = 0.5f;
-		out.cullMode = SGRX_RS_CullMode_None;
-	}
-}
-
-void IGame::OnLoadMtlShaders( const SGRX_RenderPass& pass,
-	const StringView& defines, const SGRX_Material& mtl,
-	const SGRX_MeshInstance* MI, VertexShaderHandle& VS, PixelShaderHandle& PS )
-{
-	if( pass.isBasePass == false && pass.isShadowPass == false &&
-		( ( mtl.flags & SGRX_MtlFlag_Unlit ) != 0 || MI->GetLightingMode() == SGRX_LM_Unlit ) )
-	{
-		PS = NULL;
-		VS = NULL;
-		return;
-	}
-	
-	String name = "mtl:";
-	name.append( mtl.shader );
-	name.append( ":" );
-	name.append( pass.shader );
-	
-	if( pass.isShadowPass )
-		name.append( ":SHADOW_PASS" );
-	else
-	{
-		char bfr[32];
-		// lighting mode
-		{
-			sgrx_snprintf( bfr, 32, "%d", MI->GetLightingMode() );
-			name.append( ":LMODE " );
-			name.append( bfr );
-		}
-		if( pass.isBasePass )
-			name.append( ":BASE_PASS" );
-		if( pass.numPL )
-		{
-			sgrx_snprintf( bfr, 32, "%d", pass.numPL );
-			name.append( ":NUM_POINTLIGHTS " );
-			name.append( bfr );
-		}
-		if( pass.numSL )
-		{
-			sgrx_snprintf( bfr, 32, "%d", pass.numSL );
-			name.append( ":NUM_SPOTLIGHTS " );
-			name.append( bfr );
-		}
-	}
-	
-	// misc. parameters
-	name.append( ":" );
-	name.append( defines ); // scene defines
-	
-	if( mtl.flags & SGRX_MtlFlag_VCol )
-		name.append( ":VCOL" ); // color multiplied by vertex color
-	if( mtl.flags & SGRX_MtlFlag_Decal )
-		name.append( ":DECAL" ); // ???
-	
-	PS = GR_GetPixelShader( name );
-	
-	if( MI->IsSkinned() )
-		name.append( ":SKIN" );
-	
-	VS = GR_GetVertexShader( name );
 }
 
 TextureHandle IGame::OnCreateSysTexture( const StringView& key )

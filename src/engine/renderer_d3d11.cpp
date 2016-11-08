@@ -645,7 +645,7 @@ struct D3D11Renderer : IRenderer
 	void SetMatrix( bool view, const Mat4& mtx );
 	void DrawImmediate( SGRX_ImmDrawData& idd );
 	
-	void DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
+	void DoRenderItems( SGRX_Scene* scene, SGRX_PassType passtype, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
 	
 	bool ResetDevice();
 	void SetVertexShader( const SGRX_IVertexShader* shd );
@@ -2157,14 +2157,13 @@ void D3D11Renderer::DrawImmediate( SGRX_ImmDrawData& idd )
 }
 
 
-void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end )
+void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, SGRX_PassType passtype, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end )
 {
 	LOG_FUNCTION;
 	
 	SGRX_ScopedMtxLock LOCK( &m_mutex );
 	
-	SGRX_RenderPass& PASS = scene->m_passes[ pass_id ];
-	if( PASS.isShadowPass )
+	if( passtype == SGRX_PassType_Shadow )
 		maxrepeat = 1;
 	
 	SGRX_RPCoreData coredata =
@@ -2208,7 +2207,7 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat
 	//	D3D11VertexDecl* VD = (D3D11VertexDecl*) M->m_vertexDecl.item;
 		SGRX_DrawItem* DI = &MI->m_drawItems[ part_id ];
 		const SGRX_Material& MTL = MI->GetMaterial( part_id );
-		const SGRX_XShdInst::Pass& XPS = DI->XSH->passes[ pass_id ];
+		const SGRX_XShdInst::Pass& XPS = DI->XSH->passes[ passtype - 1 ]; /* TODO HACK */
 		
 		SetRenderState( XPS.renderState, scene->frontCCW );
 		SetVertexShader( XPS.vertexShader );
@@ -2256,18 +2255,18 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat
 		
 		for( int numruns = 0; numruns < maxrepeat; ++numruns )
 		{
-			if( PASS.isShadowPass == false )
+			if( passtype != SGRX_PassType_Shadow )
 			{
 				SGRX_RPPointLightData PLData[ 16 ] = {0};
 				SGRX_RPSpotLightDataPS SLDataPS[ 2 ] = {0};
 				SGRX_RPSpotLightDataVS SLDataVS[ 2 ] = {0};
 				SGRX_Light* SLDataLT[ 2 ] = {0};
 				LightCount LC = SGRX_Renderer_FindLights( cam, DI,
-					TMIN( int(PASS.numPL), 16 ),
-					TMIN( int(PASS.numSL), 2 ),
+					/* TMIN( int(PASS.numPL), */ 16 /* ) */,
+					/* TMIN( int(PASS.numSL), */ 2 /* ) */,
 					PLData, SLDataPS, SLDataVS, SLDataLT );
 				
-				if( PASS.isBasePass == false && LC.numPL + LC.numSL <= 0 )
+				if( passtype != SGRX_PassType_Base && LC.numPL + LC.numSL <= 0 )
 					break;
 				
 				if( LC.numPL )
@@ -2305,8 +2304,10 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat
 			m_ctx->DrawIndexed( MP.indexCount, MP.indexOffset, MP.vertexOffset );
 			
 			m_stats.numDrawCalls++;
-			m_stats.numMDrawCalls += PASS.isShadowPass == false;
-			m_stats.numSDrawCalls += PASS.isShadowPass != false;
+			if( passtype == SGRX_PassType_Shadow )
+				m_stats.numSDrawCalls++;
+			else
+				m_stats.numMDrawCalls++;
 		}
 		RI++;
 	}

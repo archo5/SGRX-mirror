@@ -122,11 +122,8 @@ void IRenderer::SortRenderItems( SGRX_Scene* scene )
 		m_riBaseDT++;
 }
 
-void IRenderer::RenderShadows( SGRX_Scene* scene, int pass_id )
+void IRenderer::RenderShadows( SGRX_Scene* scene, SGRX_PassType passtype )
 {
-	if( pass_id < 0 )
-		return;
-	
 	for( size_t light_id = 0; light_id < scene->m_lights.size(); ++light_id )
 	{
 		SGRX_Light* L = scene->m_lights.item( light_id ).key;
@@ -152,36 +149,30 @@ void IRenderer::RenderShadows( SGRX_Scene* scene, int pass_id )
 		
 		SGRX_Camera cam;
 		L->GenerateCamera( cam );
-		DoRenderItems( scene, pass_id, 1, cam, m_renderItemsAux.data(), m_renderItemsAux.data() + m_renderItemsAux.size() );
+		DoRenderItems( scene, passtype, 1, cam, m_renderItemsAux.data(), m_renderItemsAux.data() + m_renderItemsAux.size() );
 	}
 }
 
-void IRenderer::RenderMeshes( SGRX_Scene* scene, int pass_id, int maxrepeat, uint8_t types, SGRX_MeshInstance** milist, size_t micount )
+void IRenderer::RenderMeshes( SGRX_Scene* scene, SGRX_PassType passtype, int maxrepeat, uint8_t types, SGRX_MeshInstance** milist, size_t micount )
 {
-	if( pass_id < 0 )
-		return;
-	
 	_RS_LoadInstItems( scene->camera.mView, 1, milist, micount, SGRX_TY_Solid | SGRX_TY_Decal | SGRX_TY_Transparent );
 	_RS_Compile_MeshLists( scene, milist, micount );
-	DoRenderItems( scene, pass_id, 1, scene->camera, m_renderItemsAux.data(), m_renderItemsAux.data() + m_renderItemsAux.size() );
+	DoRenderItems( scene, passtype, 1, scene->camera, m_renderItemsAux.data(), m_renderItemsAux.data() + m_renderItemsAux.size() );
 }
 
-void IRenderer::RenderTypes( SGRX_Scene* scene, int pass_id, int maxrepeat, uint8_t types )
+void IRenderer::RenderTypes( SGRX_Scene* scene, SGRX_PassType passtype, int maxrepeat, uint8_t types )
 {
-	if( pass_id < 0 )
-		return;
-	
 	if( ( types & SGRX_TY_Solid ) != 0 && m_riBaseSD > m_riBaseStart )
 	{
-		DoRenderItems( scene, pass_id, maxrepeat, scene->camera, m_riBaseStart, m_riBaseSD );
+		DoRenderItems( scene, passtype, maxrepeat, scene->camera, m_riBaseStart, m_riBaseSD );
 	}
 	if( ( types & SGRX_TY_Decal ) != 0 && m_riBaseDT > m_riBaseSD )
 	{
-		DoRenderItems( scene, pass_id, maxrepeat, scene->camera, m_riBaseSD, m_riBaseDT );
+		DoRenderItems( scene, passtype, maxrepeat, scene->camera, m_riBaseSD, m_riBaseDT );
 	}
 	if( ( types & SGRX_TY_Transparent ) != 0 && m_riBaseEnd > m_riBaseDT )
 	{
-		DoRenderItems( scene, pass_id, maxrepeat, scene->camera, m_riBaseDT, m_riBaseEnd );
+		DoRenderItems( scene, passtype, maxrepeat, scene->camera, m_riBaseDT, m_riBaseEnd );
 	}
 }
 
