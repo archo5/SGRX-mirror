@@ -1536,8 +1536,8 @@ String String_Replace( const StringView& base, const StringView& sub, const Stri
 
 bool String_ParseBool( const StringView& sv )
 {
-	if( sv == "true" || sv == "TRUE" ) return true;
-	if( sv == "false" || sv == "FALSE" ) return false;
+	if( sv == "true" || sv == "TRUE" || sv == "True" ) return true;
+	if( sv == "false" || sv == "FALSE" || sv == "False" ) return false;
 	return String_ParseInt( sv ) != 0;
 }
 
@@ -1620,6 +1620,16 @@ Vec4 String_ParseVec4( const StringView& sv, bool* success, StringView substr )
 	if( success ) *success = *success && suc;
 	
 	return out;
+}
+
+int String_ParseEnum( const StringView& sv, const char** values, int def )
+{
+	for( int i = 0; values[ i ] != NULL; ++i )
+	{
+		if( sv == values[ i ] )
+			return i;
+	}
+	return def;
 }
 
 

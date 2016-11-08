@@ -2492,6 +2492,8 @@ struct ConfigReader
 	ConfigReader( const StringView& _it ) : it( _it.after_all( SPACE_CHARS ) ){}
 	bool Read( StringView& key, StringView& value )
 	{
+		it = it.after_all( SPACE_CHARS );
+		
 		while( it.size() )
 		{
 			key = it.until_any( SPACE_CHARS );
@@ -2506,8 +2508,6 @@ struct ConfigReader
 			value = it.until( "\n" );
 			it.skip( value.size() );
 			value.trim( SPACE_CHARS );
-			
-			it = it.after_all( SPACE_CHARS );
 			
 			return key.size() != 0;
 		}
@@ -2593,6 +2593,7 @@ ENGINE_EXPORT double String_ParseFloat( const StringView& sv, bool* success = NU
 ENGINE_EXPORT Vec2 String_ParseVec2( const StringView& sv, bool* success = NULL, StringView substr = ";" );
 ENGINE_EXPORT Vec3 String_ParseVec3( const StringView& sv, bool* success = NULL, StringView substr = ";" );
 ENGINE_EXPORT Vec4 String_ParseVec4( const StringView& sv, bool* success = NULL, StringView substr = ";" );
+ENGINE_EXPORT int String_ParseEnum( const StringView& sv, const char** values, int def = -1 );
 
 
 //

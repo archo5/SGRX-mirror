@@ -784,6 +784,10 @@ struct TestSuite : IGame
 	
 	bool OnInitialize()
 	{
+		puts( "\n === subsystem tests ===\n" );
+		ShaderDefTest();
+		puts( "\n === initial testing finished ===\n" );
+		
 		Game_FileSystems().insert( 0, new BasicFileSystem( "../data-test" ) );
 		
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
@@ -844,6 +848,38 @@ struct TestSuite : IGame
 	float m_accum;
 	uint32_t m_lastTime;
 	uint32_t m_frameCount;
+	
+	
+	void ShaderDefTest()
+	{
+		puts( "- shader definition" );
+		
+		SGRX_XShaderDef def;
+		ASSERT( def.LoadText( "[[pass]] one\n[[endpass]]\n" ) );
+		ASSERT( def.passes.size() == 1 );
+		ASSERT( def.passes[ 0 ].name == "one" );
+		ASSERT( def.passes[ 0 ].order == 0 );
+		ASSERT( def.passes[ 0 ].render_state.wireFill == false );
+		
+		ASSERT( def.LoadText( "[[pass]] two\nOrder 15\nWireFill True\n[[endpass]]\n" ) );
+		ASSERT( def.passes.size() == 1 );
+		ASSERT( def.passes[ 0 ].name == "two" );
+		ASSERT( def.passes[ 0 ].order == 15 );
+		ASSERT( def.passes[ 0 ].render_state.wireFill == true );
+		
+		ASSERT( def.LoadText( "[[pass]] one\n"
+			"WireFill True\n"
+			"Enabled False\n"
+			"[[endpass]]\n"
+			"[[pass]] two\n"
+			"Inherit one\n"
+			"[[endpass]]\n" ) );
+		ASSERT( def.passes.size() == 1 );
+		ASSERT( def.passes[ 0 ].name == "two" );
+		ASSERT( def.passes[ 0 ].render_state.wireFill == true );
+		
+		puts( "--> OK" );
+	}
 }
 g_Game;
 

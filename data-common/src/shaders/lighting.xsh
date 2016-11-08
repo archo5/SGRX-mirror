@@ -19,13 +19,13 @@
 [[endpass]]
 
 [[pass]] point_light_solid_pass
-	Inherits any_light_pass
+	Inherit any_light_pass
 	Enabled True
 	Order 3500
 [[endpass]]
 
 [[pass]] spot_light_solid_pass
-	Inherits any_light_pass
+	Inherit any_light_pass
 	Enabled True
 	Order 4500
 [[endpass]]
@@ -41,13 +41,13 @@
 [[endpass]]
 
 [[pass]] point_light_decal_pass
-	Inherits any_light_pass
+	Inherit any_light_pass
 	Enabled True
 	Order 6500
 [[endpass]]
 
 [[pass]] spot_light_decal_pass
-	Inherits any_light_pass
+	Inherit any_light_pass
 	Enabled True
 	Order 7500
 [[endpass]]
@@ -61,13 +61,13 @@
 [[endpass]]
 
 [[pass]] point_light_transparent_pass
-	Inherits any_light_pass
+	Inherit any_light_pass
 	Enabled True
 	Order 9500
 [[endpass]]
 
 [[pass]] spot_light_transparent_pass
-	Inherits any_light_pass
+	Inherit any_light_pass
 	Enabled True
 	Order 10500
 [[endpass]]

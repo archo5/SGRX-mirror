@@ -1107,11 +1107,11 @@ struct SGRX_XShaderDef
 		arch << shader;
 		arch << passes;
 	}
-	bool LoadText( StringView text );
+	ENGINE_EXPORT bool LoadText( StringView text );
 //	bool LoadBinary( ByteView bytes ){ ByteReader br( bytes ); br << *this; return !br.error; }
 //	bool SaveBinary( ByteArray& outbytes ){ ByteWriter bw( &outbytes ); bw << *this; return !bw.error; }
 	
-	bool _XSD_LoadProps( HashTable< StringView, SV2SVMap >& allprops, Array< StringView >& defines, StringView text );
+	ENGINE_EXPORT bool _XSD_LoadProps( HashTable< StringView, SV2SVMap >& allprops, Array< StringView >& defines, StringView text );
 };
 
 enum SGRX_XShd_PassOrderNumber

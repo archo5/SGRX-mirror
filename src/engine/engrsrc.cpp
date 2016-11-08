@@ -1509,6 +1509,7 @@ static bool IsValidPassProp( StringView name )
 	// pass properties
 	if( name == "Enabled" ) return true;
 	if( name == "Order" ) return true;
+	if( name == "Inherit" ) return true;
 	
 	// render states
 	if( name == "WireFill" ) return true;
@@ -1536,8 +1537,8 @@ static bool IsValidPassProp( StringView name )
 	if( name == "DepthBiasClamp" ) return true;
 	if( name == "BlendFactor" ) return true;
 	
-	static const StringView rtVars[] = { "ColorWrite", "SrcBlend",
-		"DstBlend", "SrcBlendAlpha", "DstBlendAlpha" };
+	static const StringView rtVars[] = { "ColorWrite", "BlendEnable",
+		"BlendOp", "SrcBlend", "DstBlend", "BlendOpAlpha", "SrcBlendAlpha", "DstBlendAlpha" };
 	for( size_t i = 0; i < sizeof(rtVars)/sizeof(rtVars[0]); ++i )
 	{
 		if( name.starts_with( rtVars[i] ) )
@@ -1656,6 +1657,34 @@ bool SGRX_XShaderDef::_XSD_LoadProps(
 	return true;
 }
 
+#define LoadPassBool( out, name ) \
+	if( props.isset( name ) ){ \
+		out = String_ParseBool( *props.getptr( name ) ); }
+#define LoadPassInt( out, name, vmin, vmax ) \
+	if( props.isset( name ) ){ \
+		int64_t v = String_ParseInt( *props.getptr( name ) ); \
+		if( v < int64_t(vmin) || v > int64_t(vmax) ){ \
+			LOG_ERROR << LOG_DATE << "  XShaderDef::LoadText failed - " \
+				"value for property " << name << " out of range [" << (vmin) \
+				<< ";" << (vmax) << "] at line " << LineNumber( text, *props.getptr( name ) ); \
+			return false; } \
+		out = v; }
+#define LoadPassFloat( out, name ) \
+	if( props.isset( name ) ){ \
+		out = String_ParseFloat( *props.getptr( name ) ); }
+#define LoadPassVec4( out, name ) \
+	if( props.isset( name ) ){ \
+		out = String_ParseVec4( *props.getptr( name ) ); }
+#define LoadPassEnum( out, name, values ) \
+	if( props.isset( name ) ){ \
+		int v = String_ParseEnum( *props.getptr( name ), values ); \
+		if( v == -1 ){ \
+			LOG_ERROR << LOG_DATE << "  XShaderDef::LoadText failed - " \
+				"value for property " << name << " is invalid at line " \
+				<< LineNumber( text, *props.getptr( name ) ); \
+			return false; } \
+		out = v; }
+
 bool SGRX_XShaderDef::LoadText( StringView text )
 {
 	shader.clear();
@@ -1664,7 +1693,136 @@ bool SGRX_XShaderDef::LoadText( StringView text )
 	HashTable< StringView, SV2SVMap > allprops;
 	Array< StringView > defines;
 	
-	return _XSD_LoadProps( allprops, defines, text );
+	if( _XSD_LoadProps( allprops, defines, text ) == false )
+	{
+		return false;
+	}
+	
+	for( size_t i = 0; i < allprops.size(); ++i )
+	{
+		if( String_ParseBool( allprops.item( i ).value.getcopy( "Enabled", "True" ) ) == false )
+			continue; // this pass does not exist
+		
+		SV2SVMap props = allprops.item( i ).value;
+		HashTable< StringView, NoValue > inheritChain;
+		inheritChain.set( allprops.item( i ).key, NoValue() );
+		
+		StringView inherit = props.getcopy( "Inherit", "" );
+		while( inherit != "" )
+		{
+			if( inheritChain.isset( inherit ) )
+			{
+				LOG_ERROR << LOG_DATE << "  XShaderDef::LoadText failed - "
+					"inheritance loop detected while trying to include " << inherit
+					<< " from " << inheritChain.item( inheritChain.size() - 1 ).key;
+				return false;
+			}
+			SV2SVMap* subprops = allprops.getptr( inherit );
+			if( subprops == NULL )
+			{
+				LOG_ERROR << LOG_DATE << "  XShaderDef::LoadText failed - "
+					"could not inherit " << inherit
+					<< " from " << inheritChain.item( inheritChain.size() - 1 ).key;
+				return false;
+			}
+			
+			inheritChain.set( inherit, NoValue() );
+			inherit = subprops->getcopy( "Inherit", "" );
+			for( size_t i = 0; i < subprops->size(); ++i )
+			{
+				if( props.isset( subprops->item( i ).key ) == false )
+					props.set( subprops->item( i ).key, subprops->item( i ).value );
+			}
+		}
+		
+		Pass pass;
+		pass.name = allprops.item( i ).key;
+		pass.render_state.Init();
+		pass.order = 0;
+		
+		LoadPassInt( pass.order, "Order", 0, 0x7fff );
+		
+		SGRX_RenderState& rs = pass.render_state;
+		LoadPassBool( rs.wireFill, "WireFill" );
+		static const char* eCullModes[] = { "None", "Back", "Front", NULL };
+		LoadPassEnum( rs.cullMode, "CullMode", eCullModes );
+		LoadPassBool( rs.separateBlend, "SeparateBlend" );
+		LoadPassBool( rs.scissorEnable, "ScissorEnable" );
+		LoadPassBool( rs.multisampleEnable, "MultisampleEnable" );
+		
+		LoadPassBool( rs.depthEnable, "DepthEnable" );
+		LoadPassBool( rs.depthWriteEnable, "DepthWriteEnable" );
+		static const char* eDepthFuncs[] = { "Never", "Always", "Equal",
+			"NotEqual", "Less", "LessEqual", "Greater", "GreaterEqual" };
+		LoadPassEnum( rs.depthFunc, "DepthFunc", eDepthFuncs );
+		LoadPassBool( rs.stencilEnable, "StencilEnable" );
+		LoadPassInt( rs.stencilReadMask, "StencilReadMask", 0, 255 );
+		LoadPassInt( rs.stencilWriteMask, "StencilWriteMask", 0, 255 );
+		static const char* eStencilOps[] = { "Keep", "Zero", "Replace", 
+			"Invert", "Incr", "Decr", "IncrSat", "DecrSat" };
+		LoadPassEnum( rs.stencilFrontFailOp, "StencilFrontFailOp", eStencilOps );
+		LoadPassEnum( rs.stencilFrontDepthFailOp, "StencilFrontDepthFailOp", eStencilOps );
+		LoadPassEnum( rs.stencilFrontPassOp, "StencilFrontPassOp", eStencilOps );
+		LoadPassEnum( rs.stencilFrontFunc, "StencilFrontFunc", eDepthFuncs );
+		LoadPassEnum( rs.stencilBackFailOp, "StencilBackFailOp", eStencilOps );
+		LoadPassEnum( rs.stencilBackDepthFailOp, "StencilBackDepthFailOp", eStencilOps );
+		LoadPassEnum( rs.stencilBackPassOp, "StencilBackPassOp", eStencilOps );
+		LoadPassEnum( rs.stencilBackFunc, "StencilBackFunc", eDepthFuncs );
+		LoadPassInt( rs.stencilRef, "StencilRef", 0, 255 );
+		
+		LoadPassFloat( rs.depthBias, "DepthBias" );
+		LoadPassFloat( rs.slopeDepthBias, "SlopeDepthBias" );
+		LoadPassFloat( rs.depthBiasClamp, "DepthBiasClamp" );
+		LoadPassVec4( rs.blendFactor, "BlendFactor" );
+		
+		for( int brtid = 0; brtid < 8; ++brtid )
+		{
+			SGRX_RenderState::BlendState& bs = rs.blendStates[ brtid ];
+			
+			static const char* eColorWrites[] = { "None",
+				"R", "G", "RG", "B", "RB", "GB", "RGB",
+				"A", "RA", "GA", "RGA", "BA", "RBA", "GBA", "RGBA" };
+			static const char* eBlendOps[] = { "Add", "Sub", "RevSub", "Min", "Max" };
+			static const char* eBlendFactors[] = { "Zero", "One", 
+				"SrcColor", "InvSrcColor", "DstColor", "InvDstColor", 
+				"SrcAlpha", "InvSrcAlpha", "DstAlpha", "InvDstAlpha", 
+				"Factor", "InvFactor" };
+			
+			// generic version sets all
+			LoadPassEnum( bs.colorWrite, "ColorWrite", eColorWrites );
+			LoadPassBool( bs.blendEnable, "BlendEnable" );
+			LoadPassEnum( bs.blendOp, "BlendOp", eBlendOps );
+			LoadPassEnum( bs.srcBlend, "SrcBlend", eBlendFactors );
+			LoadPassEnum( bs.dstBlend, "DstBlend", eBlendFactors );
+			LoadPassEnum( bs.blendOpAlpha, "BlendOpAlpha", eBlendOps );
+			LoadPassEnum( bs.srcBlendAlpha, "SrcBlendAlpha", eBlendFactors );
+			LoadPassEnum( bs.dstBlendAlpha, "DstBlendAlpha", eBlendFactors );
+			
+			// specific version overrides one
+			char bfr[ 32 ];
+			char numchr = '0' + brtid;
+			sgrx_snprintf( bfr, 32, "ColorWrite[%c]", numchr );
+			LoadPassEnum( bs.colorWrite, bfr, eColorWrites );
+			sgrx_snprintf( bfr, 32, "BlendEnable[%c]", numchr );
+			LoadPassBool( bs.blendEnable, bfr );
+			sgrx_snprintf( bfr, 32, "BlendOp[%c]", numchr );
+			LoadPassEnum( bs.blendOp, bfr, eBlendOps );
+			sgrx_snprintf( bfr, 32, "SrcBlend[%c]", numchr );
+			LoadPassEnum( bs.srcBlend, bfr, eBlendFactors );
+			sgrx_snprintf( bfr, 32, "DstBlend[%c]", numchr );
+			LoadPassEnum( bs.dstBlend, bfr, eBlendFactors );
+			sgrx_snprintf( bfr, 32, "BlendOpAlpha[%c]", numchr );
+			LoadPassEnum( bs.blendOpAlpha, bfr, eBlendOps );
+			sgrx_snprintf( bfr, 32, "SrcBlendAlpha[%c]", numchr );
+			LoadPassEnum( bs.srcBlendAlpha, bfr, eBlendFactors );
+			sgrx_snprintf( bfr, 32, "DstBlendAlpha[%c]", numchr );
+			LoadPassEnum( bs.dstBlendAlpha, bfr, eBlendFactors );
+		}
+		
+		passes.push_back( pass );
+	}
+	
+	return true;
 }
 
 XShdInstHandle GR_CreateXShdInstance( const SGRX_XShaderDef& def )
