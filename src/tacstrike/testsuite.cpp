@@ -878,6 +878,11 @@ struct TestSuite : IGame
 		ASSERT( def.passes[ 0 ].name == "two" );
 		ASSERT( def.passes[ 0 ].render_state.wireFill == true );
 		
+		ASSERT( def.LoadText( "\n[[shader]]\n\n something \n[[endshader]]" ) );
+		ASSERT( def.passes.size() == 0 );
+		// all newlines preceding shader must go to it
+		ASSERT( def.shader == "\n\n\n something \n" );
+		
 		puts( "--> OK" );
 	}
 }

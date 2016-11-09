@@ -1594,7 +1594,7 @@ bool SGRX_XShaderDef::_XSD_LoadProps(
 			StringView shdr = cr.it.until( "[[endshader]]" );
 			if( shdr.end() == cr.it.end() )
 				return false;
-			int newlines = text.part( cr.it.data() - text.data() ).count( "\n" );
+			int newlines = text.part( 0, key.data() - text.data() ).count( "\n" );
 			cr.it.skip( shdr.size() );
 			cr.it = cr.it.after( "[[endshader]]" );
 			
