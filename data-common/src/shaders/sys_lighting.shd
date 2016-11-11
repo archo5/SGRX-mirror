@@ -1,23 +1,6 @@
 #include "__eq"
 
 
-struct VSOUT
-{
-	float4 tex0 : TEXCOORD0;
-	float4 tex1 : TEXCOORD1;
-	float4 viewPos : TEXCOORD2;
-	float3 N : TEXCOORD3;
-	float4 T : TEXCOORD4;
-	float4 col : COLOR0;
-#if NUM_SPOTLIGHTS > 0
-	float4 SLPPos0 : TEXCOORD5;
-#if NUM_SPOTLIGHTS > 1
-	float4 SLPPos1 : TEXCOORD6;
-#endif // NUM_SPOTLIGHTS > 1
-#endif // NUM_SPOTLIGHTS > 0
-	float4 pos : SEMANTIC_VSOUT_POS;
-};
-
 struct PointLight /* size: 2c */
 {
 	float4 vposrad;
@@ -76,6 +59,86 @@ UNIFORM_BUFFER_END;
 #endif // NUM_SPOTLIGHTS > 0
 
 
+#if NUM_SPOTLIGHTS > 1
+#  define SGRX_SPOTLIGHT_DATA( id0, id1 ) \
+	float4 SLPPos0 : TEXCOORD##id0; \
+	float4 SLPPos1 : TEXCOORD##id1;
+#  define SGRX_SPOTLIGHT_VS_TRANSFER( o, worldPos ) \
+	o.SLPPos0 = mul( mSpotLight[0], worldPos ); \
+	o.SLPPos1 = mul( mSpotLight[1], worldPos );
+#elif NUM_SPOTLIGHTS > 0
+#  define SGRX_SPOTLIGHT_DATA( id0, id1 ) \
+	float4 SLPPos0 : TEXCOORD##id0;
+#  define SGRX_SPOTLIGHT_VS_TRANSFER( o, worldPos ) \
+	o.SLPPos0 = mul( mSpotLight[0], worldPos );
+#else
+#  define SGRX_SPOTLIGHT_DATA( id0, id1 )
+#  define SGRX_SPOTLIGHT_VS_TRANSFER( o, worldPos )
+#endif
+
+
+#ifdef SKIN
+#  define SGRX_SKIN_MESH( i ) i.pos = \
+		mul( mSkin[ i.idcs[0] ], float4( i.pos, 1 ) ).xyz * i.wts[0] + \
+		mul( mSkin[ i.idcs[1] ], float4( i.pos, 1 ) ).xyz * i.wts[1] + \
+		mul( mSkin[ i.idcs[2] ], float4( i.pos, 1 ) ).xyz * i.wts[2] + \
+		mul( mSkin[ i.idcs[3] ], float4( i.pos, 1 ) ).xyz * i.wts[3]; \
+	i.tan.xyz = \
+		mul( mSkin[ i.idcs[0] ], i.tan.xyz ) * i.wts[0] + \
+		mul( mSkin[ i.idcs[1] ], i.tan.xyz ) * i.wts[1] + \
+		mul( mSkin[ i.idcs[2] ], i.tan.xyz ) * i.wts[2] + \
+		mul( mSkin[ i.idcs[3] ], i.tan.xyz ) * i.wts[3]; \
+	i.nrm = \
+		mul( mSkin[ i.idcs[0] ], i.nrm ) * i.wts[0] + \
+		mul( mSkin[ i.idcs[1] ], i.nrm ) * i.wts[1] + \
+		mul( mSkin[ i.idcs[2] ], i.nrm ) * i.wts[2] + \
+		mul( mSkin[ i.idcs[3] ], i.nrm ) * i.wts[3];
+#else
+#  define SGRX_SKIN_MESH( i )
+#endif
+
+
+struct vsinput_particle
+{
+	float4 pos : POSITION0;
+	float4 col : COLOR0;
+	float4 tex : TEXCOORD0;
+};
+
+struct vsinput_mesh
+{
+	float3 pos : POSITION0;
+	float3 nrm : NORMAL0;
+	float4 tan : TANGENT0;
+	float4 col : COLOR0;
+#ifdef SKIN
+	float4 wts : BLENDWEIGHT0;
+	BLENDIDX_UINT8_4_TYPE idcs : BLENDINDICES0;
+#endif
+	float4 tex0 : TEXCOORD0;
+	float4 tex1 : TEXCOORD1;
+};
+
+struct VS2PS
+{
+	float4 tex0 : TEXCOORD0;
+	float4 tex1 : TEXCOORD1;
+	float3 viewPos : TEXCOORD2;
+	float3 N : TEXCOORD3;
+	float4 T : TEXCOORD4;
+	float4 col : COLOR0;
+	SGRX_SPOTLIGHT_DATA( 5, 6 )
+	float4 pos : SEMANTIC_VSOUT_POS;
+};
+
+float3 ModelToWorldPos( float3 p ){ return mul( mWorld, float4( p, 1 ) ).xyz; }
+float3 ModelToWorldDir( float3 d ){ return mul( mWorld, float4( d, 0 ) ).xyz; }
+float3 WorldToViewPos( float3 p ){ return mul( mView, float4( p, 1 ) ).xyz; }
+float3 WorldToViewDir( float3 d ){ return mul( mView, float4( d, 0 ) ).xyz; }
+float3 ModelToViewPos( float3 p ){ return mul( mWorldView, float4( p, 1 ) ).xyz; }
+float4 ViewToProjPos( float3 p ){ return mul( mProj, float4( p, 1 ) ); }
+
+
 #ifndef LIGHT_MULTIPLIER
 #define LIGHT_MULTIPLIER 4
 #endif
@@ -85,82 +148,37 @@ UNIFORM_BUFFER_END;
 
 
 #ifdef PARTICLE
-void main
-(
-	float4 ipos : POSITION0,
-	float4 icol : COLOR0,
-	float4 itex0 : TEXCOORD0,
-	out VSOUT vsout
-)
+void main( vsinput_particle i, out VS2PS vsout )
 {
-	float4 viewPos = mul( mWorldView, ipos );
-	vsout.pos = mul( mProj, viewPos );
+	float3 viewPos = ModelToViewPos( i.pos );
+	vsout.pos = ViewToProjPos( viewPos );
 	vsout.viewPos = viewPos;
 	vsout.N = float3(0,0,-1);
 	vsout.T = float4(1,0,0,1);
-	vsout.col = icol;
-	vsout.tex0 = itex0;
-	vsout.tex1 = itex0;
+	vsout.col = i.col;
+	vsout.tex0 = i.tex;
+	vsout.tex1 = i.tex;
 }
 #else // PARTICLE
 
-void main
-(
-	float3 vpos : POSITION0,
-	float3 inrm : NORMAL0,
-	float4 itan : TANGENT0,
-	float4 icol : COLOR0,
-#ifdef SKIN
-	float4 iwts : BLENDWEIGHT0,
-	BLENDIDX_UINT8_4_TYPE idcs : BLENDINDICES0,
-#endif // SKIN
-	float4 itex0 : TEXCOORD0,
-	float4 itex1 : TEXCOORD1,
-	out VSOUT vsout
-)
+void main( vsinput_mesh i, out VS2PS vsout )
 {
-	float4 ipos = float4( vpos, 1 );
-#ifdef SKIN
-	ipos =
-		mul( mSkin[ idcs[0] ], ipos ) * iwts[0] +
-		mul( mSkin[ idcs[1] ], ipos ) * iwts[1] +
-		mul( mSkin[ idcs[2] ], ipos ) * iwts[2] +
-		mul( mSkin[ idcs[3] ], ipos ) * iwts[3]
-	;
-	itan.xyz =
-		mul( mSkin[ idcs[0] ], itan.xyz ) * iwts[0] +
-		mul( mSkin[ idcs[1] ], itan.xyz ) * iwts[1] +
-		mul( mSkin[ idcs[2] ], itan.xyz ) * iwts[2] +
-		mul( mSkin[ idcs[3] ], itan.xyz ) * iwts[3]
-	;
-	inrm =
-		mul( mSkin[ idcs[0] ], inrm ) * iwts[0] +
-		mul( mSkin[ idcs[1] ], inrm ) * iwts[1] +
-		mul( mSkin[ idcs[2] ], inrm ) * iwts[2] +
-		mul( mSkin[ idcs[3] ], inrm ) * iwts[3]
-	;
-#endif // SKIN
-	
-	float4 worldPos = mul( mWorld, ipos );
-	vsout.T = float4( mul( mWorld, float4( itan.xyz, 0 ) ).xyz, itan.w );
-	vsout.N = mul( mWorld, float4( inrm, 0 ) ).xyz;
-	vsout.col = icol;
-	vsout.tex0 = itex0;
-	vsout.tex1 = itex1;
+	SGRX_SKIN_MESH( i );
+	float3 worldPos = ModelToWorldPos( i.pos );
+	vsout.T = float4( ModelToWorldDir( i.tan.xyz ), i.tan.w );
+	vsout.N = ModelToWorldDir( i.nrm );
+	vsout.col = i.col;
+	vsout.tex0 = i.tex0;
+	vsout.tex1 = i.tex1;
 	{
 __VSCODE__
 	}
-	vsout.N = mul( mView, float4( vsout.N, 0 ) );
-	vsout.T.xyz = mul( mView, float4( vsout.T.xyz, 0 ) );
-	float4 viewPos = mul( mView, worldPos );
-	vsout.pos = mul( mProj, viewPos );
+	vsout.N = WorldToViewDir( vsout.N );
+	vsout.T.xyz = WorldToViewDir( vsout.T.xyz );
+	float3 viewPos = WorldToViewPos( worldPos );
+	vsout.pos = ViewToProjPos( viewPos );
 	vsout.viewPos = viewPos;
-#if NUM_SPOTLIGHTS > 0
-	vsout.SLPPos0 = mul( mSpotLight[0], worldPos );
-#if NUM_SPOTLIGHTS > 1
-	vsout.SLPPos1 = mul( mSpotLight[1], worldPos );
-#endif // NUM_SPOTLIGHTS > 1
-#endif // NUM_SPOTLIGHTS > 0
+	SGRX_SPOTLIGHT_VS_TRANSFER( vsout, worldPos );
 }
 
 #endif // PARTICLE
@@ -219,9 +237,30 @@ bool PostProjCoordToTexDepth( out float3 slpos, float4 coord )
 	return dot(step(1-abs( pos ),0),1) <= 0;
 }
 
+float3 StaticDiffuseLighting( float3 worldNormal, float dotVertBumpNormal, float2 lmTex )
+{
+	float4 contribData = TEXSAMPLE_2D( InstTex1, lmTex );
+	// brightness compensation value
+	float BRDot = saturate( dotVertBumpNormal );
+	// contribution [dot] surface normal
+	float LMDot = saturate( dot( contribData.xyz * 2 - 1, worldNormal ) );
+	return TEXSAMPLE_2D( InstTex0, lmTex ).rgb * lerp( 1, LMDot / BRDot, contribData.w );
+}
+
+float3 DynamicDiffuseLighting( float3 worldNormal )
+{
+	float qxp = saturate( worldNormal.x ), qxn = saturate( -worldNormal.x );
+	float qyp = saturate( worldNormal.y ), qyn = saturate( -worldNormal.y );
+	float qzp = saturate( worldNormal.z ), qzn = saturate( -worldNormal.z );
+	return (
+		qxp * gInstanceData[10] + qxn * gInstanceData[11] +
+		qyp * gInstanceData[12] + qyn * gInstanceData[13] +
+		qzp * gInstanceData[14] + qzn * gInstanceData[15] ) / (qxp+qyp+qzp+qxn+qyn+qzn);
+}
+
 void main
 (
-	VSOUT input
+	VS2PS input
 	
 #if !defined(SHADOW_PASS) || SHADOW_PASS_TO_RT
 	ARG_OUT_RT0
@@ -280,23 +319,9 @@ __CODE__
 	
 #ifdef BASE_PASS
 #if LMODE == 1 || LMODE == 3 // -- static / decal
-	float3 LN = mul( mInvView, outNormal );
-	float4 contribData = TEXSAMPLE_2D( InstTex1, inTex1.xy );
-	// brightness compensation value
-	float BRDot = saturate( dot( outNormal, inNormal ) );
-	// contribution [dot] surface normal
-	float LMDot = saturate( dot( contribData.xyz * 2 - 1, LN ) );
-	totalDiffuse = TEXSAMPLE_2D( InstTex0, inTex1.xy ).rgb *
-		lerp( 1, LMDot / BRDot, contribData.w );
+	totalDiffuse += StaticDiffuseLighting( mul( mInvView, outNormal ), dot( outNormal, inNormal ), inTex1.xy );
 #elif LMODE == 2 // -- dynamic
-	float3 LN = mul( mInvView, outNormal );
-	float qxp = saturate( LN.x ), qxn = saturate( -LN.x );
-	float qyp = saturate( LN.y ), qyn = saturate( -LN.y );
-	float qzp = saturate( LN.z ), qzn = saturate( -LN.z );
-	totalDiffuse = (
-		qxp * gInstanceData[10] + qxn * gInstanceData[11] +
-		qyp * gInstanceData[12] + qyn * gInstanceData[13] +
-		qzp * gInstanceData[14] + qzn * gInstanceData[15] ) / (qxp+qyp+qzp+qxn+qyn+qzn);
+	totalDiffuse += DynamicDiffuseLighting( mul( mInvView, outNormal ) );
 #endif // LMODE
 #if defined(VCOL)
 	totalDiffuse *= icol.rgb;
