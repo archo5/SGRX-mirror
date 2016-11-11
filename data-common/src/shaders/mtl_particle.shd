@@ -1,6 +1,8 @@
-float4 diff = TEXSAMPLE_2D( Tex0, inTex0.xy );
-outDiffuseColor = diff.rgb * diff.rgb * icol.rgb;
-outOpacity = diff.a * icol.a;
-outNormal = float3( 0, 0, -1 );
-outSpecularColor = float3( 0, 0, 0 );
-outAmbientDiffuseLight = float3(1,1,1);
+void surf( inout SurfaceInfo surfInfo, VS2PS i )
+{
+	float4 diff = TEXSAMPLE_2D( Tex0, i.tex0.xy );
+	surfInfo.diffuseColor = DiffuseTexGamma( diff ) * i.col;
+	surfInfo.specularColor = float3( 0, 0, 0 );
+	// TODO
+//	outAmbientDiffuseLight = float3(1,1,1);
+}

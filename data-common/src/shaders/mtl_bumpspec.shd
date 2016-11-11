@@ -1,9 +1,7 @@
-float4 diff = TEXSAMPLE_2D( Tex0, inTex0.xy );
-diff = diff * diff;// * icol;
-float3 normal = TEXSAMPLE_2D( Tex1, inTex0.xy ).rgb * 2 - 1;
-outNormal = mul( normal, TBN );
-outDiffuseColor = diff.rgb;
-outOpacity = diff.a;
-float fresnel = 1 - abs( dot( outNormal, normalize(viewPos) ) );
-outSpecularColor = TEXSAMPLE_2D( Tex2, inTex0.xy ).rgb * ( fresnel * fresnel );
-outSpecularPower = 64;
+void surf( inout SurfaceInfo surfInfo, VS2PS i )
+{
+	float4 diff = TEXSAMPLE_2D( Tex0, i.tex0.xy );
+	surfInfo.diffuseColor = DiffuseTexGamma( diff );
+	surfInfo.normal = TEXSAMPLE_2D( Tex1, i.tex0.xy ).rgb * 2 - 1;
+	surfInfo.specularColor = TEXSAMPLE_2D( Tex2, i.tex0.xy ).rgb;
+}

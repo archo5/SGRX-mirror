@@ -2797,6 +2797,7 @@ VertexShaderHandle GR_GetVertexShader( const StringView& path )
 			LOG_ERROR << LOG_DATE << "  Failed to compile vertex shader: " << path;
 			LOG << errors;
 			LOG << "---";
+			exit(1);
 			return VertexShaderHandle();
 		}
 		
@@ -2860,6 +2861,7 @@ PixelShaderHandle GR_GetPixelShader( const StringView& path )
 			LOG_ERROR << LOG_DATE << "  Failed to compile pixel shader: " << path;
 			LOG << errors;
 			LOG << "---";
+			exit(1);
 			return PixelShaderHandle();
 		}
 		

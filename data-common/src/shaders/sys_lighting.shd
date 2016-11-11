@@ -97,6 +97,28 @@ UNIFORM_BUFFER_END;
 #  define SGRX_SKIN_MESH( i )
 #endif
 
+float3 ModelToWorldPos( float3 p ){ return mul( mWorld, float4( p, 1 ) ).xyz; }
+float3 ModelToWorldDir( float3 d ){ return mul( mWorld, float4( d, 0 ) ).xyz; }
+float3 WorldToViewPos( float3 p ){ return mul( mView, float4( p, 1 ) ).xyz; }
+float3 WorldToViewDir( float3 d ){ return mul( mView, float4( d, 0 ) ).xyz; }
+float3 ModelToViewPos( float3 p ){ return mul( mWorldView, float4( p, 1 ) ).xyz; }
+float3 ViewToWorldDir( float3 d ){ return mul( mInvView, float4( d, 0 ) ).xyz; }
+float4 ViewToProjPos( float3 p ){ return mul( mProj, float4( p, 1 ) ); }
+
+float3x3 CreateTBNMatrix( float3 normal, float4 tangent )
+{
+	tangent.xyz = normalize( tangent.xyz );
+	normal = normalize( normal );
+	float3 bitangent = normalize( cross( normal, tangent.xyz ) * tangent.w );
+	return float3x3( tangent.xyz, bitangent, normal );
+}
+
+float4 DiffuseTexGamma( float4 col )
+{
+	col.rgb *= col.rgb;
+	return col;
+}
+
 
 struct vsinput_particle
 {
@@ -131,12 +153,38 @@ struct VS2PS
 	float4 pos : SEMANTIC_VSOUT_POS;
 };
 
-float3 ModelToWorldPos( float3 p ){ return mul( mWorld, float4( p, 1 ) ).xyz; }
-float3 ModelToWorldDir( float3 d ){ return mul( mWorld, float4( d, 0 ) ).xyz; }
-float3 WorldToViewPos( float3 p ){ return mul( mView, float4( p, 1 ) ).xyz; }
-float3 WorldToViewDir( float3 d ){ return mul( mView, float4( d, 0 ) ).xyz; }
-float3 ModelToViewPos( float3 p ){ return mul( mWorldView, float4( p, 1 ) ).xyz; }
-float4 ViewToProjPos( float3 p ){ return mul( mProj, float4( p, 1 ) ); }
+struct SurfaceInput
+{
+	float3 viewPos;
+	float4 projPos;
+	float3 viewDir;
+	float4 inTex0;
+	float4 inTex1;
+	float3 inNormal;
+	float4 inTangentSign;
+	float4 icol;
+	float3x3 TBN;
+};
+
+struct SurfaceInfo
+{
+	float4 diffuseColor;
+	float3 specularColor;
+	float glossiness;
+	float3 normal;
+	float2 distortion;
+	float3 emissiveLight;
+};
+
+void InitSurfaceInfo( out SurfaceInfo info )
+{
+	info.diffuseColor = float4( 0.7, 0.7, 0.7, 1 );
+	info.specularColor = float3( 0.3, 0.3, 0.3 );
+	info.glossiness = 0.5;
+	info.normal = float3( 0, 0, 1 );
+	info.distortion = float2( 0, 0 );
+	info.emissiveLight = float3( 0, 0, 0 );
+}
 
 
 #ifndef LIGHT_MULTIPLIER
@@ -241,7 +289,7 @@ float3 StaticDiffuseLighting( float3 worldNormal, float dotVertBumpNormal, float
 {
 	float4 contribData = TEXSAMPLE_2D( InstTex1, lmTex );
 	// brightness compensation value
-	float BRDot = saturate( dotVertBumpNormal );
+	float BRDot = saturate( dotVertBumpNormal ) * 0.9 + 0.1;
 	// contribution [dot] surface normal
 	float LMDot = saturate( dot( contribData.xyz * 2 - 1, worldNormal ) );
 	return TEXSAMPLE_2D( InstTex0, lmTex ).rgb * lerp( 1, LMDot / BRDot, contribData.w );
@@ -253,10 +301,13 @@ float3 DynamicDiffuseLighting( float3 worldNormal )
 	float qyp = saturate( worldNormal.y ), qyn = saturate( -worldNormal.y );
 	float qzp = saturate( worldNormal.z ), qzn = saturate( -worldNormal.z );
 	return (
-		qxp * gInstanceData[10] + qxn * gInstanceData[11] +
-		qyp * gInstanceData[12] + qyn * gInstanceData[13] +
-		qzp * gInstanceData[14] + qzn * gInstanceData[15] ) / (qxp+qyp+qzp+qxn+qyn+qzn);
+		qxp * gInstanceData[10].rgb + qxn * gInstanceData[11].rgb +
+		qyp * gInstanceData[12].rgb + qyn * gInstanceData[13].rgb +
+		qzp * gInstanceData[14].rgb + qzn * gInstanceData[15].rgb )
+		/ (qxp+qyp+qzp+qxn+qyn+qzn);
 }
+
+__CODE__
 
 void main
 (
@@ -273,7 +324,7 @@ void main
 {
 	float3 inViewPos = input.viewPos.xyz;
 	float3 viewPos = inViewPos;
-	float4 projPos = mul( mProj, input.viewPos );
+	float4 projPos = mul( mProj, float4( input.viewPos, 1 ) );
 	float3 viewDir = normalize( viewPos );
 	float4 inTex0 = input.tex0;
 	float4 inTex1 = input.tex1;
@@ -281,27 +332,12 @@ void main
 	float4 inTangentSign = input.T;
 	float4 icol = input.col;
 	
-	inTangentSign.xyz = normalize( inTangentSign.xyz );
-	inNormal = normalize( input.N );
+	float3x3 TBN = CreateTBNMatrix( input.N, input.T );
 	
-	float3 T = inTangentSign.xyz;
-	float3 B = normalize( cross( inNormal, inTangentSign.xyz ) * inTangentSign.w );
-	float3 N = inNormal;
+	SurfaceInfo surfInfo;
+	InitSurfaceInfo( surfInfo );
 	
-	float3x3 TBN = float3x3( T, B, N );
-	
-	float3 outDiffuseColor = float3( 0.7, 0.7, 0.7 );
-	float outOpacity = 1.0;
-	float3 outSpecularColor = float3( 0.3, 0.3, 0.3 );
-	float outSpecularPower = 32;
-	float3 outNormal = inNormal;
-	float2 outDistortion = float2( 0, 0 );
-	float3 outAmbientDiffuseLight = float3( 0, 0, 0 );
-	float3 outAmbientSpecularLight = float3( 0, 0, 0 );
-	float3 outEmissiveLight = float3( 0, 0, 0 );
-	{
-__CODE__
-	}
+	surf( surfInfo, input );
 	
 #ifdef SHADOW_PASS
 #if SHADOW_PASS_TO_RT
@@ -309,28 +345,32 @@ __CODE__
 #endif
 #else
 	
-	outNormal = normalize( outNormal );
+	float outSpecularPower = exp2( surfInfo.glossiness * 8 );
+	float3 outNormal = normalize( mul( surfInfo.normal, TBN ) );
 	
 	float3 refView = reflect( viewDir, outNormal );
-	float3 refWorld = mul( mInvView, float4( refView, 0 ) ).xyz;
+	float3 refWorld = ViewToWorldDir( refView );
 	
 	float3 totalDiffuse = float3(0,0,0);
 	float3 totalSpecular = float3(0,0,0);
 	
 #ifdef BASE_PASS
 #if LMODE == 1 || LMODE == 3 // -- static / decal
-	totalDiffuse += StaticDiffuseLighting( mul( mInvView, outNormal ), dot( outNormal, inNormal ), inTex1.xy );
+	totalDiffuse += StaticDiffuseLighting( ViewToWorldDir( outNormal ), dot( outNormal, inNormal ), inTex1.xy );
 #elif LMODE == 2 // -- dynamic
-	totalDiffuse += DynamicDiffuseLighting( mul( mInvView, outNormal ) );
+	totalDiffuse += DynamicDiffuseLighting( ViewToWorldDir( outNormal ) );
 #endif // LMODE
 #if defined(VCOL)
 	totalDiffuse *= icol.rgb;
 #endif // defined(VCOL)
 	totalDiffuse *= LIGHT_MULTIPLIER;
-	totalDiffuse += /* gAmbLightColor + */ outAmbientDiffuseLight;
-	totalSpecular += outAmbientSpecularLight + TEXSAMPLE_CUBE_BIAS( InstTex2, refWorld, log(outSpecularPower)*2+1 ).rgb;
-	totalSpecular += TEXSAMPLE_2D( InstTex3, projPos.xy / projPos.w * float2(-0.5,-0.5) + 0.5 );
 	
+	// environment cubemap
+	totalSpecular += TEXSAMPLE_CUBE_BIAS( InstTex2, refWorld, ( 1 - surfInfo.glossiness ) * 8 ).rgb;
+	// screen-space reflections
+	totalSpecular += TEXSAMPLE_2D( InstTex3, projPos.xy / projPos.w * float2(-0.5,-0.5) + 0.5 ).rgb;
+	
+	// totalDiffuse += gAmbLightColor;
 	/* DIRECTIONAL LIGHT *--disabled--/
 	totalDiffuse += saturate( dot( outNormal, gDirLightDir ) ) * gDirLightColor;
 	RdotV = saturate( dot( reflect( gDirLightDir, outNormal ), viewDir ) );
@@ -339,7 +379,7 @@ __CODE__
 #endif // BASE_PASS
 	
 #ifdef VCOL
-	outOpacity *= icol.a;
+	surfInfo.diffuseColor.a *= icol.a;
 #endif // VCOL
 	
 #ifdef NUM_POINTLIGHTS
@@ -380,12 +420,15 @@ __CODE__
 	totalDiffuse = float3(1,1,1);
 	totalSpecular = float3(0,0,0);
 #endif
+	
+	float3 diffuseCol = surfInfo.diffuseColor.rgb;
 #if defined(MOD_NODIFFCOL) // -- ignore diffuse color
-	outDiffuseColor = float3(1,1,1);
+	diffuseCol = float3(1,1,1);
 #endif
 	
-	RT0 = float4( totalDiffuse * outDiffuseColor + totalSpecular * outSpecularColor + outEmissiveLight, outOpacity );
-	RT1 = float4( outDistortion, 0, outOpacity );
+	float opacity = surfInfo.diffuseColor.a;
+	RT0 = float4( totalDiffuse * diffuseCol + totalSpecular * surfInfo.specularColor + surfInfo.emissiveLight, opacity );
+	RT1 = float4( surfInfo.distortion, 0, opacity );
 	RT2 = float4( inViewPos.z, 0, 0, 1 );
 	
 	// POST-LIGHT modifier addons

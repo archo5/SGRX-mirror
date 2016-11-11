@@ -1,22 +1,22 @@
-float4 diff = TEXSAMPLE_2D( Tex0, inTex0.xy );
-diff = diff * diff;// * icol;
-float3 emit = TEXSAMPLE_2D( Tex1, inTex0.xy ).rgb;
-outDiffuseColor = diff.rgb;
-outOpacity = diff.a;
-float fresnel = 1 - abs( dot( inNormal, normalize(viewPos) ) );
-outSpecularColor = float3( 0.1, 0.1, 0.1 ) * ( fresnel * fresnel );
-outSpecularPower = 64;
-outNormal = inNormal;
-#if LMODE == 2
-float3 LN = mul( mInvView, inNormal );
-float qxp = saturate( LN.x ), qxn = saturate( -LN.x );
-float qyp = saturate( LN.y ), qyn = saturate( -LN.y );
-float qzp = saturate( LN.z ), qzn = saturate( -LN.z );
-outAmbientDiffuseLight = LIGHT_MULTIPLIER*(
-	qxp * gInstanceData[10] + qxn * gInstanceData[11] +
-	qyp * gInstanceData[12] + qyn * gInstanceData[13] +
-	qzp * gInstanceData[14] + qzn * gInstanceData[15] ) / (qxp+qyp+qzp+qxn+qyn+qzn);
-#else
-outAmbientDiffuseLight = TEXSAMPLE_2D( InstTex0, inTex1.xy ) * LIGHT_MULTIPLIER;
-#endif
-outEmissiveLight = outAmbientDiffuseLight * emit * 4;
+void surf( inout SurfaceInfo surfInfo, VS2PS i )
+{
+	float4 diff = TEXSAMPLE_2D( Tex0, i.tex0.xy );
+	surfInfo.diffuseColor = DiffuseTexGamma( diff );
+	float3 emit = TEXSAMPLE_2D( Tex1, i.tex0.xy ).rgb;
+	surfInfo.diffuseColor.rgb *= ( float3(1,1,1) + emit );
+	/*
+		A HACK TO AMPLIFY LOCAL LIGHTING
+	#if LMODE == 2
+	float3 LN = mul( mInvView, inNormal );
+	float qxp = saturate( LN.x ), qxn = saturate( -LN.x );
+	float qyp = saturate( LN.y ), qyn = saturate( -LN.y );
+	float qzp = saturate( LN.z ), qzn = saturate( -LN.z );
+	outAmbientDiffuseLight = LIGHT_MULTIPLIER*(
+		qxp * gInstanceData[10] + qxn * gInstanceData[11] +
+		qyp * gInstanceData[12] + qyn * gInstanceData[13] +
+		qzp * gInstanceData[14] + qzn * gInstanceData[15] ) / (qxp+qyp+qzp+qxn+qyn+qzn);
+	#else
+	outAmbientDiffuseLight = TEXSAMPLE_2D( InstTex0, inTex1.xy ) * LIGHT_MULTIPLIER;
+	#endif
+	*/
+}

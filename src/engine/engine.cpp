@@ -1325,6 +1325,7 @@ bool IGame::OnLoadShader( const SGRX_RendererInfo& rinfo, const StringView& key,
 			return false;
 		if( vs.size() && !OnLoadShaderFile( rinfo, String_Concat( "vs_", vs ), vs_data ) )
 			return false;
+		mtl_data.append( "\n#line 1 \"bacon\"\n" );
 		outdata = String_Concat( prepend, String_Replace( String_Replace( tpl_data, "__CODE__", mtl_data ), "__VSCODE__", vs_data ) );
 		return true;
 	}

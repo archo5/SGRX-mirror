@@ -2208,6 +2208,11 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, SGRX_PassType passtype, in
 		SGRX_DrawItem* DI = &MI->m_drawItems[ part_id ];
 		const SGRX_Material& MTL = MI->GetMaterial( part_id );
 		const SGRX_XShdInst::Pass& XPS = DI->XSH->passes[ passtype - 1 ]; /* TODO HACK */
+		if( XPS.pixelShader == NULL )
+		{
+			RI++;
+			continue;
+		}
 		
 		SetRenderState( XPS.renderState, scene->frontCCW );
 		SetVertexShader( XPS.vertexShader );
