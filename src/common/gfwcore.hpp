@@ -4,6 +4,7 @@
 
 #include <engine.hpp>
 #include <enganim.hpp>
+#include <particlesys.hpp>
 #include <pathfinding.hpp>
 #include <sound.hpp>
 #include <physics.hpp>

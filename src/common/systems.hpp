@@ -98,35 +98,6 @@ EXP_STRUCT LevelMapSystem : IGameLevelSystem
 };
 
 
-EXP_STRUCT HelpTextSystem : IGameLevelSystem
-{
-	SGS_OBJECT;
-	SGS_NO_DESTRUCT;
-	
-	enum { e_system_uid = 13 };
-	
-	GFW_EXPORT HelpTextSystem( GameLevel* lev );
-	GFW_EXPORT void Clear();
-	GFW_EXPORT void SetText( StringView text, float alpha = 1, float fadetime = 0, float fadeto = 0 );
-	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
-	GFW_EXPORT SGS_METHOD void DrawText();
-	
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME text ) String m_text;
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME alpha ) float m_alpha;
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME fadeTime ) float m_fadeTime;
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME fadeTo ) float m_fadeTo;
-	GFW_EXPORT SGS_METHOD_NAMED( Clear ) void sgsClear();
-	GFW_EXPORT SGS_METHOD_NAMED( SetText ) void sgsSetText( StringView text, float alpha, float fadetime, float fadeto );
-	
-	// renderer access
-	SGS_PROPERTY_FUNC( READ WRITE VALIDATE renderer SOURCE renderer->fontSize ) SGS_ALIAS( int fontSize );
-	SGS_PROPERTY_FUNC( READ WRITE VALIDATE renderer SOURCE renderer->centerPos ) SGS_ALIAS( Vec2 centerPos );
-	SGS_PROPERTY_FUNC( READ WRITE VALIDATE renderer SOURCE renderer->lineHeightFactor ) SGS_ALIAS( float lineHeightFactor );
-	
-	SGRX_HelpTextRenderer* renderer;
-};
-
-
 struct FSFlare
 {
 	Vec3 pos;

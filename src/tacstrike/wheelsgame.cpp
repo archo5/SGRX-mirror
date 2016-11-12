@@ -58,7 +58,6 @@ struct WheelsGame : BaseGame
 			m_soundSys = SND_CreateSystem();
 		}
 		GameLevel* level = BaseGame::CreateLevel();
-		AddSystemToLevel<HelpTextSystem>( level );
 		AddSystemToLevel<FlareSystem>( level );
 		AddSystemToLevel<LevelCoreSystem>( level );
 		AddSystemToLevel<GFXSystem>( level );
@@ -66,12 +65,6 @@ struct WheelsGame : BaseGame
 		AddSystemToLevel<MusicSystem>( level );
 		AddSystemToLevel<DamageSystem>( level );
 		AddSystemToLevel<DevelopSystem>( level );
-		
-		HelpTextSystem* HTS = level->GetSystem<HelpTextSystem>();
-		HTS->renderer = &htr;
-		htr.lineHeightFactor = 1.4f;
-	//	htr.buttonTex = GR_GetTexture( "ui/key.png" );
-		htr.SetNamedFont( "", "core" );
 		
 		return level;
 	}
@@ -139,7 +132,6 @@ struct WheelsGame : BaseGame
 	void OnDestroy()
 	{
 		BaseGame::OnDestroy();
-		htr.buttonTex = NULL;
 	}
 	
 	void OnEvent( const Event& e )
@@ -163,8 +155,6 @@ struct WheelsGame : BaseGame
 		
 		BaseGame::OnTick( dt, gametime );
 	}
-	
-	SGRX_HelpTextRenderer htr;
 };
 
 
