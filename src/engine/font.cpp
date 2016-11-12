@@ -12,6 +12,8 @@
 #define NANOSVG_INCLUDED
 #include "engine_int.hpp"
 
+extern FontHashTable* g_LoadedFonts;
+
 
 
 static FT_Library g_FTLib;
@@ -561,5 +563,37 @@ FontRenderer::GlyphCache::Node* FontRenderer::_GetGlyph( uint32_t ch )
 	m_cache.GetPageTexture( node->page ).UploadRGBA8Part( bitmap.data(), 0, width, height, node->x0, node->y0 );
 	
 	return node;
+}
+
+
+bool GR2D_LoadFont( const StringView& key, const StringView& path )
+{
+	SGRX_IFont* fif = NULL;
+	if( ( fif = sgrx_int_CreateFont( path ) ) == NULL )
+	{
+		LOG_ERROR << LOG_DATE << "  Failed to load font: " << path;
+		return false;
+	}
+	fif->m_key = key;
+	g_LoadedFonts->set( fif->m_key, fif );
+	return true;
+}
+
+bool GR2D_LoadSVGIconFont( const StringView& key, const StringView& path )
+{
+	SGRX_IFont* fif = NULL;
+	if( ( fif = sgrx_int_CreateSVGIconFont( path ) ) == NULL )
+	{
+		LOG_ERROR << LOG_DATE << "  Failed to load SVG icon font: " << path;
+		return false;
+	}
+	fif->m_key = key;
+	g_LoadedFonts->set( fif->m_key, fif );
+	return true;
+}
+
+FontHandle GR2D_GetFont( const StringView& key )
+{
+	return g_LoadedFonts->getcopy( key );
 }
 
