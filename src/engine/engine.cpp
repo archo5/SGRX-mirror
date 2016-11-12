@@ -1058,28 +1058,6 @@ void SGRX_RenderDirector::SetMode( int mode )
 
 
 
-void ParseDefaultTextureFlags( const StringView& flags, uint32_t& outusageflags, uint8_t& outlod )
-{
-	if( flags.contains( ":nosrgb" ) ) outusageflags &= ~TEXFLAGS_SRGB;
-	if( flags.contains( ":srgb" ) ) outusageflags |= TEXFLAGS_SRGB;
-	if( flags.contains( ":wrapx" ) ) outusageflags &= ~TEXFLAGS_CLAMP_X;
-	if( flags.contains( ":wrapy" ) ) outusageflags &= ~TEXFLAGS_CLAMP_Y;
-	if( flags.contains( ":wrapz" ) ) outusageflags &= ~TEXFLAGS_CLAMP_Z;
-	if( flags.contains( ":clampx" ) ) outusageflags |= TEXFLAGS_CLAMP_X;
-	if( flags.contains( ":clampy" ) ) outusageflags |= TEXFLAGS_CLAMP_Y;
-	if( flags.contains( ":clampz" ) ) outusageflags |= TEXFLAGS_CLAMP_Z;
-	if( flags.contains( ":nolerp" ) ) outusageflags &= ~TEXFLAGS_LERP;
-	if( flags.contains( ":lerp" ) ) outusageflags |= TEXFLAGS_LERP;
-	if( flags.contains( ":nomips" ) ) outusageflags &= ~TEXFLAGS_HASMIPS;
-	if( flags.contains( ":mips" ) ) outusageflags |= TEXFLAGS_HASMIPS;
-	
-	size_t pos = flags.find_first_at( ":lod" );
-	if( pos != NOT_FOUND )
-	{
-		outlod = (uint8_t) String_ParseInt( flags.part( pos + 4 ) );
-	}
-}
-
 bool IGame::OnConfigure( int argc, char** argv )
 {
 	for( int i = 1; i < argc; )
@@ -1155,71 +1133,6 @@ int IGame::OnArgument( char* arg, int argcleft, char** argvleft )
 		return 1;
 	}
 	return 0;
-}
-
-TextureHandle IGame::OnCreateSysTexture( const StringView& key )
-{
-	if( key == "sys:black2d" )
-	{
-		uint32_t data[1] = { 0xff000000 };
-		return GR_CreateTexture( 1, 1, TEXFMT_RGBA8, TEXFLAGS_LERP, 1, data );
-	}
-	if( key == "sys:blackt2d" )
-	{
-		uint32_t data[1] = { 0x00000000 };
-		return GR_CreateTexture( 1, 1, TEXFMT_RGBA8, TEXFLAGS_LERP, 1, data );
-	}
-	if( key == "sys:white2d" )
-	{
-		uint32_t data[1] = { 0xffffffff };
-		return GR_CreateTexture( 1, 1, TEXFMT_RGBA8, TEXFLAGS_LERP, 1, data );
-	}
-	if( key == "sys:normal2d" )
-	{
-		uint32_t data[1] = { 0xffff7f7f };
-		return GR_CreateTexture( 1, 1, TEXFMT_RGBA8, TEXFLAGS_LERP, 1, data );
-	}
-	if( key == "sys:lut_default" )
-	{
-		uint32_t data[8] =
-		{
-			COLOR_RGB(0,0,0), COLOR_RGB(255,0,0), COLOR_RGB(0,255,0), COLOR_RGB(255,255,0),
-			COLOR_RGB(0,0,255), COLOR_RGB(255,0,255), COLOR_RGB(0,255,255), COLOR_RGB(255,255,255),
-		};
-		return GR_CreateTexture3D( 2, 2, 2, TEXFMT_RGBA8,
-			TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y | TEXFLAGS_CLAMP_Z, 1, data );
-	}
-	
-	return NULL;
-}
-
-HFileReader IGame::OnLoadTexture( const StringView& key, uint32_t& outusageflags, uint8_t& outlod )
-{
-	LOG_FUNCTION;
-	
-	if( !key )
-		return NULL;
-	
-	StringView path = key.until( ":", 1 );
-	
-	// try .stx (optimized) before original
-	HFileReader out = FS_OpenBinaryFile( String_Concat( path, ".stx" ) );
-	if( !out )
-		out = FS_OpenBinaryFile( path );
-	if( !out )
-		return NULL;
-	
-	outusageflags = TEXFLAGS_HASMIPS | TEXFLAGS_LERP;
-	if( path.contains( "diff." ) )
-	{
-		// diffuse maps
-		outusageflags |= TEXFLAGS_SRGB;
-	}
-	
-	StringView flags = key.from( ":", 1 );
-	ParseDefaultTextureFlags( flags, outusageflags, outlod );
-	
-	return out;
 }
 
 void IGame::GetShaderCacheFilename( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, String& name )

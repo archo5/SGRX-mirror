@@ -6,24 +6,13 @@
 #include "sound.hpp"
 
 
-typedef HashTable< StringView, SGRX_ConvexPointSet* > ConvexPointSetHashTable;
-typedef HashTable< StringView, SGRX_ITexture* > TextureHashTable;
-typedef HashTable< uint64_t, SGRX_ITexture* > RenderTargetTable;
-typedef HashTable< uint64_t, SGRX_IDepthStencilSurface* > DepthStencilSurfTable;
-typedef HashTable< StringView, SGRX_IVertexShader* > VertexShaderHashTable;
-typedef HashTable< StringView, SGRX_IPixelShader* > PixelShaderHashTable;
-typedef HashTable< SGRX_RenderState, SGRX_IRenderState* > RenderStateHashTable;
-typedef HashTable< StringView, SGRX_IVertexDecl* > VertexDeclHashTable;
-typedef HashTable< SGRX_VtxInputMapKey, SGRX_IVertexInputMapping* > VtxInputMapHashTable;
-typedef HashTable< StringView, SGRX_IMesh* > MeshHashTable;
 typedef HashTable< StringView, AnimHandle > AnimHashTable;
 typedef HashTable< StringView, AnimCharHandle > AnimCharHashTable;
-typedef HashTable< StringView, FontHandle > FontHashTable;
-typedef HashTable< GenericHandle, int > ResourcePreserveHashTable;
+
 
 static ConvexPointSetHashTable* g_CPSets = NULL;
-static TextureHashTable* g_Textures = NULL;
-static RenderTargetTable* g_RenderTargets = NULL;
+TextureHashTable* g_Textures = NULL;
+RenderTargetTable* g_RenderTargets = NULL;
 static DepthStencilSurfTable* g_DepthStencilSurfs = NULL;
 static VertexShaderHashTable* g_VertexShaders = NULL;
 static PixelShaderHashTable* g_PixelShaders = NULL;
@@ -38,8 +27,6 @@ static ResourcePreserveHashTable* g_PreservedResources = NULL;
 
 extern IGame* g_Game;
 extern IRenderer* g_Renderer;
-extern bool g_VerboseLogging;
-#define VERBOSE g_VerboseLogging
 
 
 
@@ -131,90 +118,6 @@ void RenderStats::Reset()
 	numSDrawCalls = 0;
 	numMDrawCalls = 0;
 	numPDrawCalls = 0;
-}
-
-
-SGRX_ITexture::SGRX_ITexture() : m_rtkey(0)
-{
-}
-
-SGRX_ITexture::~SGRX_ITexture()
-{
-	if( VERBOSE ) LOG << "Deleted texture: " << m_key;
-	g_Textures->unset( m_key );
-	if( m_rtkey )
-		g_RenderTargets->unset( m_rtkey );
-}
-
-const TextureInfo& TextureHandle::GetInfo() const
-{
-	static TextureInfo dummy_info = {0};
-	if( !item )
-		return dummy_info;
-	return item->m_info;
-}
-
-Vec2 TextureHandle::GetInvSize( Vec2 def ) const
-{
-	const TextureInfo& TI = GetInfo();
-	return V2( TI.width ? 1.0f / TI.width : def.x, TI.height ? 1.0f / TI.height : def.y );
-}
-
-bool TextureHandle::UploadRGBA8Part( void* data, int mip, int w, int h, int x, int y )
-{
-	LOG_FUNCTION;
-	
-	if( !item )
-		return false;
-	
-	const TextureInfo& TI = item->m_info;
-	
-	if( mip < 0 || mip >= TI.mipcount )
-	{
-		LOG_ERROR << "Cannot UploadRGBA8Part - mip count out of bounds (" << mip << "/" << TI.mipcount << ")";
-		return false;
-	}
-	
-	TextureInfo mti;
-	if( !TextureInfo_GetMipInfo( &TI, mip, &mti ) )
-	{
-		LOG_ERROR << "Cannot UploadRGBA8Part - failed to get mip info (" << mip << ")";
-		return false;
-	}
-	
-	if( w < 0 ) w = mti.width;
-	if( h < 0 ) h = mti.height;
-	
-	return item->UploadRGBA8Part( data, mip, x, y, w, h );
-}
-
-bool TextureHandle::UploadRGBA8Part3D( void* data, int mip, int w, int h, int d, int x, int y, int z )
-{
-	LOG_FUNCTION;
-	
-	if( !item )
-		return false;
-	
-	const TextureInfo& TI = item->m_info;
-	
-	if( mip < 0 || mip >= TI.mipcount )
-	{
-		LOG_ERROR << "Cannot UploadRGBA8Part - mip count out of bounds (" << mip << "/" << TI.mipcount << ")";
-		return false;
-	}
-	
-	TextureInfo mti;
-	if( !TextureInfo_GetMipInfo( &TI, mip, &mti ) )
-	{
-		LOG_ERROR << "Cannot UploadRGBA8Part - failed to get mip info (" << mip << ")";
-		return false;
-	}
-	
-	if( w < 0 ) w = mti.width;
-	if( h < 0 ) h = mti.height;
-	if( d < 0 ) d = mti.depth;
-	
-	return item->UploadRGBA8Part3D( data, mip, x, y, z, w, h, d );
 }
 
 
@@ -2548,178 +2451,6 @@ void SGRX_SceneTree::UpdateTransforms()
 		Item& I = items[ i ];
 		I.item->SetTransform( I.node_id < nodes.size() ? transforms[ I.node_id ] : Mat4::Identity );
 	}
-}
-
-
-int GR_CalcMipCount( int width, int height, int depth )
-{
-	int v = TMAX( width, TMAX( height, depth ) );
-	int count = 0;
-	while( v > 0 )
-	{
-		v /= 2;
-		count++;
-	}
-	return count;
-}
-
-TextureHandle GR_CreateTexture( int width, int height, SGRX_TextureFormat format, uint32_t flags, int mips, const void* data )
-{
-	LOG_FUNCTION;
-	
-	TextureInfo ti = { TEXTYPE_2D, mips, width, height, 1, format, flags };
-	SGRX_ITexture* tex = g_Renderer->CreateTexture( &ti, data );
-	if( !tex )
-	{
-		// error is already printed
-		return TextureHandle();
-	}
-	
-	tex->m_info = ti;
-	
-	if( VERBOSE )
-		LOG << "Created 2D texture: " << width << "x" << height
-		<< ", format=" << format << ", mips=" << mips;
-	return tex;
-}
-
-TextureHandle GR_CreateTexture3D( int width, int height, int depth, SGRX_TextureFormat format, uint32_t flags, int mips, const void* data )
-{
-	LOG_FUNCTION;
-	
-	TextureInfo ti = { TEXTYPE_VOLUME, mips, width, height, depth, format, flags };
-	SGRX_ITexture* tex = g_Renderer->CreateTexture( &ti, data );
-	if( !tex )
-	{
-		// error is already printed
-		return TextureHandle();
-	}
-	
-	tex->m_info = ti;
-	
-	if( VERBOSE )
-		LOG << "Created 3D texture: " << width << "x" << height << "x" << depth
-		<< ", format=" << format << ", mips=" << mips;
-	return tex;
-}
-
-TextureHandle GR_GetTexture( const StringView& path )
-{
-	TextureHandle tex;
-	LOG_FUNCTION_ARG( path );
-	
-	tex = g_Textures->getcopy( path );
-	if( tex )
-		return tex;
-	
-	double t0 = sgrx_hqtime();
-	tex = g_Game->OnCreateSysTexture( path );
-	if( !tex )
-	{
-		// it's a regular texture
-		uint32_t usageflags = 0;
-		uint8_t lod = 0;
-		HFileReader fr = g_Game->OnLoadTexture( path, usageflags, lod );
-		if( fr == NULL )
-		{
-			if( VERBOSE || path != "" )
-				LOG_ERROR << LOG_DATE << "  Could not find texture: " << path;
-			return TextureHandle();
-		}
-		
-		TextureData texdata;
-		if( !TextureData_Load( &texdata, fr, path, lod ) )
-		{
-			// error is already printed
-			return TextureHandle();
-		}
-		texdata.info.flags = usageflags;
-		
-		tex = g_Renderer->CreateTexture( &texdata.info, texdata.data.data() );
-		if( !tex )
-		{
-			// error is already printed
-			return TextureHandle();
-		}
-		tex->m_info = texdata.info;
-	}
-	
-	tex->m_key.append( path.data(), path.size() );
-	g_Textures->set( tex->m_key, tex );
-	
-	if( VERBOSE )
-		LOG << "Loaded texture: " << path << " (time=" << ( sgrx_hqtime() - t0 ) << ")";
-	return tex;
-}
-
-TextureHandle GR_CreateRenderTexture( int width, int height, SGRX_TextureFormat format, int mips )
-{
-	LOG_FUNCTION;
-	
-	if( mips == SGRX_MIPS_ALL )
-		mips = GR_CalcMipCount( width, height );
-	else if( mips == 0 )
-		mips = 1;
-	TextureInfo ti = { TEXTYPE_2D, mips, width, height, 1, format,
-		TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y };
-	SGRX_ITexture* tex = g_Renderer->CreateRenderTexture( &ti );
-	if( !tex )
-	{
-		// error is already printed
-		return TextureHandle();
-	}
-	
-	tex->m_info = ti;
-	
-	if( VERBOSE )
-	{
-		LOG << "Created renderable texture: " << width << "x"
-			<< height << ", format=" << format << ", mips=" << mips;
-	}
-	return tex;
-}
-
-TextureHandle GR_CreateCubeRenderTexture( int width, SGRX_TextureFormat format, int mips )
-{
-	LOG_FUNCTION;
-	
-	if( mips == SGRX_MIPS_ALL )
-		mips = GR_CalcMipCount( width );
-	else if( mips == 0 )
-		mips = 1;
-	TextureInfo ti = { TEXTYPE_CUBE, mips, width, width, 1, format,
-		TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y };
-	SGRX_ITexture* tex = g_Renderer->CreateRenderTexture( &ti );
-	if( !tex )
-	{
-		// error is already printed
-		return TextureHandle();
-	}
-	
-	tex->m_info = ti;
-	
-	if( VERBOSE )
-	{
-		LOG << "Created renderable cube texture: " << width
-			<< ", format=" << format << ", mips=" << mips;
-	}
-	return tex;
-}
-
-TextureHandle GR_GetRenderTarget( int width, int height, SGRX_TextureFormat format, int extra )
-{
-	ASSERT( width && height && format );
-	LOG_FUNCTION;
-	
-	uint64_t key = (uint64_t(width&0xffff)<<48) | (uint64_t(height&0xffff)<<32) | (uint64_t(format&0xffff)<<16) | (uint64_t(extra&0xffff));
-	SGRX_ITexture* rtt = g_RenderTargets->getcopy( key );
-	if( rtt )
-		return rtt;
-	
-	TextureHandle rtth = GR_CreateRenderTexture( width, height, format );
-	rtth->m_rtkey = key;
-	g_RenderTargets->set( key, rtth );
-	return rtth;
 }
 
 DepthStencilSurfHandle GR_CreateDepthStencilSurface( int width, int height, SGRX_TextureFormat format )

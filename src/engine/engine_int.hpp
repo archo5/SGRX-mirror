@@ -5,6 +5,24 @@
 #include "renderer.hpp"
 
 
+typedef HashTable< StringView, SGRX_ConvexPointSet* > ConvexPointSetHashTable;
+typedef HashTable< StringView, SGRX_ITexture* > TextureHashTable;
+typedef HashTable< uint64_t, SGRX_ITexture* > RenderTargetTable;
+typedef HashTable< uint64_t, SGRX_IDepthStencilSurface* > DepthStencilSurfTable;
+typedef HashTable< StringView, SGRX_IVertexShader* > VertexShaderHashTable;
+typedef HashTable< StringView, SGRX_IPixelShader* > PixelShaderHashTable;
+typedef HashTable< SGRX_RenderState, SGRX_IRenderState* > RenderStateHashTable;
+typedef HashTable< StringView, SGRX_IVertexDecl* > VertexDeclHashTable;
+typedef HashTable< SGRX_VtxInputMapKey, SGRX_IVertexInputMapping* > VtxInputMapHashTable;
+typedef HashTable< StringView, SGRX_IMesh* > MeshHashTable;
+typedef HashTable< StringView, FontHandle > FontHashTable;
+typedef HashTable< GenericHandle, int > ResourcePreserveHashTable;
+
+
+extern TextureHashTable* g_Textures;
+extern RenderTargetTable* g_RenderTargets;
+
+
 extern bool g_VerboseLogging;
 #define VERBOSE g_VerboseLogging
 
