@@ -1,6 +1,7 @@
 
 
 #pragma once
+#define __STDC_FORMAT_MACROS 1
 #ifdef INCLUDE_REAL_SDL
 #  include <SDL2/SDL.h>
 #  include <SDL2/SDL_syswm.h>
@@ -2089,10 +2090,6 @@ struct IF_GCC(ENGINE_EXPORT) IGame : SGRX_RefCounted
 	virtual void OnDestroy(){}
 	virtual void OnEvent( const Event& e ){}
 	virtual void OnTick( float dt, uint32_t gametime ){}
-	
-	ENGINE_EXPORT virtual bool OnLoadMesh( const StringView& key, ByteArray& outdata );
-	ENGINE_EXPORT virtual MeshHandle OnCreateSysMesh( const StringView& key );
-	ENGINE_EXPORT virtual void OnGetSysMeshList( Array< StringView >& outNames );
 };
 
 

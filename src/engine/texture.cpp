@@ -5,6 +5,7 @@
 extern IRenderer* g_Renderer;
 extern TextureHashTable* g_Textures;
 extern RenderTargetTable* g_RenderTargets;
+extern DepthStencilSurfTable* g_DepthStencilSurfs;
 
 
 
@@ -351,5 +352,58 @@ TextureHandle GR_GetRenderTarget( int width, int height, SGRX_TextureFormat form
 	rtth->m_rtkey = key;
 	g_RenderTargets->set( key, rtth );
 	return rtth;
+}
+
+
+
+SGRX_IDepthStencilSurface::SGRX_IDepthStencilSurface() : m_width(0), m_height(0), m_format(0), m_key(0)
+{
+}
+
+SGRX_IDepthStencilSurface::~SGRX_IDepthStencilSurface()
+{
+	if( VERBOSE ) LOG << "Deleted depth/stencil surface: " << m_width << "x" << m_height << ", format=" << m_format;
+	if( m_key )
+		g_DepthStencilSurfs->unset( m_key );
+}
+
+DepthStencilSurfHandle GR_CreateDepthStencilSurface( int width, int height, SGRX_TextureFormat format )
+{
+	ASSERT( width && height && format );
+	LOG_FUNCTION;
+	
+	SGRX_IDepthStencilSurface* dss = g_Renderer->CreateDepthStencilSurface( width, height, format );
+	if( dss == NULL )
+	{
+		// valid outcome
+		return NULL;
+	}
+	dss->m_width = width;
+	dss->m_height = height;
+	dss->m_format = format;
+	
+	if( VERBOSE ) LOG << "Created depth/stencil surface: " << width << "x" << height << ", format=" << format;
+	return dss;
+}
+
+DepthStencilSurfHandle GR_GetDepthStencilSurface( int width, int height, SGRX_TextureFormat format, int extra )
+{
+	ASSERT( width && height && format );
+	LOG_FUNCTION;
+	
+	uint64_t key = (uint64_t(width&0xffff)<<48) | (uint64_t(height&0xffff)<<32) | (uint64_t(format&0xffff)<<16) | (uint64_t(extra&0xffff));
+	SGRX_IDepthStencilSurface* dss = g_DepthStencilSurfs->getcopy( key );
+	if( dss )
+		return dss;
+	
+	DepthStencilSurfHandle dssh = GR_CreateDepthStencilSurface( width, height, format );
+	if( dssh == NULL )
+	{
+		// valid outcome
+		return NULL;
+	}
+	dssh->m_key = key;
+	g_DepthStencilSurfs->set( key, dssh );
+	return dssh;
 }
 

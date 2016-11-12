@@ -1025,10 +1025,10 @@ void IMGUIMeshPicker::Reload()
 		oldHandles.push_back( m_entries[ i ].mesh );
 	Clear();
 	
-	Array< StringView > sysMeshes;
-	Game_Get()->OnGetSysMeshList( sysMeshes );
-	for( size_t i = 0; i < sysMeshes.size(); ++i )
-		AddMesh( sysMeshes[ i ] );
+	// engine built-in meshes
+	AddMesh( "sys:plane" );
+	AddMesh( "sys:cube" );
+	AddMesh( "sys:sphere" );
 	
 	FS_IterateDirectory( "meshes", this );
 	_Search( m_searchString );
