@@ -234,86 +234,6 @@ void LevelMapSystem::sgsRemove( EntityScrHandle e )
 
 
 
-FlareSystem::FlareSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ), m_layers(0xffffffff)
-{
-	m_ps_flare = GR_GetPixelShader( "flare" );
-	m_tex_flare = GR_GetTexture( "textures/fx/flare.png" );
-	
-	_InitScriptInterface( this );
-	AddSelfToLevel( "flares" );
-}
-
-void FlareSystem::Clear()
-{
-	m_flares.clear();
-}
-
-void FlareSystem::UpdateFlare( void* handle, const FSFlare& flare )
-{
-	m_flares.set( handle, flare );
-}
-
-bool FlareSystem::RemoveFlare( void* handle )
-{
-	return m_flares.unset( handle );
-}
-
-void FlareSystem::PostDraw()
-{
-	SGRX_Camera& cam = m_level->GetScene()->camera;
-	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
-	
-	float W = GR_GetWidth();
-	float H = GR_GetHeight();
-	float sz = TMIN( W, H ) * 0.2f;
-	BatchRenderer& br = GR2D_GetBatchRenderer().Reset().SetShader( m_ps_flare ).SetTexture( m_tex_flare );
-	br.RenderState.blendStates[0].dstBlend = SGRX_RS_Blend_One;
-	br.ShaderData.push_back( V4( W, H, 1.0f / W, 1.0f / H ) );
-	br.ShaderData.push_back( V4(1) );
-	for( size_t i = 0; i < m_flares.size(); ++i )
-	{
-		FSFlare& FD = m_flares.item( i ).value;
-		if( FD.enabled == false || FD.size <= 0 )
-			continue;
-		br.ShaderData[1] = V4( FD.color * 2, 0.1f / ( ( FD.pos - cam.position ).Length() + 1 ) );
-		Vec3 screenpos = cam.WorldToScreen( FD.pos );
-		if( Vec3Dot( FD.pos, cam.direction ) < Vec3Dot( cam.position, cam.direction ) )
-			continue;
-		SceneRaycastCallback_Any srcb;
-		m_level->GetScene()->RaycastAll( cam.position, FD.pos, &srcb, m_layers );
-		if( srcb.m_hit )
-			continue;
-	//	LOG << screenpos.z;
-		float dx = cos(0.1f)*0.5f*sz * FD.size;
-		float dy = sin(0.1f)*0.5f*sz * FD.size;
-		br.TurnedBox( screenpos.x * W, screenpos.y * H, dx, dy );
-		br.Flush();
-	}
-	br.RenderState.blendStates[0].dstBlend = SGRX_RS_Blend_InvSrcAlpha;
-}
-
-void FlareSystem::sgsUpdate( void* handle, Vec3 pos, Vec3 col, float size, bool enabled )
-{
-	if( handle == NULL )
-	{
-		sgs_Msg( C, SGS_WARNING, "cannot use NULL pointer for association" );
-		return;
-	}
-	FSFlare F = { pos, col, size, sgs_StackSize( C ) >= 5 ? enabled : true };
-	UpdateFlare( handle, F );
-}
-
-void FlareSystem::sgsRemove( void* handle )
-{
-	if( handle == NULL )
-	{
-		sgs_Msg( C, SGS_WARNING, "cannot use NULL pointer for association" );
-		return;
-	}
-	RemoveFlare( handle );
-}
-
-
 LevelCoreSystem::LevelCoreSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
 	lev->m_lightEnv = &m_lightEnv;
@@ -357,21 +277,6 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 	{
 		LOG_FUNCTION_ARG( "CLUT" );
 		m_level->GetScene()->clutTexture = GR_GetTexture( geom.clutTexture );
-	}
-	
-	// LOAD FLARES
-	FlareSystem* FS = m_level->GetSystem<FlareSystem>();
-	if( FS )
-	{
-		for( size_t i = 0; i < m_lights.size(); ++i )
-		{
-			LC_Light& L = m_lights[ i ];
-			if( L.type != LM_LIGHT_POINT && L.type != LM_LIGHT_SPOT &&
-				L.type != LM_LIGHT_DYN_POINT && L.type != LM_LIGHT_DYN_SPOT )
-				continue;
-			FSFlare FD = { L.pos + L.flareoffset, L.color, L.flaresize, true };
-			FS->UpdateFlare( &m_lights[ i ], FD );
-		}
 	}
 	
 	// create physics geometry - mesh

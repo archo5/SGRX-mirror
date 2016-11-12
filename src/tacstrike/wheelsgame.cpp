@@ -30,25 +30,6 @@ struct WheelsGame : BaseGame
 		m_mapName = "mainmenu";
 	}
 	
-	bool OnConfigure( int argc, char* argv[] )
-	{
-#if 0
-		RenderSettings rs;
-		GR_GetVideoMode( rs );
-		rs.width = 1920;
-		rs.height = 1080;
-		rs.fullscreen = FULLSCREEN_WINDOWED;
-		GR_SetVideoMode( rs );
-#endif
-#if 0
-		RenderSettings rs;
-		GR_GetVideoMode( rs );
-		rs.vsync = false;
-		GR_SetVideoMode( rs );
-#endif
-		return BaseGame::OnConfigure( argc, argv );
-	}
-	
 	PhyWorldHandle CreatePhyWorld(){ return PHY_CreateWorld(); }
 	
 	GameLevel* CreateLevel()
@@ -58,7 +39,6 @@ struct WheelsGame : BaseGame
 			m_soundSys = SND_CreateSystem();
 		}
 		GameLevel* level = BaseGame::CreateLevel();
-		AddSystemToLevel<FlareSystem>( level );
 		AddSystemToLevel<LevelCoreSystem>( level );
 		AddSystemToLevel<GFXSystem>( level );
 		AddSystemToLevel<ScriptedSequenceSystem>( level );
@@ -127,11 +107,6 @@ struct WheelsGame : BaseGame
 		m_level->Load( m_mapName );
 		
 		return true;
-	}
-	
-	void OnDestroy()
-	{
-		BaseGame::OnDestroy();
 	}
 	
 	void OnEvent( const Event& e )

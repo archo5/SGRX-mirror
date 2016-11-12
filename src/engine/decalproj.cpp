@@ -200,6 +200,7 @@ struct IMesh_ClipQuery
 				continue;
 			usedTris[ tri >> 5 ] |= 1 << ( tri & 31 );
 			tri *= 3;
+			tri += MP.indexOffset;
 			SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal, inv_zn2zf, color
 				, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri ] ) * stride ]
 				, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 1 ] ) * stride ]

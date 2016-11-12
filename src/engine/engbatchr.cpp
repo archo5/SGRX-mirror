@@ -13,7 +13,7 @@ extern IRenderer* g_Renderer;
 
 void GR2D_SetColor( float r, float g, float b, float a )
 {
-	GR2D_GetBatchRenderer().Col( r, g, b, a );
+	g_BatchRenderer->Col( r, g, b, a );
 }
 
 BatchRenderer::BatchRenderer( struct IRenderer* r ) : m_renderer( r ), m_diff( false )
@@ -804,6 +804,56 @@ void BatchRenderer::_RecalcMatrices()
 }
 
 
+
+void GR2D_SetWorldMatrix( const Mat4& mtx )
+{
+	g_BatchRenderer->Flush();
+	g_BatchRenderer->worldMatrix = mtx;
+	g_BatchRenderer->_RecalcMatrices();
+	g_Renderer->SetMatrix( false, mtx );
+}
+
+void GR2D_SetViewMatrix( const Mat4& mtx )
+{
+	g_BatchRenderer->Flush();
+	g_BatchRenderer->viewMatrix = mtx;
+	g_BatchRenderer->_RecalcMatrices();
+	g_Renderer->SetMatrix( true, mtx );
+}
+
+void GR2D_SetViewport( int x0, int y0, int x1, int y1 )
+{
+	g_BatchRenderer->Flush();
+	g_Renderer->SetViewport( x0, y0, x1, y1 );
+}
+
+void GR2D_UnsetViewport()
+{
+	g_BatchRenderer->Flush();
+	g_Renderer->SetViewport( 0, 0, GR_GetWidth(), GR_GetHeight() );
+}
+
+void GR2D_SetScissorRect( int x0, int y0, int x1, int y1 )
+{
+	g_BatchRenderer->Flush();
+	int rect[4] = { x0, y0, x1, y1 };
+	g_Renderer->SetScissorRect( rect );
+}
+
+void GR2D_UnsetScissorRect()
+{
+	g_BatchRenderer->Flush();
+	g_Renderer->SetScissorRect( NULL );
+}
+
+
+BatchRenderer& GR2D_GetBatchRenderer()
+{
+	return *g_BatchRenderer;
+}
+
+
+
 SGRX_LineSet::SGRX_LineSet() : m_nextPos(0), m_curCount(0)
 {
 	IncreaseLimit( 1024 );
@@ -834,7 +884,7 @@ void SGRX_LineSet::DrawLine( const Vec3& p1, const Vec3& p2, uint32_t c1, uint32
 
 void SGRX_LineSet::Flush()
 {
-	BatchRenderer& br = GR2D_GetBatchRenderer().Reset().SetPrimitiveType( PT_Lines );
+	BatchRenderer& br = g_BatchRenderer->Reset().SetPrimitiveType( PT_Lines );
 	for( size_t i = 0; i < m_curCount; ++i )
 	{
 		br.Colu( m_lines[ i ].color ).Pos( m_lines[ i ].pos );
@@ -966,7 +1016,7 @@ int _GR2D_CalcTextLayout
 	settingStack.clear();
 	SGRX_TextSettings textSettings;
 	GR2D_GetFontSettings( &textSettings );
-	textSettings.color = GR2D_GetBatchRenderer().m_proto.color;
+	textSettings.color = g_BatchRenderer->m_proto.color;
 	settingStack.push_back( textSettings );
 	
 	int total_height = 0;
@@ -1257,7 +1307,7 @@ int GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
 		{
 			const TextBlock& BLK = blocks[ j ];
 			GR2D_SetFontSettings( &BLK.settings );
-			GR2D_GetBatchRenderer().Colu( BLK.settings.color );
+			g_BatchRenderer->Colu( BLK.settings.color );
 			StringView textpart = text.part( BLK.start, BLK.end - BLK.start );
 			GR2D_DrawTextLine( textpart );
 		}

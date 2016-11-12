@@ -29,233 +29,6 @@ Vec2 CURSOR_POS = V2(0);
 
 
 
-CVarFloat gcv_ts_time_since_last_hit( "ts_time_since_last_hit" );
-CVarInt gcv_ts_fight_state( "ts_fight_state" );
-CVarFloat gcv_ts_fight_timeleft( "ts_fight_timeleft" );
-CVarInt gcv_ts_fight_p1_points( "ts_fight_p1_points" );
-CVarInt gcv_ts_fight_p2_points( "ts_fight_p2_points" );
-
-#if 0
-//static sgs_Prof prof;
-TSFightGameMode::TSFightGameMode( GameLevel* lev ) :
-	IGameLevelSystem( lev, e_system_uid ), m_state( GS_Intro ),
-	m_timeout( 3 ), m_points_ply( 0 ), m_points_enm( 0 ), m_points_target( 10 ),
-	m_respawnTimeout_ply( 0 ), m_respawnTimeout_enm( 0 ), m_timeSinceLastHit( 9999.0f )
-{
-	REGCOBJ( gcv_ts_time_since_last_hit );
-	REGCOBJ( gcv_ts_fight_state );
-	REGCOBJ( gcv_ts_fight_timeleft );
-	REGCOBJ( gcv_ts_fight_p1_points );
-	REGCOBJ( gcv_ts_fight_p2_points );
-	
-	RegisterHandler( TSEV_CharHit );
-	RegisterHandler( TSEV_CharDied );
-	
-	m_player = NULL;
-	m_enemy = NULL;
-	
-	//sgs_ProfInit( m_level->GetSGSC(), &prof, SGS_PROF_FUNCTIME );
-	
-	m_level->GetGUI()->Load( "ui/fight.sgs" );
-}
-
-TSFightGameMode::~TSFightGameMode()
-{
-	//sgs_ProfDump( m_level->GetSGSC(), &prof );
-	//sgs_ProfClose( m_level->GetSGSC(), &prof );
-}
-
-void TSFightGameMode::OnPostLevelLoad()
-{
-	// pick spawnpoints
-	Vec3 playerPos = m_spawnPoints[ rand() % m_spawnPoints.size() ];
-	Vec3 enemyPos = PickFurthestSpawnPoint( playerPos );
-	
-	// create the player
-	m_player = new TSCharacter
-	(
-		m_level,
-		playerPos,
-		( enemyPos - playerPos ).Normalized()
-	);
-	m_player->m_infoFlags |= IEST_Player;
-	m_player->InitializeMesh( "chars/tstest.chr" );
-	m_player->ownerType = GAT_Player;
-	m_level->AddEntity( m_player );
-	m_level->SetPlayer( m_player );
-	m_actorCtrl_ply = &m_level->GetSystem<TSGameSystem>()->m_playerCtrl;
-	
-	// create the enemy
-	m_enemy = new TSCharacter
-	(
-		m_level,
-		enemyPos,
-		( playerPos - enemyPos ).Normalized()
-	);
-	m_enemy->m_infoFlags |= IEST_Target;
-	m_enemy->InitializeMesh( "chars/tstest.chr" );
-	m_enemy->ownerType = GAT_Enemy;
-	m_enemy->m_name = "enemy";
-	m_level->MapEntityByName( m_enemy );
-	m_level->AddEntity( m_enemy );
-	m_actorCtrl_enm = new TSEnemyController( m_level, m_enemy, sgsVariable() );
-	
-	if( m_state == GS_TEST || m_state == GS_TEST2 )
-	{
-		m_player->ctrl = m_actorCtrl_ply;
-	}
-	
-	m_state = GS_Intro;
-	m_timeout = 3;
-	m_points_ply = 0;
-	m_points_enm = 0;
-	m_points_target = 10;
-	m_respawnTimeout_ply = 0;
-	m_respawnTimeout_enm = 0;
-}
-
-bool TSFightGameMode::AddEntity( const StringView& type, sgsVariable data )
-{
-	if( type == "dm_spawn" )
-	{
-		m_spawnPoints.push_back( data.getprop("position").get<Vec3>() );
-		return true;
-	}
-	
-	return false;
-}
-
-void TSFightGameMode::Tick( float deltaTime, float blendFactor )
-{
-	m_timeout = TMAX( 0.0f, m_timeout - deltaTime );
-	m_timeSinceLastHit += deltaTime;
-	
-	switch( m_state )
-	{
-	case GS_TEST2: break;
-	case GS_TEST:
-		if( m_timeout <= 0 )
-		{
-			Vec3 enemyPos = m_spawnPoints[ rand() % m_spawnPoints.size() ];
-			TSCharacter* E = new TSCharacter
-			(
-				m_level,
-				enemyPos,
-				V3(1,0,0)
-			);
-			E->m_infoFlags |= IEST_Target;
-			E->InitializeMesh( "chars/tstest.chr" );
-			E->ownerType = GAT_Enemy;
-			E->m_name = "enemy";
-			m_level->MapEntityByName( E );
-			m_level->AddEntity( E );
-		//	E->ctrl = new TSEnemyController( m_level, E, sgsVariable() );
-			m_timeout += 3;
-		}
-		break;
-	case GS_Intro:
-		// timeout to intro end
-		if( m_timeout <= 0 )
-		{
-			m_level->GetGUI()->CallFunc( "ev_fight_start" );
-			
-			// start the game
-			m_state = GS_Playing;
-			
-			// set controllers
-			m_player->ctrl = m_actorCtrl_ply;
-			m_enemy->ctrl = m_actorCtrl_enm;
-		}
-		break;
-	case GS_Playing:
-		// timeout to respawn
-		m_respawnTimeout_ply = TMAX( 0.0f, m_respawnTimeout_ply - deltaTime );
-		m_respawnTimeout_enm = TMAX( 0.0f, m_respawnTimeout_enm - deltaTime );
-		if( m_player->IsAlive() == false && m_respawnTimeout_ply <= 0 )
-		{
-			m_actorCtrl_ply->Reset();
-			m_player->Reset();
-			m_player->SetPosition( PickFurthestSpawnPoint( m_enemy->GetPosition() ) );
-		}
-		if( m_enemy->IsAlive() == false && m_respawnTimeout_enm <= 0 )
-		{
-			m_actorCtrl_enm->Reset();
-			m_enemy->Reset();
-			m_enemy->SetPosition( PickFurthestSpawnPoint( m_player->GetPosition() ) );
-		}
-		break;
-	case GS_Ending:
-		break;
-	}
-	
-	gcv_ts_time_since_last_hit.value = m_timeSinceLastHit;
-	gcv_ts_fight_timeleft.value = m_timeout;
-	gcv_ts_fight_state.value = m_state;
-	gcv_ts_fight_p1_points.value = m_points_ply;
-	gcv_ts_fight_p2_points.value = m_points_enm;
-}
-
-void TSFightGameMode::HandleEvent( SGRX_EventID eid, const EventData& edata )
-{
-	switch( eid )
-	{
-	case TSEV_CharHit:
-		{
-			SGRX_CAST( TSEventData_CharHit*, hitdata, edata.GetUserData() );
-			
-			if( m_player == hitdata->ch )
-			{
-				m_timeSinceLastHit = TMIN( m_timeSinceLastHit, 1.0f );
-				m_timeSinceLastHit = clamp( m_timeSinceLastHit - hitdata->power * 0.1f, 0, 1 );
-			}
-		}
-		break;
-	case TSEV_CharDied:
-		{
-			SGRX_CAST( TSCharacter*, ch, edata.GetUserData() );
-			
-			if( m_enemy == ch )
-			{
-				m_points_ply++;
-				m_respawnTimeout_enm = 3;
-			}
-			if( m_player == ch )
-			{
-				m_points_enm++;
-				m_respawnTimeout_ply = 3;
-			}
-			
-			if( m_points_ply >= m_points_target || m_points_enm >= m_points_target )
-			{
-				m_state = GS_Ending;
-				
-				// unlink controllers
-				m_player->ctrl = NULL;
-				m_enemy->ctrl = NULL;
-			}
-		}
-		break;
-	}
-}
-
-Vec3 TSFightGameMode::PickFurthestSpawnPoint( Vec3 from )
-{
-	float dist = 0;
-	size_t fp = NOT_FOUND;
-	for( size_t i = 0; i < m_spawnPoints.size(); ++i )
-	{
-		float ndst = ( m_spawnPoints[ i ] - from ).Length();
-		if( ndst > dist )
-		{
-			dist = ndst;
-			fp = i;
-		}
-	}
-	return fp != NOT_FOUND ? m_spawnPoints[ fp ] : from;
-}
-#endif
-
-
 #define MAX_TICK_SIZE (1.0f/15.0f)
 #define FIXED_TICK_SIZE (1.0f/30.0f)
 
@@ -265,25 +38,6 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 	{
 		RegisterCommonGameCVars();
 		m_mapName = "ts-mainmenu";
-	}
-	
-	bool OnConfigure( int argc, char* argv[] )
-	{
-#if 0
-		RenderSettings rs;
-		GR_GetVideoMode( rs );
-		rs.width = 1920;
-		rs.height = 1080;
-		rs.fullscreen = FULLSCREEN_WINDOWED;
-		GR_SetVideoMode( rs );
-#endif
-#if 0
-		RenderSettings rs;
-		GR_GetVideoMode( rs );
-		rs.vsync = false;
-		GR_SetVideoMode( rs );
-#endif
-		return BaseGame::OnConfigure( argc, argv );
 	}
 	
 	PhyWorldHandle CreatePhyWorld(){ return PHY_CreateWorld(); }
@@ -304,7 +58,6 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		GameLevel* level = BaseGame::CreateLevel();
 		AddSystemToLevel<TSGameSystem>( level );
 		AddSystemToLevel<LevelMapSystem>( level );
-		AddSystemToLevel<FlareSystem>( level );
 		AddSystemToLevel<LevelCoreSystem>( level );
 		AddSystemToLevel<GFXSystem>( level );
 		AddSystemToLevel<ScriptedSequenceSystem>( level );
@@ -398,11 +151,6 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 	//	Game_AddOverlayScreen( &g_PauseMenu );
 		cursor_dt = V2(0);
 		return true;
-	}
-	
-	void OnDestroy()
-	{
-		BaseGame::OnDestroy();
 	}
 	
 	Vec2 cursor_dt;

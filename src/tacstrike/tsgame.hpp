@@ -4,39 +4,3 @@
 #include "entities.hpp"
 #include "entities_ts.hpp"
 
-
-#if 0
-struct TSFightGameMode : IGameLevelSystem, SGRX_IEventHandler
-{
-	enum GameState
-	{
-		GS_Playing,
-		GS_Intro,
-		GS_Ending,
-		GS_TEST,
-		GS_TEST2,
-	};
-	enum { e_system_uid = 1000 };
-	TSFightGameMode( GameLevel* lev );
-	~TSFightGameMode();
-	void OnPostLevelLoad();
-	bool AddEntity( const StringView& type, sgsVariable data );
-	void Tick( float deltaTime, float blendFactor );
-	void HandleEvent( SGRX_EventID eid, const EventData& edata );
-	
-	Vec3 PickFurthestSpawnPoint( Vec3 from );
-	
-	GameState m_state;
-	float m_timeout;
-	int m_points_ply;
-	int m_points_enm;
-	int m_points_target;
-	float m_respawnTimeout_ply;
-	float m_respawnTimeout_enm;
-	float m_timeSinceLastHit;
-	TSCharacter* m_player;
-	TSCharacter* m_enemy;
-	Array< Vec3 > m_spawnPoints;
-};
-#endif
-

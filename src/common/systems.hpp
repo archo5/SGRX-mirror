@@ -98,37 +98,6 @@ EXP_STRUCT LevelMapSystem : IGameLevelSystem
 };
 
 
-struct FSFlare
-{
-	Vec3 pos;
-	Vec3 color;
-	float size;
-	bool enabled;
-};
-
-EXP_STRUCT FlareSystem : IGameLevelSystem
-{
-	SGS_OBJECT;
-	SGS_NO_DESTRUCT;
-	
-	enum { e_system_uid = 4 };
-	
-	GFW_EXPORT FlareSystem( GameLevel* lev );
-	GFW_EXPORT void Clear();
-	GFW_EXPORT void UpdateFlare( void* handle, const FSFlare& flare );
-	GFW_EXPORT bool RemoveFlare( void* handle );
-	GFW_EXPORT void PostDraw();
-	
-	GFW_EXPORT SGS_METHOD_NAMED( Update ) void sgsUpdate( void* handle, Vec3 pos, Vec3 col, float size, bool enabled );
-	GFW_EXPORT SGS_METHOD_NAMED( Remove ) void sgsRemove( void* handle );
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME layers ) uint32_t m_layers;
-	
-	HashTable< void*, FSFlare > m_flares;
-	PixelShaderHandle m_ps_flare;
-	TextureHandle m_tex_flare;
-};
-
-
 EXP_STRUCT LevelCoreSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 10 };
