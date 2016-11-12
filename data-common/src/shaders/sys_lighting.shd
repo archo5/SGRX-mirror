@@ -97,6 +97,32 @@ UNIFORM_BUFFER_END;
 #  define SGRX_SKIN_MESH( i )
 #endif
 
+
+NEEDS_TEXTURE_2D(0);
+NEEDS_TEXTURE_2D(1);
+NEEDS_TEXTURE_2D(2);
+NEEDS_TEXTURE_2D(3);
+NEEDS_TEXTURE_2D(4);
+NEEDS_TEXTURE_2D(5);
+NEEDS_TEXTURE_2D(6);
+NEEDS_TEXTURE_2D(7);
+NEEDS_TEXTURE_2D(8);
+NEEDS_TEXTURE_2D(9);
+NEEDS_TEXTURE_CUBE(10);
+NEEDS_TEXTURE_2D(11);
+#define InstTex0 Tex8
+#define InstTex1 Tex9
+#define InstTex2 Tex10
+#define InstTex3 Tex11
+
+#ifdef NUM_SPOTLIGHTS
+NEEDS_TEXTURE_2D(12);
+NEEDS_TEXTURE_SM(13);
+NEEDS_TEXTURE_2D(14);
+NEEDS_TEXTURE_SM(15);
+#endif
+
+
 float3 ModelToWorldPos( float3 p ){ return mul( mWorld, float4( p, 1 ) ).xyz; }
 float3 ModelToWorldDir( float3 d ){ return mul( mWorld, float4( d, 0 ) ).xyz; }
 float3 WorldToViewPos( float3 p ){ return mul( mView, float4( p, 1 ) ).xyz; }
@@ -192,6 +218,9 @@ void InitSurfaceInfo( out SurfaceInfo info )
 #endif
 
 
+__CODE__
+
+
 #if VS
 
 
@@ -219,7 +248,7 @@ void main( vsinput_mesh i, out VS2PS vsout )
 	vsout.tex0 = i.tex0;
 	vsout.tex1 = i.tex1;
 	{
-__VSCODE__
+//__VSCODE__
 	}
 	vsout.N = WorldToViewDir( vsout.N );
 	vsout.T.xyz = WorldToViewDir( vsout.T.xyz );
@@ -233,30 +262,6 @@ __VSCODE__
 
 
 #elif PS
-
-NEEDS_TEXTURE_2D(0);
-NEEDS_TEXTURE_2D(1);
-NEEDS_TEXTURE_2D(2);
-NEEDS_TEXTURE_2D(3);
-NEEDS_TEXTURE_2D(4);
-NEEDS_TEXTURE_2D(5);
-NEEDS_TEXTURE_2D(6);
-NEEDS_TEXTURE_2D(7);
-NEEDS_TEXTURE_2D(8);
-NEEDS_TEXTURE_2D(9);
-NEEDS_TEXTURE_CUBE(10);
-NEEDS_TEXTURE_2D(11);
-#define InstTex0 Tex8
-#define InstTex1 Tex9
-#define InstTex2 Tex10
-#define InstTex3 Tex11
-
-#ifdef NUM_SPOTLIGHTS
-NEEDS_TEXTURE_2D(12);
-NEEDS_TEXTURE_SM(13);
-NEEDS_TEXTURE_2D(14);
-NEEDS_TEXTURE_SM(15);
-#endif
 
 void ApplyPointLight( inout float3 totalDiffuse, inout float3 totalSpecular,
 	PointLight PL, float3 viewPos, float3 viewNormal, float specPower, float3 rgbmult )
@@ -307,8 +312,6 @@ float3 DynamicDiffuseLighting( float3 worldNormal )
 		/ (qxp+qyp+qzp+qxn+qyn+qzn);
 }
 
-__CODE__
-
 void main
 (
 	VS2PS input
@@ -355,11 +358,13 @@ void main
 	float3 totalSpecular = float3(0,0,0);
 	
 #ifdef BASE_PASS
+	
 #if LMODE == 1 || LMODE == 3 // -- static / decal
 	totalDiffuse += StaticDiffuseLighting( ViewToWorldDir( outNormal ), dot( outNormal, inNormal ), inTex1.xy );
 #elif LMODE == 2 // -- dynamic
 	totalDiffuse += DynamicDiffuseLighting( ViewToWorldDir( outNormal ) );
 #endif // LMODE
+	
 #if defined(VCOL)
 	totalDiffuse *= icol.rgb;
 #endif // defined(VCOL)

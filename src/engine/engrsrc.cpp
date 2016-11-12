@@ -1883,7 +1883,7 @@ void OnLoadMtlShaders( const RenderPass& pass,
 	const SGRX_MeshInstance* MI, VertexShaderHandle& VS, PixelShaderHandle& PS )
 {
 	if( pass.isBasePass == false && pass.isShadowPass == false &&
-		( ( mtl.flags & SGRX_MtlFlag_Unlit ) != 0 || MI->GetLightingMode() == SGRX_LM_Unlit ) )
+		( IS_FLAG_SET( mtl.flags, SGRX_MtlFlag_Unlit ) || MI->GetLightingMode() == SGRX_LM_Unlit ) )
 	{
 		PS = NULL;
 		VS = NULL;
@@ -1902,7 +1902,10 @@ void OnLoadMtlShaders( const RenderPass& pass,
 		char bfr[32];
 		// lighting mode
 		{
-			sgrx_snprintf( bfr, 32, "%d", MI->GetLightingMode() );
+			int lmode = MI->GetLightingMode();
+			if( mtl.flags & SGRX_MtlFlag_Unlit )
+				lmode = SGRX_LM_Unlit;
+			sgrx_snprintf( bfr, 32, "%d", lmode );
 			name.append( ":LMODE " );
 			name.append( bfr );
 		}
@@ -1928,8 +1931,6 @@ void OnLoadMtlShaders( const RenderPass& pass,
 	
 	if( mtl.flags & SGRX_MtlFlag_VCol )
 		name.append( ":VCOL" ); // color multiplied by vertex color
-	if( mtl.flags & SGRX_MtlFlag_Decal )
-		name.append( ":DECAL" ); // ???
 	
 	PS = GR_GetPixelShader( name );
 	

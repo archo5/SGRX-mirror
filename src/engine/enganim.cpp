@@ -1361,7 +1361,7 @@ void ParticleSystem::OnRenderUpdate()
 		mtl.flags = E.render_Additive * SGRX_MtlFlag_Unlit;
 		for( int t = 0; t < NUM_PARTICLE_TEXTURES; ++t )
 			mtl.textures[ t ] = E.render_Textures[ t ];
-		mtl.shader = E.render_Shader;
+		mtl.shader = String_Concat( E.render_Shader, "+PARTICLE" );
 		m_meshInsts[ i ]->materials.assign( &mtl, 1 );
 		m_meshInsts[ i ]->OnUpdate();
 		
