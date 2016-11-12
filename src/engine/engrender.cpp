@@ -581,7 +581,10 @@ void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderSce
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, 1, 1 ) );
 	if( info.enablePostProcessing )
 	{
+		int scirect[4];
+		bool scissor = GR2D_GetScissorRect( scirect );
 		GR2D_UnsetViewport();
+		GR2D_UnsetScissorRect();
 		
 		br.Reset();
 		br.ShaderData.push_back( V4(0) );
@@ -630,7 +633,11 @@ void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderSce
 		  .SetTexture( 2, rttVBLUR )
 		  .SetTexture( 3, rttVBLUR2 )
 		  .SetTexture( 4, rttDEPTH )
-		  .SetTexture( 5, scene->clutTexture ).SetShader( pppsh_final ).VPQuad( info.viewport ).Flush();
+		  .SetTexture( 5, scene->clutTexture )
+		  .SetShader( pppsh_final ).VPQuad( info.viewport, false ).Flush();
+		
+		if( scissor )
+			GR2D_SetScissorRect( scirect );
 	}
 	else
 	{
@@ -692,7 +699,7 @@ void SGRX_RenderDirector::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_Rende
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
 	ctrl->SetRenderTargets( dss, SGRX_RT_ClearAll, 0, scene->clearColor, 1, rtt );
-	if( info.viewport )
+	if( info.viewport && info.enablePostProcessing == false )
 		GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
 	
 	if( m_curMode == SGRX_RDMode_Unlit )
@@ -797,12 +804,20 @@ SGRX_RenderScene::SGRX_RenderScene(
 
 int SGRX_RenderScene::GetOutputWidth()
 {
-	return viewport ? viewport->x1 - viewport->x0 : GR_GetWidth();
+	if( viewport )
+		return viewport->x1 - viewport->x0;
+	if( renderTarget.IsUsed() )
+		return renderTarget.rtt.GetInfo().width;
+	return GR_GetWidth();
 }
 
 int SGRX_RenderScene::GetOutputHeight()
 {
-	return viewport ? viewport->y1 - viewport->y0 : GR_GetHeight();
+	if( viewport )
+		return viewport->y1 - viewport->y0;
+	if( renderTarget.IsUsed() )
+		return renderTarget.rtt.GetInfo().height;
+	return GR_GetHeight();
 }
 
 Vec2 SGRX_RenderScene::GetOutputSizeF()

@@ -1826,7 +1826,7 @@ struct BatchRenderer
 	ENGINE_EXPORT BatchRenderer& QuadExt( float x0, float y0, float x1, float y1,
 		float tox = 0, float toy = 0, float tsx = 1, float tsy = 1, float z = 0 );
 	ENGINE_EXPORT BatchRenderer& QuadFrame( float x0, float y0, float x1, float y1, float ix0, float iy0, float ix1, float iy1, float z = 0 );
-	ENGINE_EXPORT BatchRenderer& VPQuad( SGRX_Viewport* vp, float z = 0 );
+	ENGINE_EXPORT BatchRenderer& VPQuad( SGRX_Viewport* vp, bool texcoords = true );
 	FINLINE BatchRenderer& QuadWH( float x, float y, float w, float h, float z = 0 ){ return Quad( x, y, x + w, y + h, z ); }
 	FINLINE BatchRenderer& Box( float x, float y, float w, float h, float z = 0 ){ w *= 0.5f; h *= 0.5f; return Quad( x - w, y - h, x + w, y + h, z ); }
 	ENGINE_EXPORT BatchRenderer& TurnedBox( float x, float y, float dx, float dy, float z = 0 );
@@ -2115,7 +2115,9 @@ ENGINE_EXPORT void GR2D_SetViewMatrix( const Mat4& mtx );
 ENGINE_EXPORT void GR2D_SetViewport( int x0, int y0, int x1, int y1 );
 ENGINE_EXPORT void GR2D_UnsetViewport();
 ENGINE_EXPORT void GR2D_SetScissorRect( int x0, int y0, int x1, int y1 );
+ENGINE_EXPORT void GR2D_SetScissorRect( int rect[4] );
 ENGINE_EXPORT void GR2D_UnsetScissorRect();
+ENGINE_EXPORT bool GR2D_GetScissorRect( int rect[4] );
 
 ENGINE_EXPORT void GR2D_SetColor( float r, float g, float b, float a = 1.0f );
 inline void GR2D_SetColor( float x, float a ){ GR2D_SetColor( x, x, x, a ); }

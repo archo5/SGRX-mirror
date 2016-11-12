@@ -1599,6 +1599,9 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 		
 		uint32_t curtime = GetTimeMsec();
 		uint32_t dt = curtime - prevtime;
+		// do not allow delta time longer than 100 ms
+		if( dt > 100 )
+			dt = prevtime - curtime < 100 ? 0 : 100;
 		prevtime = curtime;
 		g_GameTime += dt;
 		float fdt = dt / 1000.0f;

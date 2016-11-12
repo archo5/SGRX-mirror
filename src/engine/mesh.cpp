@@ -658,6 +658,12 @@ MeshHandle GR_GetMesh( const StringView& path, bool dataonly )
 {
 	LOG_FUNCTION_ARG( path );
 	
+	if( !path )
+	{
+		if( VERBOSE ) LOG_ERROR << LOG_DATE << "  Failed to open mesh file - empty path";
+		return NULL;
+	}
+	
 	MeshHandle mesh = g_Meshes->getcopy( path );
 	if( mesh )
 		return mesh;

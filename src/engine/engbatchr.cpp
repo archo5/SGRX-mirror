@@ -139,7 +139,7 @@ BatchRenderer& BatchRenderer::QuadFrame( float x0, float y0, float x1, float y1,
 	return *this;
 }
 
-BatchRenderer& BatchRenderer::VPQuad( SGRX_Viewport* vp, float z )
+BatchRenderer& BatchRenderer::VPQuad( SGRX_Viewport* vp, bool texcoords )
 {
 	SetPrimitiveType( PT_Triangles );
 	
@@ -148,11 +148,16 @@ BatchRenderer& BatchRenderer::VPQuad( SGRX_Viewport* vp, float z )
 	float x1 = vp ? safe_fdiv( vp->x1, GR_GetWidth() ) : 1;
 	float y1 = vp ? safe_fdiv( vp->y1, GR_GetHeight() ) : 1;
 	
-	Tex( x0, y0 ); Pos( x0, y0, z );
-	Tex( x1, y0 ); Pos( x1, y0, z );
-	Tex( x1, y1 ); Pos( x1, y1, z );
+	float tx0 = texcoords ? x0 : 0;
+	float ty0 = texcoords ? y0 : 0;
+	float tx1 = texcoords ? x1 : 1;
+	float ty1 = texcoords ? y1 : 1;
+	
+	Tex( tx0, ty0 ); Pos( x0, y0 );
+	Tex( tx1, ty0 ); Pos( x1, y0 );
+	Tex( tx1, ty1 ); Pos( x1, y1 );
 	Prev( 0 );
-	Tex( x0, y1 ); Pos( x0, y1, z );
+	Tex( tx0, ty1 ); Pos( x0, y1 );
 	Prev( 4 );
 	
 	return *this;
@@ -835,15 +840,32 @@ void GR2D_UnsetViewport()
 
 void GR2D_SetScissorRect( int x0, int y0, int x1, int y1 )
 {
-	g_BatchRenderer->Flush();
 	int rect[4] = { x0, y0, x1, y1 };
+	GR2D_SetScissorRect( rect );
+}
+
+static bool useScissor;
+static int scissorRect[4];
+void GR2D_SetScissorRect( int rect[4] )
+{
+	useScissor = rect != NULL;
+	if( rect )
+		memcpy( scissorRect, rect, sizeof(scissorRect) );
+	g_BatchRenderer->Flush();
 	g_Renderer->SetScissorRect( rect );
 }
 
 void GR2D_UnsetScissorRect()
 {
+	useScissor = false;
 	g_BatchRenderer->Flush();
 	g_Renderer->SetScissorRect( NULL );
+}
+
+bool GR2D_GetScissorRect( int rect[4] )
+{
+	memcpy( rect, scissorRect, sizeof(scissorRect) );
+	return useScissor;
 }
 
 
