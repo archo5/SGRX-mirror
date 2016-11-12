@@ -1892,8 +1892,6 @@ void OnLoadMtlShaders( const RenderPass& pass,
 	
 	String name = "mtl:";
 	name.append( mtl.shader );
-	name.append( ":" );
-	name.append( "sys_lighting" ); // pass.shader );
 	
 	if( pass.isShadowPass )
 		name.append( ":SHADOW_PASS" );

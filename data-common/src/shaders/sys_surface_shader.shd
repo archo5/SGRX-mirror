@@ -1,0 +1,228 @@
+
+#if VS
+
+
+#ifdef PARTICLE
+void main( vsinput_particle i, out VS2PS vsout )
+{
+	float3 viewPos = ModelToViewPos( i.pos );
+	vsout.pos = ViewToProjPos( viewPos );
+	vsout.viewPos = viewPos;
+	vsout.N = float3(0,0,-1);
+	vsout.T = float4(1,0,0,1);
+	vsout.col = i.col;
+	vsout.tex0 = i.tex;
+	vsout.tex1 = i.tex;
+}
+#else // PARTICLE
+
+void main( vsinput_mesh i, out VS2PS vsout )
+{
+	SGRX_SKIN_MESH( i );
+	float3 worldPos = ModelToWorldPos( i.pos );
+	vsout.T = float4( ModelToWorldDir( i.tan.xyz ), i.tan.w );
+	vsout.N = ModelToWorldDir( i.nrm );
+	vsout.col = i.col;
+	vsout.tex0 = i.tex0;
+	vsout.tex1 = i.tex1;
+	{
+//__VSCODE__
+	}
+	vsout.N = WorldToViewDir( vsout.N );
+	vsout.T.xyz = WorldToViewDir( vsout.T.xyz );
+	float3 viewPos = WorldToViewPos( worldPos );
+	vsout.pos = ViewToProjPos( viewPos );
+	vsout.viewPos = viewPos;
+	SGRX_SPOTLIGHT_VS_TRANSFER( vsout, worldPos );
+}
+
+#endif // PARTICLE
+
+
+#elif PS
+
+void ApplyPointLight( inout float3 totalDiffuse, inout float3 totalSpecular,
+	PointLight PL, float3 viewPos, float3 viewNormal, float specPower, float3 rgbmult )
+{
+	float3 viewDir = normalize( viewPos );
+	float3 lightViewPos = PL.vposrad.xyz;
+	float3 lightDir = lightViewPos - viewPos;
+	float lightDist = length( lightDir );
+	lightDir /= lightDist;
+	float3 lightColor = PL.colpow.rgb * rgbmult;
+	
+	float distFactor = pow( 1 - saturate( lightDist / PL.vposrad.w ), PL.colpow.w );
+	float NdotL = saturate( dot( viewNormal, lightDir ) );
+	
+	float NdotH = saturate( dot( viewNormal, normalize( lightDir - viewDir ) ) );
+	float specAmount = pow( NdotH, specPower ) * sqrt( specPower );
+	
+	totalDiffuse += lightColor * NdotL * distFactor;
+	totalSpecular += lightColor * specAmount * distFactor;
+}
+
+bool PostProjCoordToTexDepth( out float3 slpos, float4 coord )
+{
+	float3 pos = coord.xyz / coord.w;
+	slpos = float3( pos.xy * float2(0.5, -0.5) + 0.5, pos.z );
+	return dot(step(1-abs( pos ),0),1) <= 0;
+}
+
+float3 StaticDiffuseLighting( float3 worldNormal, float dotVertBumpNormal, float2 lmTex )
+{
+	float4 contribData = TEXSAMPLE_2D( InstTex1, lmTex );
+	// brightness compensation value
+	float BRDot = saturate( dotVertBumpNormal ) * 0.9 + 0.1;
+	// contribution [dot] surface normal
+	float LMDot = saturate( dot( contribData.xyz * 2 - 1, worldNormal ) );
+	return TEXSAMPLE_2D( InstTex0, lmTex ).rgb * lerp( 1, LMDot / BRDot, contribData.w );
+}
+
+float3 DynamicDiffuseLighting( float3 worldNormal )
+{
+	float qxp = saturate( worldNormal.x ), qxn = saturate( -worldNormal.x );
+	float qyp = saturate( worldNormal.y ), qyn = saturate( -worldNormal.y );
+	float qzp = saturate( worldNormal.z ), qzn = saturate( -worldNormal.z );
+	return (
+		qxp * gInstanceData[10].rgb + qxn * gInstanceData[11].rgb +
+		qyp * gInstanceData[12].rgb + qyn * gInstanceData[13].rgb +
+		qzp * gInstanceData[14].rgb + qzn * gInstanceData[15].rgb )
+		/ (qxp+qyp+qzp+qxn+qyn+qzn);
+}
+
+void main
+(
+	VS2PS input
+	
+#if !defined(SHADOW_PASS) || SHADOW_PASS_TO_RT
+	ARG_OUT_RT0
+#endif
+#ifndef SHADOW_PASS
+	ARG_OUT_RT1
+	ARG_OUT_RT2
+#endif // SHADOW_PASS
+)
+{
+	float3 inViewPos = input.viewPos.xyz;
+	float3 viewPos = inViewPos;
+	float4 projPos = mul( mProj, float4( input.viewPos, 1 ) );
+	float3 viewDir = normalize( viewPos );
+	float4 inTex0 = input.tex0;
+	float4 inTex1 = input.tex1;
+	float3 inNormal = input.N;
+	float4 inTangentSign = input.T;
+	float4 icol = input.col;
+	
+	float3x3 TBN = CreateTBNMatrix( input.N, input.T );
+	
+	SurfaceInfo surfInfo;
+	InitSurfaceInfo( surfInfo );
+	
+	surf( surfInfo, input );
+	
+#ifdef SHADOW_PASS
+#if SHADOW_PASS_TO_RT
+	RT0 = float4( projPos.z / projPos.w, 0, 0, 1 );
+#endif
+#else
+	
+	float outSpecularPower = exp2( surfInfo.glossiness * 8 );
+	float3 outNormal = normalize( mul( surfInfo.normal, TBN ) );
+	
+	float3 refView = reflect( viewDir, outNormal );
+	float3 refWorld = ViewToWorldDir( refView );
+	
+	float3 totalDiffuse = float3(0,0,0);
+	float3 totalSpecular = float3(0,0,0);
+	
+#ifdef BASE_PASS
+	
+#if LMODE == 1 || LMODE == 3 // -- static / decal
+	totalDiffuse += StaticDiffuseLighting( ViewToWorldDir( outNormal ), dot( outNormal, inNormal ), inTex1.xy );
+#elif LMODE == 2 // -- dynamic
+	totalDiffuse += DynamicDiffuseLighting( ViewToWorldDir( outNormal ) );
+#endif // LMODE
+	
+#if defined(VCOL)
+	totalDiffuse *= icol.rgb;
+#endif // defined(VCOL)
+	totalDiffuse *= LIGHT_MULTIPLIER;
+	
+	// environment cubemap
+	totalSpecular += TEXSAMPLE_CUBE_BIAS( InstTex2, refWorld, ( 1 - surfInfo.glossiness ) * 8 ).rgb;
+	// screen-space reflections
+	totalSpecular += TEXSAMPLE_2D( InstTex3, projPos.xy / projPos.w * float2(-0.5,-0.5) + 0.5 ).rgb;
+	
+	// totalDiffuse += gAmbLightColor;
+	/* DIRECTIONAL LIGHT *--disabled--/
+	totalDiffuse += saturate( dot( outNormal, gDirLightDir ) ) * gDirLightColor;
+	RdotV = saturate( dot( reflect( gDirLightDir, outNormal ), viewDir ) );
+	specAmount = pow( RdotV, outSpecularPower ) * sqrt( outSpecularPower );
+	totalSpecular += gDirLightColor * specAmount; */
+#endif // BASE_PASS
+	
+#ifdef VCOL
+	surfInfo.diffuseColor.a *= icol.a;
+#endif // VCOL
+	
+#ifdef NUM_POINTLIGHTS
+	/* POINT LIGHTS */
+	for( int i = 0; i < gLightCounts.x; ++i )
+	{
+		ApplyPointLight( totalDiffuse, totalSpecular, gPLights[i],
+			viewPos, outNormal, outSpecularPower, float3(1,1,1) );
+	}
+#endif // NUM_POINTLIGHTS
+	
+#ifdef NUM_SPOTLIGHTS
+	/* SPOT LIGHTS */
+	if( gLightCounts.y > 0 )
+	{
+		float3 slpos;
+		if( PostProjCoordToTexDepth( slpos, input.SLPPos0 ) )
+		{
+			SpotLight SL = gSLights[0];
+			ApplyPointLight( totalDiffuse, totalSpecular, SL.PL, viewPos, outNormal, outSpecularPower,
+				TEXSAMPLE_2D_LOD( Tex12, slpos.xy, 0 ) * SHADOWMAP_2x2( Tex13, SL.shminfo, slpos.xy, slpos.z ) );
+		}
+	}
+	if( gLightCounts.y > 1 )
+	{
+		float3 slpos;
+		if( PostProjCoordToTexDepth( slpos, input.SLPPos1 ) )
+		{
+			SpotLight SL = gSLights[1];
+			ApplyPointLight( totalDiffuse, totalSpecular, SL.PL, viewPos, outNormal, outSpecularPower,
+				TEXSAMPLE_2D_LOD( Tex14, slpos.xy, 0 ) * SHADOWMAP_2x2( Tex15, SL.shminfo, slpos.xy, slpos.z ) );
+		}
+	}
+#endif // NUM_SPOTLIGHTS
+	
+	// PRE-LIGHT modifier addons
+#if LMODE == 0 || defined(MOD_UNLIT) // -- unlit
+	totalDiffuse = float3(1,1,1);
+	totalSpecular = float3(0,0,0);
+#endif
+	
+	float3 diffuseCol = surfInfo.diffuseColor.rgb;
+#if defined(MOD_NODIFFCOL) // -- ignore diffuse color
+	diffuseCol = float3(1,1,1);
+#endif
+	
+	float opacity = surfInfo.diffuseColor.a;
+	RT0 = float4( totalDiffuse * diffuseCol + totalSpecular * surfInfo.specularColor + surfInfo.emissiveLight, opacity );
+	RT1 = float4( surfInfo.distortion, 0, opacity );
+	RT2 = float4( inViewPos.z, 0, 0, 1 );
+	
+	// POST-LIGHT modifier addons
+#ifdef MOD_BLENDCOLOR
+	RT0.rgb = lerp( RT0.rgb,
+		gInstanceData[ MOD_BLENDCOLOR ].rgb,
+		gInstanceData[ MOD_BLENDCOLOR ].a );
+#endif
+	
+#endif // SHADOW_PASS
+}
+
+#endif
+

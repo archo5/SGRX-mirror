@@ -1,5 +1,7 @@
+#include "sys_lighting"
 void surf( inout SurfaceInfo surfInfo, VS2PS i )
 {
 	float4 diff = TEXSAMPLE_2D( Tex0, i.tex0.xy );
 	surfInfo.diffuseColor = DiffuseTexGamma( diff );
 }
+#include "sys_surface_shader"

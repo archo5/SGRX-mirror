@@ -1,3 +1,4 @@
+#include "sys_lighting"
 void surf( inout SurfaceInfo surfInfo, VS2PS i )
 {
 	float4 diff = TEXSAMPLE_2D( Tex0, i.tex0.xy );
@@ -7,3 +8,4 @@ void surf( inout SurfaceInfo surfInfo, VS2PS i )
 	surfInfo.glossiness = TEXSAMPLE_2D( Tex3, i.tex0.xy ).r;
 	surfInfo.emissiveLight = TEXSAMPLE_2D( Tex4, i.tex0.xy ).rgb;
 }
+#include "sys_surface_shader"

@@ -1,3 +1,4 @@
+#include "sys_lighting"
 void surf( inout SurfaceInfo surfInfo, VS2PS i )
 {
 	float2 tx_0 = i.tex0.xy + float2(0,-1)*timeVals.x;
@@ -22,3 +23,4 @@ void surf( inout SurfaceInfo surfInfo, VS2PS i )
 	// TODO
 //	surfInfo.distortion = mul( normal, TBN ).xy / i.viewPos.z;
 }
+#include "sys_surface_shader"

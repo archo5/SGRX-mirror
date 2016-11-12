@@ -1285,29 +1285,15 @@ bool IGame::OnLoadShader( const SGRX_RendererInfo& rinfo, const StringView& key,
 	{
 		int i = 0;
 		String prepend;
-		StringView tpl, mtl, defs, cur, it = key.part( 4 );
+		StringView mtl, cur, it = key.part( 4 );
 		while( it.size() )
 		{
 			i++;
 			cur = it.until( ":" );
 			if( i == 1 )
 			{
-				StringView defs = cur.after( "+" );
-				StringView spec = cur.until( "+" );
-				mtl = spec.until( "|" );
-				
-				StringView def = defs.until( "+" );
-				while( def.size() || defs.ch() == '+' )
-				{
-					prepend.append( STRLIT_BUF( "#define " ) );
-					prepend.append( def.data(), def.size() );
-					prepend.append( STRLIT_BUF( "\n" ) );
-					defs = defs.after( "+" );
-					def = defs.until( "+" );
-				}
+				mtl = cur;
 			}
-			else if( i == 2 )
-				tpl = cur;
 			else if( cur.size() )
 			{
 				prepend.append( STRLIT_BUF( "#define " ) );
@@ -1317,13 +1303,14 @@ bool IGame::OnLoadShader( const SGRX_RendererInfo& rinfo, const StringView& key,
 			it.skip( cur.size() + 1 );
 		}
 		
-		String tpl_data, mtl_data;
-		if( !OnLoadShaderFile( rinfo, tpl, tpl_data ) )
+		String mtl_data;
+		if( !OnLoadShaderFile( rinfo, String_Concat( "mtl_", mtl ), mtl_data ) )
 			return false;
-		if( mtl.size() && !OnLoadShaderFile( rinfo, String_Concat( "mtl_", mtl ), mtl_data ) )
-			return false;
-		mtl_data.append( "\n#line 1 \"bacon\"\n" );
-		outdata = String_Concat( prepend, String_Replace( tpl_data, "__CODE__", mtl_data ) );
+		
+		outdata.clear();
+		outdata.reserve( prepend.size() + mtl_data.size() );
+		outdata.append( prepend );
+		outdata.append( mtl_data );
 		return true;
 	}
 	return OnLoadShaderFile( rinfo, key, outdata );
