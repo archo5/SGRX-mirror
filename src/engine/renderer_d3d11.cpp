@@ -2267,8 +2267,8 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, SGRX_PassType passtype, in
 				SGRX_RPSpotLightDataVS SLDataVS[ 2 ] = {0};
 				SGRX_Light* SLDataLT[ 2 ] = {0};
 				LightCount LC = SGRX_Renderer_FindLights( cam, DI,
-					/* TMIN( int(PASS.numPL), */ 16 /* ) */,
-					/* TMIN( int(PASS.numSL), */ 2 /* ) */,
+					/* TMIN( int(PASS.numPL), */ passtype == SGRX_PassType_Spot ? 0 : 16 /* ) */,
+					/* TMIN( int(PASS.numSL), */ passtype == SGRX_PassType_Spot ? 2 : 0 /* ) */,
 					PLData, SLDataPS, SLDataVS, SLDataLT );
 				
 				if( passtype != SGRX_PassType_Base && LC.numPL + LC.numSL <= 0 )

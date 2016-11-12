@@ -64,8 +64,8 @@ UNIFORM_BUFFER_END;
 	float4 SLPPos0 : TEXCOORD##id0; \
 	float4 SLPPos1 : TEXCOORD##id1;
 #  define SGRX_SPOTLIGHT_VS_TRANSFER( o, worldPos ) \
-	o.SLPPos0 = mul( mSpotLight[0], worldPos ); \
-	o.SLPPos1 = mul( mSpotLight[1], worldPos );
+	o.SLPPos0 = mul( mSpotLight[0], float4( worldPos, 1 ) ); \
+	o.SLPPos1 = mul( mSpotLight[1], float4( worldPos, 1 ) );
 #elif NUM_SPOTLIGHTS > 0
 #  define SGRX_SPOTLIGHT_DATA( id0, id1 ) \
 	float4 SLPPos0 : TEXCOORD##id0;

@@ -285,9 +285,6 @@ struct Test_3DRendering : ITest
 		m_meshes.clear();
 		m_scene = NULL;
 	}
-	void OnEvent( const Event& e )
-	{
-	}
 	void Do( float dt, float )
 	{
 		SGRX_RenderScene rs( V4(0), m_scene );
@@ -298,6 +295,94 @@ struct Test_3DRendering : ITest
 	Array< MeshInstHandle > m_meshes;
 }
 g_Test3DRendering;
+
+
+
+struct Test_Lighting : ITest
+{
+	virtual StringView GetName() const { return "Lighting test"; }
+	void OnInitialize()
+	{
+		m_scene = GR_CreateScene();
+		m_scene->camera.position = V3(-10,-10,10);
+		m_scene->camera.direction = V3(10,10,-10).Normalized();
+		m_scene->camera.aspect = safe_fdiv( GR_GetWidth(), GR_GetHeight() );
+		m_scene->camera.angle = 90;
+		m_scene->camera.UpdateMatrices();
+		
+		{
+			MeshInstHandle mih = m_scene->CreateMeshInstance();
+			mih->SetMesh( GR_GetMesh( "sys:plane" ) );
+			mih->matrix = Mat4::CreateScale( 10, 10, 1 )
+				* Mat4::CreateTranslation( 0, 0, 0 );
+			mih->SetLightingMode( SGRX_LM_Dynamic );
+			g_Lighting1.LightMesh( mih );
+			m_items.push_back( mih.item );
+		}
+		
+		{
+			MeshInstHandle mih = m_scene->CreateMeshInstance();
+			mih->SetMesh( GR_GetMesh( "sys:cube" ) );
+			mih->matrix = Mat4::CreateScale( 2, 2, 2 )
+				* Mat4::CreateTranslation( 4, 0, 2 );
+			mih->SetLightingMode( SGRX_LM_Dynamic );
+			g_Lighting1.LightMesh( mih );
+			m_items.push_back( mih.item );
+		}
+		
+		{
+			MeshInstHandle mih = m_scene->CreateMeshInstance();
+			mih->SetMesh( GR_GetMesh( "sys:sphere" ) );
+			mih->matrix = Mat4::CreateScale( 2, 2, 2 )
+				* Mat4::CreateTranslation( -4, 0, 2 );
+			mih->SetLightingMode( SGRX_LM_Dynamic );
+			g_Lighting1.LightMesh( mih );
+			m_items.push_back( mih.item );
+		}
+		
+		{
+			LightHandle lh = m_scene->CreateLight();
+			lh->position = V3( 4, -4, 4 );
+			lh->range = 10;
+			lh->color = V3( 1 );
+			lh->type = LIGHT_POINT;
+			lh->UpdateTransform();
+			m_items.push_back( lh.item );
+		}
+		
+		{
+			LightHandle lh = m_scene->CreateLight();
+			lh->position = V3( -6, 6, 6 );
+			lh->range = 20;
+			lh->power = 1;
+			lh->color = V3( 1 );
+			lh->type = LIGHT_SPOT;
+			lh->direction = V3( 1, -1, -1 );
+			lh->updir = V3( 0, 0, 1 );
+			lh->hasShadows = true;
+			lh->angle = 90;
+			lh->aspect = 1;
+			lh->cookieTexture = GR_GetTexture( "sys:white2d" );
+			lh->shadowTexture = GR_CreateRenderTexture( 512, 512, TEXFMT_RT_DEPTH_F32 );
+			lh->UpdateTransform();
+			m_items.push_back( lh.item );
+		}
+	}
+	void OnDestroy()
+	{
+		m_items.clear();
+		m_scene = NULL;
+	}
+	void Do( float dt, float )
+	{
+		SGRX_RenderScene rs( V4(0), m_scene );
+		GR_RenderScene( rs );
+	}
+	
+	SceneHandle m_scene;
+	Array< GenericHandle > m_items;
+}
+g_TestLighting;
 
 
 
@@ -729,6 +814,7 @@ ITest* g_Tests[] =
 	&g_TestBruteForce,
 	&g_TestGameUI,
 	&g_Test3DRendering,
+	&g_TestLighting,
 	&g_TestCharacters,
 	&g_TestDecals,
 	&g_TestProjectors,
