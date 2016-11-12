@@ -6,10 +6,6 @@
 #include "sound.hpp"
 
 
-typedef HashTable< StringView, AnimHandle > AnimHashTable;
-typedef HashTable< StringView, AnimCharHandle > AnimCharHashTable;
-
-
 static ConvexPointSetHashTable* g_CPSets = NULL;
 TextureHashTable* g_Textures = NULL;
 RenderTargetTable* g_RenderTargets = NULL;
@@ -20,8 +16,8 @@ RenderStateHashTable* g_RenderStates = NULL;
 VertexDeclHashTable* g_VertexDecls = NULL;
 VtxInputMapHashTable* g_VtxInputMaps = NULL;
 MeshHashTable* g_Meshes = NULL;
-static AnimHashTable* g_Anims = NULL;
-static AnimCharHashTable* g_AnimChars = NULL;
+AnimHashTable* g_Anims = NULL;
+AnimCharHashTable* g_AnimChars = NULL;
 FontHashTable* g_LoadedFonts = NULL;
 static ResourcePreserveHashTable* g_PreservedResources = NULL;
 
@@ -871,72 +867,6 @@ void SGRX_SceneTree::UpdateTransforms()
 	}
 }
 
-
-
-static void _LoadAnimBundle( const StringView& path, const StringView& prefix )
-{
-	LOG_FUNCTION;
-	
-	SGRX_AnimBundle bundle;
-	if( !GR_ReadAnimBundle( path, bundle ) )
-		return;
-	
-	for( size_t i = 0; i < bundle.anims.size(); ++i )
-	{
-		SGRX_Animation* anim = bundle.anims[ i ];
-		
-		anim->m_key.insert( 0, prefix );		
-		g_Anims->set( anim->m_key, anim );
-	}
-	
-	if( VERBOSE ) LOG << "Loaded " << bundle.anims.size() << " anims from anim.bundle " << path;
-}
-
-AnimHandle GR_GetAnim( const StringView& name )
-{
-	if( !name )
-		return NULL;
-	AnimHandle out = g_Anims->getcopy( name );
-	if( out )
-		return out;
-	
-	StringView bundle = name.until( ":" );
-	if( name.size() == bundle.size() )
-	{
-		LOG_ERROR << LOG_DATE << "  Failed to request animation: " << name
-			<< " - invalid name (expected <bundle>:<anim>)";
-		return NULL;
-	}
-	
-	_LoadAnimBundle( bundle, name.part( 0, bundle.size() + 1 ) );
-	
-	return g_Anims->getcopy( name );
-}
-
-AnimCharHandle GR_GetAnimChar( const StringView& name )
-{
-	LOG_FUNCTION_ARG( name );
-	
-	if( !name )
-		return NULL;
-	AnimCharHandle out = g_AnimChars->getcopy( name );
-	if( out )
-		return out;
-	
-	double t0 = sgrx_hqtime();
-	out = new AnimCharacter;
-	if( !out->Load( name ) )
-	{
-		LOG_ERROR << LOG_DATE << "  Failed to load animated character: " << name;
-		return NULL;
-	}
-	out->m_key = name;
-	g_AnimChars->set( out->m_key, out );
-	if( VERBOSE )
-		LOG << "Loaded animated character " << name
-		<< " (time=" << ( sgrx_hqtime() - t0 ) << ")";
-	return out;
-}
 
 
 SceneHandle GR_CreateScene()

@@ -727,6 +727,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : SGRX_RCRsrc, MEVariableInterface
 	HashTable< StringView, uint16_t > m_variable_index;
 };
 typedef Handle< AnimCharacter > AnimCharHandle;
+typedef HashTable< StringView, AnimCharHandle > AnimCharHashTable;
 
 template< class T > AnimCharacter::Node* AnimCharacter::Node::UnserializeCreate( T& arch )
 {

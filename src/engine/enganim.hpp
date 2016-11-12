@@ -92,6 +92,7 @@ struct AnimHandle : Handle< SGRX_Animation >
 	AnimHandle( const AnimHandle& h ) : Handle( h ){}
 	AnimHandle( SGRX_Animation* anm ) : Handle( anm ){}
 };
+typedef HashTable< StringView, AnimHandle > AnimHashTable;
 
 struct SGRX_AnimBundle
 {

@@ -1,6 +1,9 @@
 
 
+#include "engine_int.hpp"
 #include "engext.hpp"
+
+extern AnimCharHashTable* g_AnimChars;
 
 
 
@@ -1875,6 +1878,31 @@ double AnimCharInst::MEGetValue( uint16_t i ) const
 	if( size_t(i) < m_values.size() )
 		return m_values[ i ];
 	return 0;
+}
+
+AnimCharHandle GR_GetAnimChar( const StringView& name )
+{
+	LOG_FUNCTION_ARG( name );
+	
+	if( !name )
+		return NULL;
+	AnimCharHandle out = g_AnimChars->getcopy( name );
+	if( out )
+		return out;
+	
+	double t0 = sgrx_hqtime();
+	out = new AnimCharacter;
+	if( !out->Load( name ) )
+	{
+		LOG_ERROR << LOG_DATE << "  Failed to load animated character: " << name;
+		return NULL;
+	}
+	out->m_key = name;
+	g_AnimChars->set( out->m_key, out );
+	if( VERBOSE )
+		LOG << "Loaded animated character " << name
+		<< " (time=" << ( sgrx_hqtime() - t0 ) << ")";
+	return out;
 }
 
 
