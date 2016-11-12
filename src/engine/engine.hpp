@@ -2090,12 +2090,6 @@ struct IF_GCC(ENGINE_EXPORT) IGame : SGRX_RefCounted
 	virtual void OnEvent( const Event& e ){}
 	virtual void OnTick( float dt, uint32_t gametime ){}
 	
-	ENGINE_EXPORT virtual void GetShaderCacheFilename( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, String& name );
-	ENGINE_EXPORT virtual bool GetCompiledShader( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, ByteArray& outdata );
-	ENGINE_EXPORT virtual bool SetCompiledShader( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, const ByteArray& data );
-	ENGINE_EXPORT virtual bool OnLoadShader( const SGRX_RendererInfo& rinfo, const StringView& key, String& outdata );
-	ENGINE_EXPORT virtual bool OnLoadShaderFile( const SGRX_RendererInfo& rinfo, const StringView& path, String& outdata );
-	ENGINE_EXPORT virtual bool ParseShaderIncludes( const SGRX_RendererInfo& rinfo, const StringView& path, String& outdata );
 	ENGINE_EXPORT virtual bool OnLoadMesh( const StringView& key, ByteArray& outdata );
 	ENGINE_EXPORT virtual MeshHandle OnCreateSysMesh( const StringView& key );
 	ENGINE_EXPORT virtual void OnGetSysMeshList( Array< StringView >& outNames );

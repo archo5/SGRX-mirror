@@ -19,10 +19,6 @@ typedef HashTable< StringView, FontHandle > FontHashTable;
 typedef HashTable< GenericHandle, int > ResourcePreserveHashTable;
 
 
-extern TextureHashTable* g_Textures;
-extern RenderTargetTable* g_RenderTargets;
-
-
 extern bool g_VerboseLogging;
 #define VERBOSE g_VerboseLogging
 

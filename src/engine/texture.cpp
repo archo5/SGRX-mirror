@@ -3,6 +3,8 @@
 #include "engine_int.hpp"
 
 extern IRenderer* g_Renderer;
+extern TextureHashTable* g_Textures;
+extern RenderTargetTable* g_RenderTargets;
 
 
 

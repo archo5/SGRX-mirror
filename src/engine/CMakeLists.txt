@@ -12,7 +12,7 @@ add_library( sgrx-core SHARED
 	enganim.cpp enganim.hpp
 	engext.cpp engext.hpp
 	imgui.cpp imgui.hpp
-	image.cpp font.cpp mesh.cpp culling.cpp texture.cpp
+	image.cpp font.cpp mesh.cpp culling.cpp shader.cpp texture.cpp
 	utils.cpp utils.hpp
 	dds.c dds.h
 	${EXTDIR}/src/zlib1 ${EXTDIR}/src/zlib2 ${EXTDIR}/src/zlib3
