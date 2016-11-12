@@ -1532,19 +1532,6 @@ struct SGRX_Viewport
 	int x0, y0, x1, y1;
 };
 
-ENGINE_EXPORT uint32_t SGRX_FindOrAddVertex( ByteArray& vertbuf, size_t searchoffset, size_t& writeoffset, const uint8_t* vertex, size_t vertsize );
-ENGINE_EXPORT void SGRX_DoIndexTriangleMeshVertices( UInt32Array& indices, ByteArray& vertices, size_t offset, size_t stride );
-struct IF_GCC(ENGINE_EXPORT) SGRX_ProjectionMeshProcessor : IProcessor
-{
-	ByteArray* outVertices;
-	UInt32Array* outIndices;
-	Mat4 viewProjMatrix;
-	float invZNearToZFar;
-	
-	SGRX_ProjectionMeshProcessor( ByteArray* verts, UInt32Array* indices, const Mat4& mtx, float zn2zf );
-	ENGINE_EXPORT virtual void Process( void* data );
-};
-
 struct SceneRaycastInfo
 {
 	float factor;

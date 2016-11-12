@@ -6,6 +6,68 @@
 extern AnimHashTable* g_Anims;
 
 
+const char* AnimFileParser::Parse( ByteReader& br )
+{
+	uint32_t numAnims, sectionLength = 0;
+	br.marker( "SS3DANIM" );
+	if( br.error )
+		return "file not SS3DANIM";
+	br << numAnims;
+	for( uint32_t i = 0; i < numAnims; ++i )
+	{
+		br << sectionLength;
+		
+		Anim anim;
+		br << anim.nameSize;
+		anim.name = (char*) br.at();
+		br.padding( anim.nameSize );
+		br << anim.frameCount;
+		br << anim.speed;
+		br << anim.trackCount;
+		anim.trackDataOff = trackData.size();
+		br << anim.markerCount;
+		anim.markerDataOff = markerData.size();
+		
+		if( br.error )
+			return "failed to read animation data";
+		
+		for( uint8_t t = 0; t < anim.trackCount; ++t )
+		{
+			br << sectionLength;
+			
+			Track track;
+			br << track.nameSize;
+			track.name = (char*) br.at();
+			br.padding( track.nameSize );
+			
+			track.dataPtr = (float*) br.at();
+			br.padding( sizeof( float ) * 10 * anim.frameCount );
+			
+			if( br.error )
+				return "failed to read track data";
+			
+			trackData.push_back( track );
+		}
+		
+		for( uint8_t m = 0; m < anim.markerCount; ++m )
+		{
+			Marker marker;
+			
+			br.memory( marker.name, MAX_ANIM_MARKER_NAME_LENGTH );
+			br << marker.frame;
+			
+			if( br.error )
+				return "failed to read marker data";
+			
+			markerData.push_back( marker );
+		}
+		
+		animData.push_back( anim );
+	}
+	return NULL;
+}
+
+
 SGRX_Animation::SGRX_Animation() : speed( 0 ), frameCount( 0 )
 {
 }

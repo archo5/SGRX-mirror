@@ -393,78 +393,6 @@ void SGRX_MeshInstance::SetMesh( MeshHandle mh, bool mtls )
 }
 
 
-uint32_t SGRX_FindOrAddVertex( ByteArray& vertbuf, size_t searchoffset, size_t& writeoffset, const uint8_t* vertex, size_t vertsize )
-{
-	const size_t idxoffset = 0;
-	for( size_t i = searchoffset; i < writeoffset; i += vertsize )
-	{
-		if( 0 == memcmp( &vertbuf[ i ], vertex, vertsize ) )
-			return ( i - idxoffset ) / vertsize;
-	}
-	uint32_t out = ( writeoffset - idxoffset ) / vertsize;
-	memcpy( &vertbuf[ writeoffset ], vertex, vertsize );
-	writeoffset += vertsize;
-	return out;
-}
-
-void SGRX_DoIndexTriangleMeshVertices( UInt32Array& indices, ByteArray& vertices, size_t offset, size_t stride )
-{
-#if 1
-	while( offset < vertices.size() )
-	{
-		indices.push_back( offset / stride );
-		offset += stride;
-	}
-	return;
-#endif
-	// <= 1 tri
-	if( vertices.size() <= offset + stride * 3 )
-		return;
-	
-	uint8_t trivertdata[ 256 * 3 ];
-	size_t end = ( ( vertices.size() - offset ) / (stride*3) ) * stride * 3 + offset;
-	size_t writeoffset = offset;
-	size_t readoffset = offset;
-	while( readoffset < end )
-	{
-		// extract a triangle
-		memcpy( trivertdata, &vertices[ readoffset ], stride * 3 );
-		readoffset += stride * 3;
-		
-		// insert each vertex/index
-		uint32_t idcs[3] =
-		{
-			SGRX_FindOrAddVertex( vertices, offset, writeoffset, trivertdata, stride ),
-			SGRX_FindOrAddVertex( vertices, offset, writeoffset, trivertdata + stride, stride ),
-			SGRX_FindOrAddVertex( vertices, offset, writeoffset, trivertdata + stride * 2, stride ),
-		};
-		indices.append( idcs, 3 );
-	}
-	// remove unused data
-	vertices.resize( writeoffset );
-}
-
-SGRX_ProjectionMeshProcessor::SGRX_ProjectionMeshProcessor( ByteArray* verts, UInt32Array* indices, const Mat4& mtx, float zn2zf ) :
-	outVertices( verts ), outIndices( indices ), viewProjMatrix( mtx ), invZNearToZFar( safe_fdiv( 1.0f, zn2zf ) )
-{
-}
-
-void SGRX_ProjectionMeshProcessor::Process( void* data )
-{
-	LOG_FUNCTION;
-	
-	SGRX_CAST( SGRX_MeshInstance*, MI, data );
-	
-	SGRX_IMesh* M = MI->GetMesh();
-	if( M )
-	{
-		size_t vertoff = outVertices->size();
-		M->Clip( MI->matrix, viewProjMatrix, *outVertices, true, invZNearToZFar );
-		SGRX_DoIndexTriangleMeshVertices( *outIndices, *outVertices, vertoff, sizeof(SGRX_Vertex_Decal) );
-	}
-}
-
-
 SceneRaycastCallback_Any::SceneRaycastCallback_Any() : m_hit(false)
 {
 }
@@ -799,12 +727,6 @@ void SGRX_Scene::GatherMeshes( const SGRX_Camera& cam, IProcessor* meshInstProc,
 		if( mi->layers & layers )
 			meshInstProc->Process( mi );
 	}
-}
-
-void SGRX_Scene::GenerateProjectionMesh( const SGRX_Camera& cam, ByteArray& outverts, UInt32Array& outindices, uint32_t layers )
-{
-	SGRX_ProjectionMeshProcessor pmp( &outverts, &outindices, cam.mView * cam.mProj, cam.zfar - cam.znear );
-	GatherMeshes( cam, &pmp, layers );
 }
 
 void SGRX_Scene::DebugDraw_MeshRaycast( uint32_t layers )
