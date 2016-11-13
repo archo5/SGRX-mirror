@@ -643,7 +643,9 @@ bool IMGUIPickerCore::Popup( const char* caption, RCString& str )
 bool IMGUIPickerCore::Property( const char* caption, const char* label, String& str )
 {
 	ImGui::PushID( label );
-	if( ImGui::Button( str.size() ? StackPath(str).str : "<click to select>",
+	RCString* name = m_nameMap.getptr( str );
+	if( ImGui::Button( name ? name->c_str() :
+		( str.size() ? StackPath(str).str : "<click to select>" ),
 		ImVec2( ImGui::GetContentRegionAvail().x * (2.f/3.f), 20 ) ) )
 	{
 		OpenPopup( caption );
@@ -681,7 +683,7 @@ void IMGUIPickerCore::_Search( StringView text )
 	{
 		for( size_t i = 0; i < count; ++i )
 		{
-			StringView e = GetEntryPath( i ).view();
+			StringView e = GetEntryName( i ).view();
 			if( !e || e.match_loose( text ) )
 				m_filtered.push_back( i );
 		}
@@ -690,7 +692,7 @@ void IMGUIPickerCore::_Search( StringView text )
 	{
 		for( size_t i = 0; i < count; ++i )
 		{
-			StringView e = GetEntryPath( i ).view();
+			StringView e = GetEntryName( i ).view();
 			if( !e || e.find_first_at( text ) != NOT_FOUND )
 				m_filtered.push_back( i );
 		}
@@ -701,11 +703,11 @@ bool IMGUIPickerCore::EntryUI( size_t i, String& str )
 {
 	if( m_layoutType == Layout_Grid )
 	{
-		return ImGui::Button( GetEntryPath( i ).c_str(), m_itemSize );
+		return ImGui::Button( GetEntryName( i ).c_str(), m_itemSize );
 	}
 	else if( m_layoutType == Layout_List )
 	{
-		return ImGui::Selectable( GetEntryPath( i ).c_str() );
+		return ImGui::Selectable( GetEntryName( i ).c_str() );
 	}
 	return false;
 }
@@ -795,7 +797,7 @@ bool IMGUIFilePicker::HandleDirEntry( const StringView& loc, const StringView& n
 		return true;
 	char bfr[ 256 ];
 	sgrx_snprintf( bfr, 256, "%s/%s", StackString<256>(loc).str, StackString<256>(name).str );
-	LOG << "[F]: " << bfr;
+//	LOG << "[F]: " << bfr;
 	StringView fullname = bfr;
 	if( isdir )
 	{
@@ -823,7 +825,7 @@ bool IMGUIFilePicker::EntryUI( size_t i, String& str )
 	if( ret )
 		ImGui::OpenPopup( popupName );
 	
-	return ConfirmPopup( popupName, labelText, GetEntryPath( i ).c_str() );
+	return ConfirmPopup( popupName, labelText, GetEntryName( i ).c_str() );
 }
 
 bool IMGUIFilePicker::ConfirmPopup( const char* caption, const char* label, const char* file )
@@ -885,174 +887,194 @@ bool IMGUIPreviewPickerCore::EntryUI( size_t i, String& str )
 		this, i, cp.x, cp.y, cp.x + m_itemSize.x, cp.y + m_itemSize.y,
 	};
 	ImGui::GetWindowDrawList()->AddCallback(
-		IMGUIMeshPickerCore::_StaticDrawItem, new _StaticDrawItemData(data) );
+		IMGUIPreviewPickerCore::_StaticDrawItem, new _StaticDrawItemData(data) );
 	
 	return ret;
 }
 
 
-IMGUIMeshPickerCore::IMGUIMeshPickerCore() :
+IMGUIAssetPickerCore::IMGUIAssetPickerCore() :
 	m_customCamera( false ),
 	m_scene( GR_CreateScene() )
 {
 }
 
-IMGUIMeshPickerCore::~IMGUIMeshPickerCore()
+IMGUIAssetPickerCore::~IMGUIAssetPickerCore()
 {
 	Clear();
 }
 
-void IMGUIMeshPickerCore::Clear()
+void IMGUIAssetPickerCore::Clear()
 {
+	m_nameMap.clear();
 	m_entries.clear();
 }
 
-void IMGUIMeshPickerCore::AddMesh( StringView path, StringView rsrcpath )
+void IMGUIAssetPickerCore::Reload()
 {
-	LOG_FUNCTION;
+	// to avoid reloading of any resources
+	Array< BaseEntryHandle > old = m_entries;
 	
-	MeshInstHandle mih = m_scene->CreateMeshInstance();
-	mih->SetMesh( path );
-	mih->enabled = false;
-	lmm_prepmeshinst( mih );
-	mih->Precache();
-	Entry e =
-	{
-		rsrcpath ? rsrcpath : path,
-		mih,
-	};
-	m_entries.push_back( e );
-}
-
-void IMGUIMeshPickerCore::_DrawItem( int i, int x0, int y0, int x1, int y1 )
-{
-	SGRX_Viewport vp = { x0 + 10, y0 + 4, x1 - 10, y1 - 16 };
-	
-	if( m_entries[ i ].mesh )
-	{
-		SGRX_IMesh* M = m_entries[ i ].mesh->GetMesh();
-		if( m_customCamera == false )
-		{
-			Vec3 dst = M->m_boundsMin - M->m_boundsMax;
-			Vec3 idst = V3( dst.x ? 1/dst.x : 1, dst.y ? 1/dst.y : 1, dst.z ? 1/dst.z : 1 );
-			if( idst.z > 0 )
-				idst.z = -idst.z;
-			m_scene->camera.direction = idst.Normalized();
-			m_scene->camera.position = ( M->m_boundsMax + M->m_boundsMin ) * 0.5f - m_scene->camera.direction * dst.Length() * 0.8f;
-			m_scene->camera.znear = 0.1f;
-			m_scene->camera.angle = 60;
-			m_scene->camera.UpdateMatrices();
-		}
-		
-		SGRX_RenderScene rsinfo( V4( GetTimeMsec() / 1000.0f ), m_scene );
-		rsinfo.viewport = &vp;
-		m_entries[ i ].mesh->enabled = true;
-		GR_RenderScene( rsinfo );
-		m_entries[ i ].mesh->enabled = false;
-	}
-	
-	BatchRenderer& br = GR2D_GetBatchRenderer();
-	br.Col( 0.9f, 1.0f );
-	GR2D_DrawTextLine( ( x0 + x1 ) / 2, y1 - 8, m_entries[ i ].path, HALIGN_CENTER, VALIGN_CENTER );
-}
-
-
-IMGUITexturePicker::IMGUITexturePicker()
-{
-	Reload();
-}
-
-void IMGUITexturePicker::Reload()
-{
-	LOG_FUNCTION_ARG("IMGUITexturePicker");
-	
-	LOG << "Reloading textures";
-	m_textures.clear();
-	m_textures.push_back( TextureHandle() );
-	FS_IterateDirectory( "textures", this );
+	Clear();
+	AddEntry( "", "<none>" );
+	ReloadEntries();
 	_Search( m_searchString );
+	
+	// to map GUIDs to names
+	for( size_t i = 0; i < m_entries.size(); ++i )
+	{
+		m_nameMap.set( m_entries[ i ]->key, m_entries[ i ]->name );
+	}
 }
 
-bool IMGUITexturePicker::HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+enum SGRX_AssetType
 {
-	if( name == "." || name == ".." )
-		return true;
-	
-	char bfr[ 256 ];
-	sgrx_snprintf( bfr, 256, "%s/%s", StackString<256>(loc).str, StackString<256>(name).str );
-	LOG << "[T]: " << bfr;
-	StringView fullname = bfr;
-	
-	if( isdir )
+	SGRX_AT_Texture,
+	SGRX_AT_Mesh,
+	SGRX_AT_AnimBundle,
+	SGRX_AT_File,
+};
+void IMGUIAssetPickerCore::ReloadAssets( int type )
+{
+	const char* tystr = "?";
+	switch( type )
 	{
-		FS_IterateDirectory( fullname, this );
+	case SGRX_AT_Texture: tystr = "T"; break;
+	case SGRX_AT_Mesh: tystr = "M"; break;
+	case SGRX_AT_AnimBundle: tystr = "A"; break;
+	case SGRX_AT_File: tystr = "F"; break;
 	}
-	else if( name.ends_with( ".png" ) || name.ends_with( ".stx" ) || name.ends_with( ".dds" ) )
+	String text;
+	if( FS_LoadTextFile( SGRXPATH_CACHE "/assets/mapping.txt", text ) )
 	{
-		TextureHandle th = GR_GetTexture( fullname );
-		if( th )
-			m_textures.push_back( th );
+		ConfigReader cr( text );
+		StringView key, val;
+		while( cr.Read( key, val ) )
+		{
+			StringView ty = val.until( ":" );
+			if( ty != tystr )
+				continue;
+			AddEntry( key, val.after( ":" ), key );
+		}
 	}
-	return true;
+}
+
+void IMGUIAssetPickerCore::AddEntry( StringView key, StringView name, StringView path )
+{
+	AppendEntry();
+	m_entries.last()->key = key;
+	m_entries.last()->name = name;
+	m_entries.last()->path = path ? path : key;
+}
+
+
+IMGUITexturePicker::IMGUITexturePicker(){ Reload(); }
+
+void IMGUITexturePicker::ReloadEntries()
+{
+	ReloadAssets( SGRX_AT_Texture );
+}
+
+void IMGUITexturePicker::AppendEntry()
+{
+	m_entries.push_back( new TextureEntry );
+}
+
+void IMGUITexturePicker::InitEntryPreview( BaseEntry* be )
+{
+	SGRX_CAST( TextureEntry*, e, be );
+	if( !e->texture && e->path.size() )
+	{
+		e->texture = GR_GetTexture( e->path );
+	}
 }
 
 void IMGUITexturePicker::_DrawItem( int i, int x0, int y0, int x1, int y1 )
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
-	br.Col( 1 );
-	br.SetTexture( m_textures[ i ] );
-	br.Quad( x0 + 10, y0 + 4, x1 - 10, y1 - 16 );
+	InitEntryPreview( m_entries[ i ] );
+	
+	if( m_entries[ i ]->path.size() )
+	{
+		br.Col( 1 );
+		br.SetTexture( ((TextureEntry*)m_entries[ i ].item)->texture );
+		br.Quad( x0 + 10, y0 + 4, x1 - 10, y1 - 16 );
+	}
 	
 	br.Col( 0.9f, 1.0f );
-	StringView name = m_textures[ i ] ? SV(m_textures[ i ]->m_key) : SV("<none>");
-	GR2D_DrawTextLine( ( x0 + x1 ) / 2, y1 - 8, name, HALIGN_CENTER, VALIGN_CENTER );
+	GR2D_DrawTextLine( ( x0 + x1 ) / 2, y1 - 8, m_entries[ i ]->name, HALIGN_CENTER, VALIGN_CENTER );
 }
 
 
-IMGUIMeshPicker::IMGUIMeshPicker()
+IMGUIMeshPicker::IMGUIMeshPicker(){ Reload(); }
+
+void IMGUIMeshPicker::ReloadEntries()
 {
-	Reload();
+	AddEntry( "sys:plane", "[built-in] Plane" );
+	AddEntry( "sys:cube", "[built-in] Cube" );
+	AddEntry( "sys:sphere", "[built-in] Sphere" );
+	ReloadAssets( SGRX_AT_Mesh );
 }
 
-void IMGUIMeshPicker::Reload()
+void IMGUIMeshPicker::AppendEntry()
 {
-	LOG_FUNCTION_ARG("IMGUIMeshPicker");
-	
-	LOG << "Reloading meshes";
-	Array< MeshInstHandle > oldHandles;
-	for( size_t i = 0; i < m_entries.size(); ++i )
-		oldHandles.push_back( m_entries[ i ].mesh );
-	Clear();
-	
-	// engine built-in meshes
-	AddMesh( "sys:plane" );
-	AddMesh( "sys:cube" );
-	AddMesh( "sys:sphere" );
-	
-	FS_IterateDirectory( "meshes", this );
-	_Search( m_searchString );
+	m_entries.push_back( new MeshEntry );
 }
 
-bool IMGUIMeshPicker::HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+void IMGUIMeshPicker::InitEntryPreview( BaseEntry* be )
 {
-	if( name == "." || name == ".." )
-		return true;
-	char bfr[ 256 ];
-	sgrx_snprintf( bfr, 256, "%s/%s", StackString<256>(loc).str, StackString<256>(name).str );
-	LOG << "[M]: " << bfr;
-	StringView fullname = bfr;
-	if( isdir )
+	SGRX_CAST( MeshEntry*, e, be );
+	if( !e->mesh && e->path.size() )
 	{
-		FS_IterateDirectory( fullname, this );
+		MeshInstHandle mih = m_scene->CreateMeshInstance();
+		mih->SetMesh( e->path );
+		mih->enabled = false;
+		lmm_prepmeshinst( mih );
+		mih->Precache();
+		e->mesh = mih;
 	}
-	else if( name.ends_with( ".ssm" ) )
-	{
-		AddMesh( fullname );
-	}
-	return true;
 }
 
+void IMGUIMeshPicker::_DrawItem( int i, int x0, int y0, int x1, int y1 )
+{
+	SGRX_Viewport vp = { x0 + 10, y0 + 4, x1 - 10, y1 - 16 };
+	
+	SGRX_CAST( MeshEntry*, E, m_entries[ i ].item );
+	InitEntryPreview( E );
+	
+	if( m_customCamera == false )
+	{
+		SGRX_IMesh* M = E->mesh->GetMesh();
+		Vec3 dst = M->m_boundsMin - M->m_boundsMax;
+		Vec3 idst = V3( dst.x ? 1/dst.x : 1, dst.y ? 1/dst.y : 1, dst.z ? 1/dst.z : 1 );
+		if( idst.z > 0 )
+			idst.z = -idst.z;
+		m_scene->camera.direction = idst.Normalized();
+		m_scene->camera.position = ( M->m_boundsMax + M->m_boundsMin ) * 0.5f - m_scene->camera.direction * dst.Length() * 0.8f;
+		m_scene->camera.znear = 0.1f;
+		m_scene->camera.angle = 60;
+		m_scene->camera.UpdateMatrices();
+	}
+	
+	SGRX_RenderScene rsinfo( V4( GetTimeMsec() / 1000.0f ), m_scene );
+	rsinfo.viewport = &vp;
+	E->mesh->enabled = true;
+	GR_RenderScene( rsinfo );
+	E->mesh->enabled = false;
+	
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	br.Col( 0.9f, 1.0f );
+	GR2D_DrawTextLine( ( x0 + x1 ) / 2, y1 - 8, E->path, HALIGN_CENTER, VALIGN_CENTER );
+}
+
+
+IMGUICharPicker::IMGUICharPicker(){ Reload(); }
+
+void IMGUICharPicker::ReloadEntries()
+{
+	FS_IterateDirectory( SGRXPATH__CHARS, this );
+}
 
 inline String ED_GetMeshFromChar( const StringView& charpath )
 {
@@ -1067,24 +1089,6 @@ inline String ED_GetMeshFromChar( const StringView& charpath )
 	String mesh;
 	arch( mesh );
 	return mesh;
-}
-
-IMGUICharPicker::IMGUICharPicker()
-{
-	Reload();
-}
-
-void IMGUICharPicker::Reload()
-{
-	LOG_FUNCTION_ARG("IMGUICharPicker");
-	
-	LOG << "Reloading chars";
-	Array< MeshInstHandle > oldHandles;
-	for( size_t i = 0; i < m_entries.size(); ++i )
-		oldHandles.push_back( m_entries[ i ].mesh );
-	Clear();
-	FS_IterateDirectory( SGRXPATH__CHARS, this );
-	_Search( m_searchString );
 }
 
 bool IMGUICharPicker::HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
@@ -1104,7 +1108,7 @@ bool IMGUICharPicker::HandleDirEntry( const StringView& loc, const StringView& n
 		String mesh = ED_GetMeshFromChar( fullname );
 		if( mesh.size() == 0 )
 			return true;
-		AddMesh( fullname, mesh );
+		AddEntry( fullname, SV(fullname).until_last( "." ), mesh );
 	}
 	return true;
 }

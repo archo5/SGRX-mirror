@@ -23,6 +23,9 @@ extern bool g_VerboseLogging;
 #define VERBOSE g_VerboseLogging
 
 
+StringView FS_ResolvePath( StringView path );
+
+
 template< class K, class V >
 struct RasterCache
 {

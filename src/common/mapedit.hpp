@@ -69,7 +69,7 @@ struct SMPVertex
 	Vec2 tex;
 };
 
-struct IMGUISurfMtlPicker : IMGUIMeshPickerCore
+struct IMGUISurfMtlPicker : IMGUIMeshPicker
 {
 	IMGUISurfMtlPicker()
 	{
@@ -104,9 +104,7 @@ struct IMGUISurfMtlPicker : IMGUIMeshPickerCore
 	{
 		LOG << "Reloading surface materials";
 		Clear();
-		
-		Entry e = { "", NULL };
-		m_entries.push_back( e );
+		AddEntry( "", "<none>" );
 		
 		// parse material list
 		m_materials.clear();
@@ -158,32 +156,37 @@ struct IMGUISurfMtlPicker : IMGUIMeshPickerCore
 		// load materials
 		for( size_t i = 0; i < m_materials.size(); ++i )
 		{
-			AddMtl( m_materials.item( i ).key, m_materials.item( i ).value );
+			StringView name = m_materials.item( i ).key;
+			AddEntry( name, name );
 		}
 		
 		_Search( m_searchString );
 	}
-	void AddMtl( StringView name, MapMaterial* MM )
+	void InitEntryPreview( BaseEntry* be )
 	{
-		MeshInstHandle mih = m_scene->CreateMeshInstance();
-		mih->SetMesh( m_mesh );
-		mih->enabled = false;
-		SGRX_Material mtl;
-		mtl.shader = MM->shader;
-		mtl.blendMode = MM->blendmode;
-		mtl.flags = MM->flags;
-		for( int i = 0; i < MAX_MATERIAL_TEXTURES; ++i )
+		SGRX_CAST( MeshEntry*, e, be );
+		if( !e->mesh && e->path )
 		{
-			if( MM->texture[ i ].size() )
-				mtl.textures[ i ] = GR_GetTexture( MM->texture[ i ] );
+			MapMaterial* MM = m_materials.getcopy( e->path );
+			MeshInstHandle mih = m_scene->CreateMeshInstance();
+			mih->SetMesh( m_mesh );
+			mih->enabled = false;
+			SGRX_Material mtl;
+			mtl.shader = MM->shader;
+			mtl.blendMode = MM->blendmode;
+			mtl.flags = MM->flags;
+			for( int i = 0; i < MAX_MATERIAL_TEXTURES; ++i )
+			{
+				if( MM->texture[ i ].size() )
+					mtl.textures[ i ] = GR_GetTexture( MM->texture[ i ] );
+			}
+			mih->materials.assign( &mtl, 1 );
+			lmm_prepmeshinst( mih );
+			mih->constants[ 14 ] *= V4( V3( 1.5f ), 1 );
+			mih->constants[ 15 ] *= V4( V3( 0.5f ), 1 );
+			mih->Precache();
+			e->mesh = mih;
 		}
-		mih->materials.assign( &mtl, 1 );
-		lmm_prepmeshinst( mih );
-		mih->constants[ 14 ] *= V4( V3( 1.5f ), 1 );
-		mih->constants[ 15 ] *= V4( V3( 0.5f ), 1 );
-		mih->Precache();
-		Entry e = { name, mih };
-		m_entries.push_back( e );
 	}
 	
 	MeshHandle m_mesh;

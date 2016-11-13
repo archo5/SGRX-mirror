@@ -334,11 +334,19 @@ struct SGRX_Asset
 	}
 	RCString GetMappingString() const
 	{
+		const char* type = "?";
+		switch( assetType )
+		{
+		case SGRX_AT_Texture: type = "T"; break;
+		case SGRX_AT_Mesh: type = "M"; break;
+		case SGRX_AT_AnimBundle: type = "A"; break;
+		case SGRX_AT_File: type = "F"; break;
+		}
 		char bfr[ 500 ];
 		char guidbfr[ GUID_STRING_LENGTH + 1 ];
 		assetGUID.ToCharArray( guidbfr );
-		sgrx_snprintf( bfr, 500, "%s %s/%s\n",
-			guidbfr,
+		sgrx_snprintf( bfr, 500, "%s %s:%s/%s\n",
+			guidbfr, type,
 			StackPath(outputCategory).str,
 			StackPath(outputName).str );
 		return bfr;

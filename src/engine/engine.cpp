@@ -930,10 +930,15 @@ BasicFileSystem::BasicFileSystem( const StringView& root ) : m_fileRoot(root.str
 	{
 		ConfigReader cr( text );
 		StringView key, val;
+		val = val.after( ":" );
 		while( cr.Read( key, val ) )
 		{
 			String path = "assets/";
 			path.append( key );
+			{
+				RCStringPair rcsp = { key, path };
+				g_FSMapping.set( rcsp.key, rcsp );
+			}
 			{
 				RCStringPair rcsp = { val, path };
 				g_FSMapping.set( rcsp.key, rcsp );

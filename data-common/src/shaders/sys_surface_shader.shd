@@ -8,7 +8,7 @@ void main( vsinput_particle i, out VS2PS vsout )
 	float3 viewPos = ModelToViewPos( i.pos );
 	vsout.pos = ViewToProjPos( viewPos );
 	vsout.viewPos = viewPos;
-	vsout.N = float3(0,0,-1);
+	vsout.N = float3(0,0,1);
 	vsout.T = float4(1,0,0,1);
 	vsout.col = i.col;
 	vsout.tex0 = i.tex;
@@ -137,6 +137,7 @@ void main
 	
 #ifdef BASE_PASS
 	
+	totalDiffuse += surfInfo.ambientLight;
 #if LMODE == 1 || LMODE == 3 // -- static / decal
 	totalDiffuse += StaticDiffuseLighting( ViewToWorldDir( outNormal ), dot( outNormal, inNormal ), inTex1.xy );
 #elif LMODE == 2 // -- dynamic

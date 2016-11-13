@@ -114,11 +114,13 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIPickerCore
 	ENGINE_EXPORT void _Search( StringView text );
 	
 	virtual size_t GetEntryCount() const = 0;
+	virtual RCString GetEntryName( size_t i ) const = 0;
 	virtual RCString GetEntryPath( size_t i ) const = 0;
 	ENGINE_EXPORT virtual bool EntryUI( size_t i, String& str );
 	
 	LayoutType m_layoutType;
 	ImVec2 m_itemSize;
+	HashTable< StringView, RCString > m_nameMap;
 	// search
 	bool m_looseSearch;
 	String m_searchString;
@@ -128,6 +130,7 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIPickerCore
 struct IF_GCC(ENGINE_EXPORT) IMGUIEntryPicker : IMGUIPickerCore
 {
 	virtual size_t GetEntryCount() const { return m_entries.size(); }
+	virtual RCString GetEntryName( size_t i ) const { return m_entries[ i ]; }
 	virtual RCString GetEntryPath( size_t i ) const { return m_entries[ i ]; }
 	
 	Array< RCString > m_entries;
@@ -171,53 +174,70 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIPreviewPickerCore : IMGUIPickerCore
 	ENGINE_EXPORT virtual bool EntryUI( size_t i, String& str );
 };
 
-struct IF_GCC(ENGINE_EXPORT) IMGUIMeshPickerCore : IMGUIPreviewPickerCore
+struct IF_GCC(ENGINE_EXPORT) IMGUIAssetPickerCore : IMGUIPreviewPickerCore
 {
-	struct Entry
+	struct BaseEntry : SGRX_RefCounted
 	{
+		RCString key;
+		RCString name;
 		RCString path;
-		MeshInstHandle mesh;
 	};
+	typedef Handle< BaseEntry > BaseEntryHandle;
 	
-	ENGINE_EXPORT IMGUIMeshPickerCore();
-	ENGINE_EXPORT ~IMGUIMeshPickerCore();
+	ENGINE_EXPORT IMGUIAssetPickerCore();
+	ENGINE_EXPORT ~IMGUIAssetPickerCore();
 	
 	ENGINE_EXPORT void Clear();
-	ENGINE_EXPORT void AddMesh( StringView path, StringView rsrcpath = SV() );
+	ENGINE_EXPORT void Reload();
+	ENGINE_EXPORT void ReloadAssets( int type );
+	ENGINE_EXPORT void AddEntry( StringView key, StringView name, StringView path = SV() );
 	
-	ENGINE_EXPORT virtual void _DrawItem( int i, int x0, int y0, int x1, int y1 );
+	ENGINE_EXPORT virtual void ReloadEntries() = 0;
+	ENGINE_EXPORT virtual void AppendEntry() = 0;
+	ENGINE_EXPORT virtual void InitEntryPreview( BaseEntry* e ) = 0;
+	ENGINE_EXPORT virtual void _DrawItem( int i, int x0, int y0, int x1, int y1 ) = 0;
 	
 	virtual size_t GetEntryCount() const { return m_entries.size(); }
-	virtual RCString GetEntryPath( size_t i ) const { return m_entries[ i ].path; }
+	virtual RCString GetEntryName( size_t i ) const { return m_entries[ i ]->name; }
+	virtual RCString GetEntryPath( size_t i ) const { return m_entries[ i ]->path; }
 	
 	bool m_customCamera;
-	Array< Entry > m_entries;
+	Array< BaseEntryHandle > m_entries;
 	SceneHandle m_scene;
 };
 
-struct IF_GCC(ENGINE_EXPORT) IMGUITexturePicker : IMGUIPreviewPickerCore, IDirEntryHandler
+struct IF_GCC(ENGINE_EXPORT) IMGUITexturePicker : IMGUIAssetPickerCore
 {
-	ENGINE_EXPORT IMGUITexturePicker();
-	ENGINE_EXPORT void Reload();
-	ENGINE_EXPORT bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir );
-	ENGINE_EXPORT virtual void _DrawItem( int i, int x0, int y0, int x1, int y1 );
-	virtual size_t GetEntryCount() const { return m_textures.size(); }
-	virtual RCString GetEntryPath( size_t i ) const { return m_textures[ i ] ? m_textures[ i ]->m_key : ""; }
+	struct TextureEntry : BaseEntry
+	{
+		TextureHandle texture;
+	};
 	
-	Array< TextureHandle > m_textures;
+	ENGINE_EXPORT IMGUITexturePicker();
+	ENGINE_EXPORT virtual void ReloadEntries();
+	ENGINE_EXPORT virtual void AppendEntry();
+	ENGINE_EXPORT virtual void InitEntryPreview( BaseEntry* e );
+	ENGINE_EXPORT virtual void _DrawItem( int i, int x0, int y0, int x1, int y1 );
 };
 
-struct IF_GCC(ENGINE_EXPORT) IMGUIMeshPicker : IMGUIMeshPickerCore, IDirEntryHandler
+struct IF_GCC(ENGINE_EXPORT) IMGUIMeshPicker : IMGUIAssetPickerCore
 {
+	struct MeshEntry : BaseEntry
+	{
+		MeshInstHandle mesh;
+	};
+	
 	ENGINE_EXPORT IMGUIMeshPicker();
-	ENGINE_EXPORT void Reload();
-	ENGINE_EXPORT bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir );
+	ENGINE_EXPORT virtual void ReloadEntries();
+	ENGINE_EXPORT virtual void AppendEntry();
+	ENGINE_EXPORT virtual void InitEntryPreview( BaseEntry* e );
+	ENGINE_EXPORT virtual void _DrawItem( int i, int x0, int y0, int x1, int y1 );
 };
 
-struct IF_GCC(ENGINE_EXPORT) IMGUICharPicker : IMGUIMeshPickerCore, IDirEntryHandler
+struct IF_GCC(ENGINE_EXPORT) IMGUICharPicker : IMGUIMeshPicker, IDirEntryHandler
 {
 	ENGINE_EXPORT IMGUICharPicker();
-	ENGINE_EXPORT void Reload();
+	ENGINE_EXPORT virtual void ReloadEntries();
 	ENGINE_EXPORT bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir );
 };
 

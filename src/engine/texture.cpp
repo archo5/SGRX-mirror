@@ -74,20 +74,15 @@ HFileReader OnLoadTexture( const StringView& key, uint32_t& outusageflags, uint8
 	if( !key )
 		return NULL;
 	
-	StringView path = key.until( ":", 1 );
+	if( key.ch() == '\0' )
+		return FS_OpenBinaryFile( key );
 	
-	// try .stx (optimized) before original
+	StringView path = key.until( ":", 1 );
 	HFileReader out = FS_OpenBinaryFile( path );
 	if( !out )
 		return NULL;
 	
 	outusageflags = TEXFLAGS_HASMIPS | TEXFLAGS_LERP;
-	if( path.contains( "diff." ) )
-	{
-		// diffuse maps
-		outusageflags |= TEXFLAGS_SRGB;
-	}
-	
 	StringView flags = key.from( ":", 1 );
 	ParseDefaultTextureFlags( flags, outusageflags, outlod );
 	
@@ -253,7 +248,7 @@ TextureHandle GR_GetTexture( StringView path )
 		if( fr == NULL )
 		{
 			if( VERBOSE || path != "" )
-				LOG_ERROR << LOG_DATE << "  Could not find texture: " << path;
+				LOG_ERROR << LOG_DATE << "  Could not find texture: " << FS_ResolvePath( path );
 			return TextureHandle();
 		}
 		
@@ -278,7 +273,7 @@ TextureHandle GR_GetTexture( StringView path )
 	g_Textures->set( tex->m_key, tex );
 	
 	if( VERBOSE )
-		LOG << "Loaded texture: " << path << " (time=" << ( sgrx_hqtime() - t0 ) << ")";
+		LOG << "Loaded texture: " << FS_ResolvePath( path ) << " (time=" << ( sgrx_hqtime() - t0 ) << ")";
 	return tex;
 }
 

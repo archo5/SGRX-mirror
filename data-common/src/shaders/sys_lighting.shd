@@ -200,6 +200,7 @@ struct SurfaceInfo
 	float3 normal;
 	float2 distortion;
 	float3 emissiveLight;
+	float3 ambientLight;
 };
 
 void InitSurfaceInfo( out SurfaceInfo info )
@@ -210,6 +211,7 @@ void InitSurfaceInfo( out SurfaceInfo info )
 	info.normal = float3( 0, 0, 1 );
 	info.distortion = float2( 0, 0 );
 	info.emissiveLight = float3( 0, 0, 0 );
+	info.ambientLight = float3( 0, 0, 0 );
 }
 
 
