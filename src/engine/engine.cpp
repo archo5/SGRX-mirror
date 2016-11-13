@@ -116,6 +116,12 @@ static int g_PCPLFR = 0;
 static EventLinksByID g_EventLinksByID;
 static EventLinksByHandler g_EventLinksByHandler;
 static Array< FileSysHandle > g_FileSystems;
+struct RCStringPair
+{
+	RCString key;
+	RCString value;
+};
+static HashTable< StringView, RCStringPair > g_FSMapping;
 
 static RenderSettings g_RenderSettings = { 0, -1, 1280, 720, 60, FULLSCREEN_NONE, true, ANTIALIAS_NONE, 0 };
 static const char* g_RendererPrefix = "sgrx-render-";
@@ -917,6 +923,43 @@ BasicFileSystem::BasicFileSystem( const StringView& root ) : m_fileRoot(root.str
 	m_fileRootCache.append( "cache/" );
 	m_fileRootSrc = m_fileRoot;
 	m_fileRootSrc.append( "src/" );
+	
+	// load asset mappings
+	String text;
+	if( LoadTextFile( "assets/mapping.txt", text ) )
+	{
+		ConfigReader cr( text );
+		StringView key, val;
+		while( cr.Read( key, val ) )
+		{
+			String path = "assets/";
+			path.append( key );
+			{
+				RCStringPair rcsp = { val, path };
+				g_FSMapping.set( rcsp.key, rcsp );
+			}
+			{
+				String guidstr;
+				guidstr.push_back( '\0' );
+				SGRX_GUID guid = SGRX_GUID::ParseString( key );
+				guidstr.append( (const char*) guid.bytes, 16 );
+				RCStringPair rcsp = { guidstr, path };
+				g_FSMapping.set( rcsp.key, rcsp );
+			}
+		}
+	}
+	if( LoadTextFile( "assets/mapping.legacy.txt", text ) )
+	{
+		ConfigReader cr( text );
+		StringView key, val;
+		while( cr.Read( key, val ) )
+		{
+			String path = "assets/";
+			path.append( key );
+			RCStringPair rcsp = { val, path };
+			g_FSMapping.set( rcsp.key, rcsp );
+		}
+	}
 }
 
 HFileReader BasicFileSystem::OpenBinaryFile( const StringView& path )
@@ -1046,9 +1089,18 @@ Array< FileSysHandle >& Game_FileSystems()
 	return g_FileSystems;
 }
 
-HFileReader FS_OpenBinaryFile( const StringView& path )
+StringView FS_ResolvePath( StringView path )
+{
+	RCStringPair* rcsp = g_FSMapping.getptr( path );
+	if( rcsp )
+		return rcsp->value;
+	return path;
+}
+
+HFileReader FS_OpenBinaryFile( StringView path )
 {
 	LOG_FUNCTION;
+	path = FS_ResolvePath( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 	{
 		HFileReader fr = g_FileSystems[ i ]->OpenBinaryFile( path );
@@ -1058,72 +1110,80 @@ HFileReader FS_OpenBinaryFile( const StringView& path )
 	return NULL;
 }
 
-bool FS_LoadBinaryFile( const StringView& path, ByteArray& out )
+bool FS_LoadBinaryFile( StringView path, ByteArray& out )
 {
 	LOG_FUNCTION;
+	path = FS_ResolvePath( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->LoadBinaryFile( path, out ) )
 			return true;
 	return false;
 }
 
-bool FS_SaveBinaryFile( const StringView& path, const void* data, size_t size )
+bool FS_SaveBinaryFile( StringView path, const void* data, size_t size )
 {
 	LOG_FUNCTION;
+	path = FS_ResolvePath( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->SaveBinaryFile( path, data, size ) )
 			return true;
 	return false;
 }
 
-bool FS_LoadTextFile( const StringView& path, String& out )
+bool FS_LoadTextFile( StringView path, String& out )
 {
 	LOG_FUNCTION;
+	path = FS_ResolvePath( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->LoadTextFile( path, out ) )
 			return true;
 	return false;
 }
 
-bool FS_SaveTextFile( const StringView& path, const StringView& data )
+bool FS_SaveTextFile( StringView path, StringView data )
 {
 	LOG_FUNCTION;
+	path = FS_ResolvePath( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->SaveTextFile( path, data ) )
 			return true;
 	return false;
 }
 
-bool FS_FindRealPath( const StringView& path, String& out )
+bool FS_FindRealPath( StringView path, String& out )
 {
 	LOG_FUNCTION;
+	path = FS_ResolvePath( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->FindRealPath( path, out ) )
 			return true;
 	return false;
 }
 
-bool FS_FileExists( const StringView& path )
+bool FS_FileExists( StringView path )
 {
 	LOG_FUNCTION;
+	path = FS_ResolvePath( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->FileExists( path ) )
 			return true;
 	return false;
 }
 
-bool FS_DirCreate( const StringView& path )
+bool FS_DirCreate( StringView path )
 {
 	LOG_FUNCTION;
+	path = FS_ResolvePath( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->DirCreate( path ) )
 			return true;
 	return false;
 }
 
-uint32_t FS_FileModTime( const StringView& path )
+uint32_t FS_FileModTime( StringView path )
 {
 	LOG_FUNCTION;
+	path = FS_ResolvePath( path );
 	uint32_t t;
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( ( t = g_FileSystems[ i ]->FileModTime( path ) ) != 0 )
@@ -1131,9 +1191,10 @@ uint32_t FS_FileModTime( const StringView& path )
 	return 0;
 }
 
-void FS_IterateDirectory( const StringView& path, IDirEntryHandler* deh )
+void FS_IterateDirectory( StringView path, IDirEntryHandler* deh )
 {
 	LOG_FUNCTION;
+	path = FS_ResolvePath( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		g_FileSystems[ i ]->IterateDirectory( path, deh );
 }

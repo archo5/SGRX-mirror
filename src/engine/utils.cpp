@@ -2160,6 +2160,11 @@ bool FileExists( const StringView& path )
 	return path;
 }
 
+bool RemoveFile( const StringView& path )
+{
+	return 0 == remove( StackPath( path ) );
+}
+
 time_t ToUTCTime( time_t v )
 {
 	return mktime( gmtime( &v ) );
@@ -2297,7 +2302,7 @@ static bool guphex( uint8_t*& p, StringView& str )
 SGRX_GUID SGRX_GUID::ParseString( StringView str )
 {
 	SGRX_GUID out;
-	if( str.size() >= 36 && str[8] == '-' && str[13] == '-'
+	if( str.size() >= GUID_STRING_LENGTH && str[8] == '-' && str[13] == '-'
 		&& str[18] == '-' && str[23] == '-' )
 	{
 		// RFC format
@@ -2355,7 +2360,7 @@ void SGRX_GUID::ToCharArray( char* out, bool upper, bool nul, char sep ) const
 String SGRX_GUID::ToString( bool upper )
 {
 	String out;
-	out.resize( 36 );
+	out.resize( GUID_STRING_LENGTH );
 	ToCharArray( out.data(), upper, false );
 	return out;
 }

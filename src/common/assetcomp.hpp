@@ -316,10 +316,38 @@ struct SGRX_Asset
 	SGRX_MeshAsset* ToMesh() const { return assetType == SGRX_AT_Mesh ? (SGRX_MeshAsset*) this : NULL; }
 	SGRX_AnimBundleAsset* ToAnimBundle() const { return assetType == SGRX_AT_AnimBundle ? (SGRX_AnimBundleAsset*) this : NULL; }
 	SGRX_FileAsset* ToFile() const { return assetType == SGRX_AT_File ? (SGRX_FileAsset*) this : NULL; }
+	void CheckGUID(){ if( assetGUID.IsNull() ) assetGUID.SetGenerated(); }
+	RCString GetPath() const
+	{
+		char bfr[ 128 ];
+		char guidbfr[ GUID_STRING_LENGTH + 1 ];
+		assetGUID.ToCharArray( guidbfr );
+		sgrx_snprintf( bfr, 128, SGRXPATH_CACHE "/assets/%s", guidbfr );
+		return bfr;
+	}
+	String GetUserPath() const
+	{
+		String out;
+		out.push_back( '\0' );
+		out.append( (const char*) assetGUID.bytes, 16 );
+		return out;
+	}
+	RCString GetMappingString() const
+	{
+		char bfr[ 500 ];
+		char guidbfr[ GUID_STRING_LENGTH + 1 ];
+		assetGUID.ToCharArray( guidbfr );
+		sgrx_snprintf( bfr, 500, "%s %s/%s\n",
+			guidbfr,
+			StackPath(outputCategory).str,
+			StackPath(outputName).str );
+		return bfr;
+	}
 	
 	SGRX_AssetType assetType;
 	
 	SGRX_RevInfo ri;
+	SGRX_GUID assetGUID;
 	String outputCategory;
 	String outputName;
 };
@@ -509,4 +537,5 @@ TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset
 MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAsset& MA );
 AnimHandle SGRX_ProcessSingleAnim( const SGRX_AnimBundleAsset& ABA, int i );
 void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force = false );
+void SGRX_RemoveAssets( SGRX_AssetScript& script, SGRX_AssetType type );
 

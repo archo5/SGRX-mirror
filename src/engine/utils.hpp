@@ -2790,7 +2790,9 @@ struct HashTable
 		if( i >= 0 )
 		{
 			Var& var = m_vars[ m_pairs[ i ] ];
+			var.key.~K();
 			var.value.~V();
+			new (&var.key) K( key );
 			new (&var.value) V( val );
 			return &var;
 		}
@@ -3434,6 +3436,7 @@ ENGINE_EXPORT bool SaveBinaryFile( const StringView& path, const void* data, siz
 ENGINE_EXPORT bool LoadTextFile( const StringView& path, String& out );
 ENGINE_EXPORT bool SaveTextFile( const StringView& path, const StringView& data );
 ENGINE_EXPORT bool FileExists( const StringView& path );
+ENGINE_EXPORT bool RemoveFile( const StringView& path );
 ENGINE_EXPORT uint32_t FileModTime( const StringView& path );
 
 struct IL_Item
@@ -3449,6 +3452,10 @@ ENGINE_EXPORT bool LoadItemListFile( const StringView& path, ItemList& out );
 //
 // GUID
 //
+
+// - length of a GUID string without terminating null
+// format: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+#define GUID_STRING_LENGTH 36
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_GUID
 {

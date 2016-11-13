@@ -432,16 +432,16 @@ typedef Handle< IFileSystem > FileSysHandle;
 ENGINE_EXPORT StringView Game_GetDir();
 ENGINE_EXPORT Array< FileSysHandle >& Game_FileSystems();
 
-ENGINE_EXPORT HFileReader FS_OpenBinaryFile( const StringView& path );
-ENGINE_EXPORT bool FS_LoadBinaryFile( const StringView& path, ByteArray& out );
-ENGINE_EXPORT bool FS_SaveBinaryFile( const StringView& path, const void* data, size_t size );
-ENGINE_EXPORT bool FS_LoadTextFile( const StringView& path, String& out );
-ENGINE_EXPORT bool FS_SaveTextFile( const StringView& path, const StringView& data );
-ENGINE_EXPORT bool FS_FindRealPath( const StringView& path, String& out );
-ENGINE_EXPORT bool FS_FileExists( const StringView& path );
-ENGINE_EXPORT bool FS_DirCreate( const StringView& path );
-ENGINE_EXPORT uint32_t FS_FileModTime( const StringView& path );
-ENGINE_EXPORT void FS_IterateDirectory( const StringView& path, IDirEntryHandler* deh );
+ENGINE_EXPORT HFileReader FS_OpenBinaryFile( StringView path );
+ENGINE_EXPORT bool FS_LoadBinaryFile( StringView path, ByteArray& out );
+ENGINE_EXPORT bool FS_SaveBinaryFile( StringView path, const void* data, size_t size );
+ENGINE_EXPORT bool FS_LoadTextFile( StringView path, String& out );
+ENGINE_EXPORT bool FS_SaveTextFile( StringView path, StringView data );
+ENGINE_EXPORT bool FS_FindRealPath( StringView path, String& out );
+ENGINE_EXPORT bool FS_FileExists( StringView path );
+ENGINE_EXPORT bool FS_DirCreate( StringView path );
+ENGINE_EXPORT uint32_t FS_FileModTime( StringView path );
+ENGINE_EXPORT void FS_IterateDirectory( StringView path, IDirEntryHandler* deh );
 
 
 #define SGRXPATH_SRC ":src"
@@ -2088,7 +2088,7 @@ ENGINE_EXPORT int GR_GetHeight();
 ENGINE_EXPORT int GR_CalcMipCount( int width, int height = 0, int depth = 0 );
 ENGINE_EXPORT TextureHandle GR_CreateTexture( int width, int height, SGRX_TextureFormat format, uint32_t flags, int mips, const void* data );
 ENGINE_EXPORT TextureHandle GR_CreateTexture3D( int width, int height, int depth, SGRX_TextureFormat format, uint32_t flags, int mips, const void* data );
-ENGINE_EXPORT TextureHandle GR_GetTexture( const StringView& path );
+ENGINE_EXPORT TextureHandle GR_GetTexture( StringView path );
 ENGINE_EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, SGRX_TextureFormat format, int mips = 1 );
 ENGINE_EXPORT TextureHandle GR_CreateCubeRenderTexture( int width, SGRX_TextureFormat format, int mips = 1 );
 ENGINE_EXPORT TextureHandle GR_GetRenderTarget( int width, int height, SGRX_TextureFormat format, int extra );

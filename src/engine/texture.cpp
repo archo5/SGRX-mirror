@@ -77,9 +77,7 @@ HFileReader OnLoadTexture( const StringView& key, uint32_t& outusageflags, uint8
 	StringView path = key.until( ":", 1 );
 	
 	// try .stx (optimized) before original
-	HFileReader out = FS_OpenBinaryFile( String_Concat( path, ".stx" ) );
-	if( !out )
-		out = FS_OpenBinaryFile( path );
+	HFileReader out = FS_OpenBinaryFile( path );
 	if( !out )
 		return NULL;
 	
@@ -235,7 +233,7 @@ TextureHandle GR_CreateTexture3D( int width, int height, int depth, SGRX_Texture
 	return tex;
 }
 
-TextureHandle GR_GetTexture( const StringView& path )
+TextureHandle GR_GetTexture( StringView path )
 {
 	TextureHandle tex;
 	LOG_FUNCTION_ARG( path );

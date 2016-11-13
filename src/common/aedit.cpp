@@ -49,7 +49,7 @@ struct AssetRenderView : IMGUIRenderView
 			float h = 2 / TMIN( 1.0f, aspect );
 			br.Reset();
 			br.SetTexture( m_texPreview );
-			br.Box( 0, 0, w, h );
+			br.Box( 0, 0, -w, h );
 		}
 		
 		SGRX_IMesh* mesh = m_meshPrevInst->GetMesh();
@@ -1147,12 +1147,20 @@ struct ASEditor : IGame
 					ASCR_Run( false );
 				}
 				ImGui::SameLine();
-				if( ImGui::BeginMenu( "Force run" ) )
+				if( ImGui::BeginMenu( "Advanced options" ) )
 				{
 					if( ImGui::MenuItem( "Force run" ) )
 					{
 						ASCR_Run( true );
 					}
+					if( ImGui::MenuItem( "Remove all textures" ) )
+						SGRX_RemoveAssets( *g_EdAS, SGRX_AT_Texture );
+					if( ImGui::MenuItem( "Remove all meshes" ) )
+						SGRX_RemoveAssets( *g_EdAS, SGRX_AT_Mesh );
+					if( ImGui::MenuItem( "Remove all anim. bundles" ) )
+						SGRX_RemoveAssets( *g_EdAS, SGRX_AT_AnimBundle );
+					if( ImGui::MenuItem( "Remove all files" ) )
+						SGRX_RemoveAssets( *g_EdAS, SGRX_AT_File );
 					ImGui::EndMenu();
 				}
 				
@@ -1172,6 +1180,7 @@ struct ASEditor : IGame
 					if( g_CurAsset )
 						ta.outputCategory = g_CurAsset->outputCategory;
 					ta.outputType = SGRX_TOF_STX_RGBA32;
+					ta.CheckGUID();
 					g_EdAS->textureAssets.push_back( ta );
 					SetCurAsset( &g_EdAS->textureAssets.last() );
 				}
@@ -1181,6 +1190,7 @@ struct ASEditor : IGame
 					SGRX_MeshAsset ma;
 					if( g_CurAsset )
 						ma.outputCategory = g_CurAsset->outputCategory;
+					ma.CheckGUID();
 					g_EdAS->meshAssets.push_back( ma );
 					SetCurAsset( &g_EdAS->meshAssets.last() );
 				}
@@ -1190,6 +1200,7 @@ struct ASEditor : IGame
 					SGRX_AnimBundleAsset aba;
 					if( g_CurAsset )
 						aba.outputCategory = g_CurAsset->outputCategory;
+					aba.CheckGUID();
 					g_EdAS->animBundleAssets.push_back( aba );
 					SetCurAsset( &g_EdAS->animBundleAssets.last() );
 				}
@@ -1199,6 +1210,7 @@ struct ASEditor : IGame
 					SGRX_FileAsset fa;
 					if( g_CurAsset )
 						fa.outputCategory = g_CurAsset->outputCategory;
+					fa.CheckGUID();
 					g_EdAS->fileAssets.push_back( fa );
 					SetCurAsset( &g_EdAS->fileAssets.last() );
 				}
