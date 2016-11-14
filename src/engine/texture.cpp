@@ -74,6 +74,7 @@ HFileReader OnLoadTexture( const StringView& key, uint32_t& outusageflags, uint8
 	if( !key )
 		return NULL;
 	
+	outusageflags = TEXFLAGS_HASMIPS | TEXFLAGS_LERP;
 	if( key.ch() == '\0' )
 		return FS_OpenBinaryFile( key );
 	
@@ -82,7 +83,6 @@ HFileReader OnLoadTexture( const StringView& key, uint32_t& outusageflags, uint8
 	if( !out )
 		return NULL;
 	
-	outusageflags = TEXFLAGS_HASMIPS | TEXFLAGS_LERP;
 	StringView flags = key.from( ":", 1 );
 	ParseDefaultTextureFlags( flags, outusageflags, outlod );
 	
@@ -253,12 +253,13 @@ TextureHandle GR_GetTexture( StringView path )
 		}
 		
 		TextureData texdata;
+		memset( &texdata.info, 0, sizeof(texdata.info) );
+		texdata.info.flags = usageflags;
 		if( !TextureData_Load( &texdata, fr, path, lod ) )
 		{
 			// error is already printed
 			return TextureHandle();
 		}
-		texdata.info.flags = usageflags;
 		
 		tex = g_Renderer->CreateTexture( &texdata.info, texdata.data.data() );
 		if( !tex )

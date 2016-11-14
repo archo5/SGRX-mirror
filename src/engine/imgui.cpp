@@ -1043,29 +1043,41 @@ void IMGUIMeshPicker::_DrawItem( int i, int x0, int y0, int x1, int y1 )
 	SGRX_CAST( MeshEntry*, E, m_entries[ i ].item );
 	InitEntryPreview( E );
 	
-	if( m_customCamera == false )
+	bool hasmesh = false;
+	if( m_customCamera == false && E->mesh )
 	{
 		SGRX_IMesh* M = E->mesh->GetMesh();
-		Vec3 dst = M->m_boundsMin - M->m_boundsMax;
-		Vec3 idst = V3( dst.x ? 1/dst.x : 1, dst.y ? 1/dst.y : 1, dst.z ? 1/dst.z : 1 );
-		if( idst.z > 0 )
-			idst.z = -idst.z;
-		m_scene->camera.direction = idst.Normalized();
-		m_scene->camera.position = ( M->m_boundsMax + M->m_boundsMin ) * 0.5f - m_scene->camera.direction * dst.Length() * 0.8f;
-		m_scene->camera.znear = 0.1f;
-		m_scene->camera.angle = 60;
-		m_scene->camera.UpdateMatrices();
-	}
+		if( M )
+		{
+			Vec3 dst = M->m_boundsMin - M->m_boundsMax;
+			Vec3 idst = V3( dst.x ? 1/dst.x : 1, dst.y ? 1/dst.y : 1, dst.z ? 1/dst.z : 1 );
+			if( idst.z > 0 )
+				idst.z = -idst.z;
+			m_scene->camera.direction = idst.Normalized();
+			m_scene->camera.position = ( M->m_boundsMax + M->m_boundsMin ) * 0.5f - m_scene->camera.direction * dst.Length() * 0.8f;
+			m_scene->camera.znear = 0.1f;
+			m_scene->camera.angle = 60;
+			m_scene->camera.UpdateMatrices();
 	
-	SGRX_RenderScene rsinfo( V4( GetTimeMsec() / 1000.0f ), m_scene );
-	rsinfo.viewport = &vp;
-	E->mesh->enabled = true;
-	GR_RenderScene( rsinfo );
-	E->mesh->enabled = false;
+			SGRX_RenderScene rsinfo( V4( GetTimeMsec() / 1000.0f ), m_scene );
+			rsinfo.viewport = &vp;
+			E->mesh->enabled = true;
+			GR_RenderScene( rsinfo );
+			E->mesh->enabled = false;
+			
+			hasmesh = true;
+		}
+	}
 	
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	br.Col( 0.9f, 1.0f );
-	GR2D_DrawTextLine( ( x0 + x1 ) / 2, y1 - 8, E->path, HALIGN_CENTER, VALIGN_CENTER );
+	GR2D_DrawTextLine( ( x0 + x1 ) / 2, y1 - 8, E->name, HALIGN_CENTER, VALIGN_CENTER );
+	
+	if( hasmesh == false && E->path.size() )
+	{
+		GR2D_DrawTextLine( ( x0 + x1 ) / 2, ( y0 + y1 ) / 2,
+			"FAILED TO LOAD MESH", HALIGN_CENTER, VALIGN_CENTER );
+	}
 }
 
 

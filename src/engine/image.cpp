@@ -369,8 +369,6 @@ bool TextureData_Load( TextureData* TD, IFileReader* fr, const StringView& filen
 	static const dds_u32 dds_supfmt[] = { DDS_FMT_R8G8B8A8, DDS_FMT_B8G8R8A8, DDS_FMT_B8G8R8X8, DDS_FMT_DXT1, DDS_FMT_DXT3, DDS_FMT_DXT5, 0 };
 	dds_info ddsinfo;
 	
-	memset( TD, 0, sizeof(*TD) );
-	
 	// Try to load STX
 	fr->Seek( 0 );
 	uint8_t file_header[ STX_HEADER_SIZE ] = {0};
@@ -443,7 +441,7 @@ bool TextureData_Load( TextureData* TD, IFileReader* fr, const StringView& filen
 		TD->info.height = h;
 		TD->info.depth = 1;
 		TD->info.format = TEXFMT_RGBA8;
-		TD->info.flags = 0;
+	//	TD->info.flags = 0;
 		TD->info.mipcount = 1;
 		goto success_genmips;
 	}
@@ -456,7 +454,7 @@ bool TextureData_Load( TextureData* TD, IFileReader* fr, const StringView& filen
 		TD->info.height = h;
 		TD->info.depth = 1;
 		TD->info.format = TEXFMT_RGBA8;
-		TD->info.flags = 0;
+	//	TD->info.flags = 0;
 		TD->info.mipcount = 1;
 		goto success_genmips;
 	}
