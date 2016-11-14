@@ -100,12 +100,8 @@ struct IMGUISurfMtlPicker : IMGUIMeshPicker
 		
 		Reload();
 	}
-	void Reload()
+	void ReloadEntries()
 	{
-		LOG << "Reloading surface materials";
-		Clear();
-		AddEntry( "", "<none>" );
-		
 		// parse material list
 		m_materials.clear();
 		String material_data;
@@ -125,7 +121,6 @@ struct IMGUISurfMtlPicker : IMGUIMeshPicker
 					mmtl->blendmode = SGRX_MtlBlend_None;
 					mmtl->flags = 0;
 					m_materials.set( mmtl->name, mmtl );
-					LOG << "[SMtl]: " << value;
 				}
 				else if( key == "shader" ) mmtl->shader = value;
 				else if( key == "blendmode" )
@@ -146,7 +141,6 @@ struct IMGUISurfMtlPicker : IMGUIMeshPicker
 				else if( key == "6" ){ mmtl->texture[6] = value; mmtl->texcount = TMAX( mmtl->texcount, 6+1 ); }
 				else if( key == "7" ){ mmtl->texture[7] = value; mmtl->texcount = TMAX( mmtl->texcount, 7+1 ); }
 			}
-			LOG << "Loading completed";
 		}
 		else
 		{
@@ -159,13 +153,11 @@ struct IMGUISurfMtlPicker : IMGUIMeshPicker
 			StringView name = m_materials.item( i ).key;
 			AddEntry( name, name );
 		}
-		
-		_Search( m_searchString );
 	}
 	void InitEntryPreview( BaseEntry* be )
 	{
 		SGRX_CAST( MeshEntry*, e, be );
-		if( !e->mesh && e->path )
+		if( !e->mesh && e->path.size() )
 		{
 			MapMaterial* MM = m_materials.getcopy( e->path );
 			MeshInstHandle mih = m_scene->CreateMeshInstance();

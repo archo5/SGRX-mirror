@@ -629,13 +629,14 @@ SGRX_TextureAsset::SGRX_TextureAsset() :
 {
 }
 
-void SGRX_TextureAsset::Clone( const SGRX_TextureAsset& other )
+SGRX_Asset* SGRX_TextureAsset::Clone()
 {
-	*this = other;
-	for( size_t i = 0; i < filters.size(); ++i )
+	SGRX_TextureAsset* TA = new SGRX_TextureAsset( *this );
+	for( size_t i = 0; i < TA->filters.size(); ++i )
 	{
-		filters[ i ] = filters[ i ]->Clone();
+		TA->filters[ i ] = TA->filters[ i ]->Clone();
 	}
+	return TA;
 }
 
 bool SGRX_TextureAsset::Parse( ConfigReader& cread )
@@ -820,13 +821,14 @@ void SGRX_MeshAssetPart::GetDesc( int i, String& out )
 	out = bfr;
 }
 
-void SGRX_MeshAsset::Clone( const SGRX_MeshAsset& other )
+SGRX_Asset* SGRX_MeshAsset::Clone()
 {
-	*this = other;
-	for( size_t i = 0; i < parts.size(); ++i )
+	SGRX_MeshAsset* MA = new SGRX_MeshAsset( *this );
+	for( size_t i = 0; i < MA->parts.size(); ++i )
 	{
-		parts[ i ] = new SGRX_MeshAssetPart( *parts[ i ] );
+		MA->parts[ i ] = new SGRX_MeshAssetPart( *MA->parts[ i ] );
 	}
+	return MA;
 }
 
 bool SGRX_MeshAsset::Parse( ConfigReader& cread )
@@ -928,9 +930,9 @@ void SGRX_ABAnimation::GetDesc( String& out )
 	out = bfr;
 }
 
-void SGRX_AnimBundleAsset::Clone( const SGRX_AnimBundleAsset& other )
+SGRX_Asset* SGRX_AnimBundleAsset::Clone()
 {
-	*this = other;
+	return new SGRX_AnimBundleAsset( *this );
 }
 
 bool SGRX_AnimBundleAsset::Parse( ConfigReader& cread )
@@ -1062,9 +1064,9 @@ uint32_t SGRX_AnimBundleAsset::LastSourceModTime()
 }
 
 
-void SGRX_FileAsset::Clone( const SGRX_FileAsset& other )
+SGRX_Asset* SGRX_FileAsset::Clone()
 {
-	*this = other;
+	return new SGRX_FileAsset( *this );
 }
 
 bool SGRX_FileAsset::Parse( ConfigReader& cread )
@@ -1132,31 +1134,35 @@ bool SGRX_AssetScript::Parse( ConfigReader& cread )
 		}
 		else if( key == "TEXTURE" )
 		{
-			textureAssets.push_back( SGRX_TextureAsset() );
-			if( textureAssets.last().Parse( cread ) == false )
+			AssetHandle A = new SGRX_TextureAsset;
+			if( A->Parse( cread ) == false )
 				return false;
-			textureAssets.last().CheckGUID();
+			A->CheckGUID();
+			assets.push_back( A );
 		}
 		else if( key == "MESH" )
 		{
-			meshAssets.push_back( SGRX_MeshAsset() );
-			if( meshAssets.last().Parse( cread ) == false )
+			AssetHandle A = new SGRX_MeshAsset;
+			if( A->Parse( cread ) == false )
 				return false;
-			meshAssets.last().CheckGUID();
+			A->CheckGUID();
+			assets.push_back( A );
 		}
 		else if( key == "ANIM_BUNDLE" )
 		{
-			animBundleAssets.push_back( SGRX_AnimBundleAsset() );
-			if( animBundleAssets.last().Parse( cread ) == false )
+			AssetHandle A = new SGRX_AnimBundleAsset;
+			if( A->Parse( cread ) == false )
 				return false;
-			animBundleAssets.last().CheckGUID();
+			A->CheckGUID();
+			assets.push_back( A );
 		}
 		else if( key == "FILE" )
 		{
-			fileAssets.push_back( SGRX_FileAsset() );
-			if( fileAssets.last().Parse( cread ) == false )
+			AssetHandle A = new SGRX_FileAsset;
+			if( A->Parse( cread ) == false )
 				return false;
-			fileAssets.last().CheckGUID();
+			A->CheckGUID();
+			assets.push_back( A );
 		}
 		else
 		{
@@ -1178,24 +1184,9 @@ void SGRX_AssetScript::Generate( String& out )
 		out.append( "\n" );
 	}
 	
-	for( size_t i = 0; i < textureAssets.size(); ++i )
+	for( size_t i = 0; i < assets.size(); ++i )
 	{
-		textureAssets[ i ].Generate( out );
-	}
-	
-	for( size_t i = 0; i < meshAssets.size(); ++i )
-	{
-		meshAssets[ i ].Generate( out );
-	}
-	
-	for( size_t i = 0; i < animBundleAssets.size(); ++i )
-	{
-		animBundleAssets[ i ].Generate( out );
-	}
-	
-	for( size_t i = 0; i < fileAssets.size(); ++i )
-	{
-		fileAssets[ i ].Generate( out );
+		assets[ i ]->Generate( out );
 	}
 }
 
@@ -1220,6 +1211,19 @@ bool SGRX_AssetScript::Save( const StringView& path )
 StringView SGRX_AssetScript::GetCategoryPath( const StringView& name )
 {
 	return categories.getcopy( name );
+}
+
+SGRX_Asset* SGRX_AssetScript::FindAsset( SGRX_AssetType type, StringView cat, StringView name )
+{
+	for( size_t i = 0; i < assets.size(); ++i )
+	{
+		SGRX_Asset* A = assets[ i ];
+		if( A->assetType == type &&
+			A->outputCategory == cat &&
+			A->outputName == name )
+			return A;
+	}
+	return NULL;
 }
 
 enum EAssetType
@@ -1267,6 +1271,18 @@ struct AssetOutputItem
 	}
 };
 
+uint8_t AssetTypeToItem( SGRX_AssetType t )
+{
+	switch( t )
+	{
+	case SGRX_AT_Texture: return AT_Texture;
+	case SGRX_AT_Mesh: return AT_Mesh;
+	case SGRX_AT_AnimBundle: return AT_AnimBundle;
+	case SGRX_AT_File: return AT_File;
+	default: return AT_Unknown;
+	}
+}
+
 bool SGRX_AssetScript::LoadAssetInfo( const StringView& path )
 {
 	String data;
@@ -1280,48 +1296,14 @@ bool SGRX_AssetScript::LoadAssetInfo( const StringView& path )
 	for( size_t i = 0; i < items.size(); ++i )
 	{
 		const AssetInfoItem& item = items[ i ];
-		switch( item.asset_type )
+		for( size_t j = 0; j < assets.size(); ++j )
 		{
-		case AT_Texture:
-			for( size_t j = 0; j < textureAssets.size(); ++j )
-			{
-				SGRX_TextureAsset& TA = textureAssets[ j ];
-				if( TA.outputCategory != item.category ||
-					TA.outputName != item.name )
-					continue;
-				TA.ri.rev_asset = item.rev_asset;
-			}
-			break;
-		case AT_Mesh:
-			for( size_t j = 0; j < meshAssets.size(); ++j )
-			{
-				SGRX_MeshAsset& MA = meshAssets[ j ];
-				if( MA.outputCategory != item.category ||
-					MA.outputName != item.name )
-					continue;
-				MA.ri.rev_asset = item.rev_asset;
-			}
-			break;
-		case AT_AnimBundle:
-			for( size_t j = 0; j < animBundleAssets.size(); ++j )
-			{
-				SGRX_AnimBundleAsset& ABA = animBundleAssets[ j ];
-				if( ABA.outputCategory != item.category ||
-					ABA.outputName != item.name )
-					continue;
-				ABA.ri.rev_asset = item.rev_asset;
-			}
-			break;
-		case AT_File:
-			for( size_t j = 0; j < fileAssets.size(); ++j )
-			{
-				SGRX_FileAsset& FA = fileAssets[ j ];
-				if( FA.outputCategory != item.category ||
-					FA.outputName != item.name )
-					continue;
-				FA.ri.rev_asset = item.rev_asset;
-			}
-			break;
+			SGRX_Asset* A = assets[ j ];
+			if( AssetTypeToItem( A->assetType ) != item.asset_type ||
+				A->outputCategory != item.category ||
+				A->outputName != item.name )
+				continue;
+			A->ri.rev_asset = item.rev_asset;
 		}
 	}
 	
@@ -1334,28 +1316,11 @@ bool SGRX_AssetScript::SaveAssetInfo( const StringView& path )
 	TextWriter tw( &data );
 	tw.marker( "AS_ASSET_INFO" );
 	Array< AssetInfoItem > items;
-	for( size_t j = 0; j < textureAssets.size(); ++j )
+	for( size_t j = 0; j < assets.size(); ++j )
 	{
-		const SGRX_TextureAsset& TA = textureAssets[ j ];
-		AssetInfoItem item = { AT_Texture, TA.outputCategory, TA.outputName, TA.ri.rev_asset };
-		items.push_back( item );
-	}
-	for( size_t j = 0; j < meshAssets.size(); ++j )
-	{
-		const SGRX_MeshAsset& MA = meshAssets[ j ];
-		AssetInfoItem item = { AT_Mesh, MA.outputCategory, MA.outputName, MA.ri.rev_asset };
-		items.push_back( item );
-	}
-	for( size_t j = 0; j < animBundleAssets.size(); ++j )
-	{
-		const SGRX_AnimBundleAsset& ABA = animBundleAssets[ j ];
-		AssetInfoItem item = { AT_AnimBundle, ABA.outputCategory, ABA.outputName, ABA.ri.rev_asset };
-		items.push_back( item );
-	}
-	for( size_t j = 0; j < fileAssets.size(); ++j )
-	{
-		const SGRX_FileAsset& FA = fileAssets[ j ];
-		AssetInfoItem item = { AT_File, FA.outputCategory, FA.outputName, FA.ri.rev_asset };
+		const SGRX_Asset* A = assets[ j ];
+		AssetInfoItem item = { AssetTypeToItem( A->assetType ),
+			A->outputCategory, A->outputName, A->ri.rev_asset };
 		items.push_back( item );
 	}
 	tw << items;
@@ -1376,56 +1341,16 @@ bool SGRX_AssetScript::LoadOutputInfo( const StringView& path )
 	for( size_t i = 0; i < items.size(); ++i )
 	{
 		const AssetOutputItem& item = items[ i ];
-		switch( item.asset_type )
+		for( size_t j = 0; j < assets.size(); ++j )
 		{
-		case AT_Texture:
-			for( size_t j = 0; j < textureAssets.size(); ++j )
-			{
-				SGRX_TextureAsset& TA = textureAssets[ j ];
-				if( TA.outputCategory != item.category ||
-					TA.outputName != item.name )
-					continue;
-				TA.ri.ts_source = item.ts_source;
-				TA.ri.ts_output = item.ts_output;
-				TA.ri.rev_output = item.rev_output;
-			}
-			break;
-		case AT_Mesh:
-			for( size_t j = 0; j < meshAssets.size(); ++j )
-			{
-				SGRX_MeshAsset& MA = meshAssets[ j ];
-				if( MA.outputCategory != item.category ||
-					MA.outputName != item.name )
-					continue;
-				MA.ri.ts_source = item.ts_source;
-				MA.ri.ts_output = item.ts_output;
-				MA.ri.rev_output = item.rev_output;
-			}
-			break;
-		case AT_AnimBundle:
-			for( size_t j = 0; j < animBundleAssets.size(); ++j )
-			{
-				SGRX_AnimBundleAsset& ABA = animBundleAssets[ j ];
-				if( ABA.outputCategory != item.category ||
-					ABA.outputName != item.name )
-					continue;
-				ABA.ri.ts_source = item.ts_source;
-				ABA.ri.ts_output = item.ts_output;
-				ABA.ri.rev_output = item.rev_output;
-			}
-			break;
-		case AT_File:
-			for( size_t j = 0; j < fileAssets.size(); ++j )
-			{
-				SGRX_FileAsset& FA = fileAssets[ j ];
-				if( FA.outputCategory != item.category ||
-					FA.outputName != item.name )
-					continue;
-				FA.ri.ts_source = item.ts_source;
-				FA.ri.ts_output = item.ts_output;
-				FA.ri.rev_output = item.rev_output;
-			}
-			break;
+			SGRX_Asset* A = assets[ j ];
+			if( AssetTypeToItem( A->assetType ) != item.asset_type ||
+				A->outputCategory != item.category ||
+				A->outputName != item.name )
+				continue;
+			A->ri.ts_source = item.ts_source;
+			A->ri.ts_output = item.ts_output;
+			A->ri.rev_output = item.rev_output;
 		}
 	}
 	
@@ -1438,50 +1363,17 @@ bool SGRX_AssetScript::SaveOutputInfo( const StringView& path )
 	TextWriter tw( &data );
 	tw.marker( "AS_OUTPUT_INFO" );
 	Array< AssetOutputItem > items;
-	for( size_t j = 0; j < textureAssets.size(); ++j )
+	for( size_t j = 0; j < assets.size(); ++j )
 	{
-		const SGRX_TextureAsset& TA = textureAssets[ j ];
-		AssetOutputItem item = { AT_Texture, TA.outputCategory, TA.outputName,
-			TA.ri.ts_source, TA.ri.ts_output, TA.ri.rev_output };
-		items.push_back( item );
-	}
-	for( size_t j = 0; j < meshAssets.size(); ++j )
-	{
-		const SGRX_MeshAsset& MA = meshAssets[ j ];
-		AssetOutputItem item = { AT_Mesh, MA.outputCategory, MA.outputName,
-			MA.ri.ts_source, MA.ri.ts_output, MA.ri.rev_output };
-		items.push_back( item );
-	}
-	for( size_t j = 0; j < animBundleAssets.size(); ++j )
-	{
-		const SGRX_AnimBundleAsset& ABA = animBundleAssets[ j ];
-		AssetOutputItem item = { AT_AnimBundle, ABA.outputCategory, ABA.outputName,
-			ABA.ri.ts_source, ABA.ri.ts_output, ABA.ri.rev_output };
-		items.push_back( item );
-	}
-	for( size_t j = 0; j < fileAssets.size(); ++j )
-	{
-		const SGRX_FileAsset& FA = fileAssets[ j ];
-		AssetOutputItem item = { AT_File, FA.outputCategory, FA.outputName,
-			FA.ri.ts_source, FA.ri.ts_output, FA.ri.rev_output };
+		const SGRX_Asset* A = assets[ j ];
+		AssetOutputItem item = { AssetTypeToItem( A->assetType ),
+			A->outputCategory, A->outputName,
+			A->ri.ts_source, A->ri.ts_output, A->ri.rev_output };
 		items.push_back( item );
 	}
 	tw << items;
 	
 	return FS_SaveTextFile( path, data );
-}
-
-
-MeshHandle SGRX_AssetScript::GetMesh( StringView path )
-{
-	StringView catName = path.until( "/" );
-	StringView fname = path.after( "/" );
-	StringView catPath = GetCategoryPath( catName );
-	char bfr[ 520 ];
-	sgrx_snprintf( bfr, 520, "%s/%s.ssm",
-		StackString<256>(catPath).str,
-		StackString<256>(fname).str );
-	return GR_GetMesh( bfr );
 }
 
 
@@ -1812,23 +1704,23 @@ bool SGRX_SaveImage( const StringView& path, SGRX_ImageFP32* image, const SGRX_T
 	return true;
 }
 
-SGRX_IFP32Handle SGRX_ProcessTextureAsset( const SGRX_TextureAsset& TA )
+SGRX_IFP32Handle SGRX_ProcessTextureAsset( const SGRX_TextureAsset* TA )
 {
 	printf( "| %s => [%s] %s\n",
-		StackString<256>(TA.sourceFile).str,
-		StackString<256>(TA.outputCategory).str,
-		StackString<256>(TA.outputName).str );
-	SGRX_IFP32Handle image = SGRX_LoadImage( TA.sourceFile );
+		StackString<256>(TA->sourceFile).str,
+		StackString<256>(TA->outputCategory).str,
+		StackString<256>(TA->outputName).str );
+	SGRX_IFP32Handle image = SGRX_LoadImage( TA->sourceFile );
 	if( image == NULL )
 		return NULL;
 	
 	SGRX_ImageFilterState ifs =
 	{
-		TA.isSRGB,
+		TA->isSRGB,
 	};
-	for( size_t fid = 0; fid < TA.filters.size(); ++fid )
+	for( size_t fid = 0; fid < TA->filters.size(); ++fid )
 	{
-		SGRX_ImageFilter* IF = TA.filters[ fid ];
+		SGRX_ImageFilter* IF = TA->filters[ fid ];
 		printf( "|-- filter: %s... ", IF->GetName() );
 		image = IF->Process( image, ifs );
 		printf( "%s\n", image ? "OK" : "ERROR" );
@@ -1839,24 +1731,24 @@ SGRX_IFP32Handle SGRX_ProcessTextureAsset( const SGRX_TextureAsset& TA )
 	return image;
 }
 
-TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset& TA )
+TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset* TA )
 {
 	if( !image )
 		return NULL;
 	uint32_t flags = 0;
 	
-//	if( TA.isSRGB )
+//	if( TA->isSRGB )
 //		flags |= TEXFLAGS_SRGB;
-	if( TA.lerp )
+	if( TA->lerp )
 		flags |= TEXFLAGS_LERP;
-	if( TA.clampx )
+	if( TA->clampx )
 		flags |= TEXFLAGS_CLAMP_X;
-	if( TA.clampy )
+	if( TA->clampy )
 		flags |= TEXFLAGS_CLAMP_Y;
 	
 	Array< SGRX_IFP32Handle > mips;
 	mips.push_back( image );
-	if( TA.mips )
+	if( TA->mips )
 	{
 		flags |= TEXFLAGS_HASMIPS;
 		while( mips.last()->GetWidth() != 1
@@ -2038,20 +1930,17 @@ static String SGRX_TexIDToPath( const SGRX_AssetScript* AS, const StringView& te
 	StringView cat = texid.until( "/" );
 	StringView name = texid.after( "/" );
 	
-	const SGRX_TextureAsset* TA = NULL;
-	for( size_t i = 0; i < AS->textureAssets.size(); ++i )
+	for( size_t i = 0; i < AS->assets.size(); ++i )
 	{
-		if( AS->textureAssets[ i ].outputCategory == cat &&
-			AS->textureAssets[ i ].outputName == name )
+		SGRX_Asset* A = AS->assets[ i ];
+		if( A->assetType == SGRX_AT_Texture &&
+			A->outputCategory == cat &&
+			A->outputName == name )
 		{
-			TA = &AS->textureAssets[ i ];
-			break;
+			return A->GetUserPath();
 		}
 	}
-	if( TA == NULL )
-		return "";
-	
-	return TA->GetUserPath();
+	return "";
 }
 
 struct NodeParentInfo
@@ -2841,6 +2730,26 @@ bool SGRX_ProcessAnimBundleAsset( const SGRX_AnimBundleAsset& ABA, SGRX_AnimBund
 
 
 
+static bool CanSkip( bool force, SGRX_Asset* A, uint32_t srcmodtime, RCString path )
+{
+	return force == false &&
+		A->ri.rev_output == A->ri.rev_asset &&
+		A->ri.ts_source != 0 &&
+		A->ri.ts_output != 0 &&
+		A->ri.ts_source == srcmodtime &&
+		A->ri.ts_output == FS_FileModTime( path );
+}
+static const char* GetReasonForBuilding( bool force, SGRX_Asset* A, uint32_t srcmodtime, RCString path )
+{
+	if( force ) return "forced";
+	if( A->ri.rev_output != A->ri.rev_asset ) return "rev. update";
+	if( A->ri.ts_source == 0 ) return "no source timestamp";
+	if( A->ri.ts_output == 0 ) return "no destination timestamp";
+	if( A->ri.ts_source != srcmodtime ) return "source changed";
+	if( A->ri.ts_output != FS_FileModTime( path ) ) return "destination changed";
+	return "none??";
+}
+
 void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 {
 	puts( "processing assets...");
@@ -2849,167 +2758,139 @@ void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 	String mapping;
 	String legacyMapping;
 	
-	puts( "- textures...");
-	for( size_t tid = 0; tid < script.textureAssets.size(); ++tid )
+	for( size_t aid = 0; aid < script.assets.size(); ++aid )
 	{
-		SGRX_TextureAsset& TA = script.textureAssets[ tid ];
-		RCString path = TA.GetPath();
-		mapping.append( TA.GetMappingString() );
-		StringView catPath = script.categories.getcopy( TA.outputCategory );
+		SGRX_Asset* A = script.assets[ aid ];
+		RCString path = A->GetPath();
+		mapping.append( A->GetMappingString() );
+		StringView catPath = script.categories.getcopy( A->outputCategory );
 		char bfr[ 520 ], guid[ GUID_STRING_LENGTH + 1 ];
-		TA.assetGUID.ToCharArray( guid );
-		sgrx_snprintf( bfr, 520, "%s %s/%s.%s\n", guid,
-			StackString<256>(catPath).str,
-			StackString<256>(TA.outputName).str,
-			SGRX_TextureOutputFormat_Ext( TA.outputType ) );
-		legacyMapping.append( bfr );
-		if( force == false &&
-			TA.ri.rev_output == TA.ri.rev_asset &&
-			TA.ri.ts_source != 0 &&
-			TA.ri.ts_output != 0 &&
-			TA.ri.ts_source == FS_FileModTime( TA.sourceFile ) &&
-			TA.ri.ts_output == FS_FileModTime( path ) )
-			continue;
+		A->assetGUID.ToCharArray( guid );
 		
-		SGRX_IFP32Handle image = SGRX_ProcessTextureAsset( TA );
-		if( image == NULL )
-			continue;
-		
-		if( SGRX_SaveImage( path, image, TA ) )
+		switch( A->assetType )
 		{
-			TA.ri.rev_output = TA.ri.rev_asset;
-			TA.ri.ts_source = FS_FileModTime( TA.sourceFile );
-			TA.ri.ts_output = FS_FileModTime( path );
-			printf( "|----------- saved! [%dx%dx%d|%d]\n",
-				image->GetWidth(), image->GetHeight(), image->GetDepth(), image->GetSides() );
-		}
-	}
-	
-	puts( "- meshes...");
-	for( size_t tid = 0; tid < script.meshAssets.size(); ++tid )
-	{
-		SGRX_MeshAsset& MA = script.meshAssets[ tid ];
-		RCString path = MA.GetPath();
-		mapping.append( MA.GetMappingString() );
-		StringView catPath = script.categories.getcopy( MA.outputCategory );
-		char bfr[ 520 ], guid[ GUID_STRING_LENGTH + 1 ];
-		MA.assetGUID.ToCharArray( guid );
-		sgrx_snprintf( bfr, 520, "%s %s/%s.ssm\n", guid,
-			StackString<256>(catPath).str,
-			StackString<256>(MA.outputName).str );
-		legacyMapping.append( bfr );
-		if( force == false &&
-			MA.ri.rev_output == MA.ri.rev_asset &&
-			MA.ri.ts_source != 0 &&
-			MA.ri.ts_output != 0 &&
-			MA.ri.ts_source == FS_FileModTime( MA.sourceFile ) &&
-			MA.ri.ts_output == FS_FileModTime( path ) )
-			continue;
-		
-		MeshHandle mesh = SGRX_ProcessMeshAsset( &script, MA );
-		if( mesh == NULL )
-			continue;
-		
-		ByteArray data;
-		if( mesh->ToMeshData( data ) == false )
-		{
-			puts( "ERROR: failed to serialize mesh" );
-			continue;
-		}
-		
-		if( FS_SaveBinaryFile( path, data.data(), data.size() ) )
-		{
-			MA.ri.rev_output = MA.ri.rev_asset;
-			MA.ri.ts_source = FS_FileModTime( MA.sourceFile );
-			MA.ri.ts_output = FS_FileModTime( path );
-			printf( "|----------- saved!\n" );
-		}
-		else
-		{
-			printf( "ERROR: failed to save file to %s\n", path.c_str() );
-		}
-	}
-	
-	puts( "- animations..." );
-	for( size_t aid = 0; aid < script.animBundleAssets.size(); ++aid )
-	{
-		SGRX_AnimBundleAsset& ABA = script.animBundleAssets[ aid ];
-		RCString path = ABA.GetPath();
-		mapping.append( ABA.GetMappingString() );
-		StringView catPath = script.categories.getcopy( ABA.outputCategory );
-		char bfr[ 520 ], guid[ GUID_STRING_LENGTH + 1 ];
-		ABA.assetGUID.ToCharArray( guid );
-		sgrx_snprintf( bfr, 520, "%s %s/%s.anb\n", guid,
-			StackString<256>(catPath).str,
-			StackString<256>(ABA.outputName).str );
-		legacyMapping.append( bfr );
-		if( force == false &&
-			ABA.ri.rev_output == ABA.ri.rev_asset &&
-			ABA.ri.ts_source != 0 &&
-			ABA.ri.ts_output != 0 &&
-			ABA.ri.ts_source == ABA.LastSourceModTime() &&
-			ABA.ri.ts_output == FS_FileModTime( path ) )
-			continue;
-		
-		SGRX_AnimBundle bundle;
-		if( SGRX_ProcessAnimBundleAsset( ABA, bundle ) == false )
-			continue;
-		
-		ByteArray data;
-		ByteWriter bw( &data );
-		bundle.Serialize( bw );
-		
-		if( FS_SaveBinaryFile( path, data.data(), data.size() ) )
-		{
-			ABA.ri.rev_output = ABA.ri.rev_asset;
-			ABA.ri.ts_source = ABA.LastSourceModTime();
-			ABA.ri.ts_output = FS_FileModTime( path );
-			printf( "|----------- saved!\n" );
-		}
-		else
-		{
-			printf( "ERROR: failed to save file to %s\n", path.c_str() );
-		}
-	}
-	
-	puts( "- files..." );
-	for( size_t aid = 0; aid < script.fileAssets.size(); ++aid )
-	{
-		SGRX_FileAsset& FA = script.fileAssets[ aid ];
-		RCString path = FA.GetPath();
-		mapping.append( FA.GetMappingString() );
-		StringView catPath = script.categories.getcopy( FA.outputCategory );
-		char bfr[ 520 ], guid[ GUID_STRING_LENGTH + 1 ];
-		FA.assetGUID.ToCharArray( guid );
-		sgrx_snprintf( bfr, 520, "%s %s/%s\n", guid,
-			StackString<256>(catPath).str,
-			StackString<256>(FA.outputName).str );
-		legacyMapping.append( bfr );
-		if( force == false &&
-			FA.ri.rev_output == FA.ri.rev_asset &&
-			FA.ri.ts_source != 0 &&
-			FA.ri.ts_output != 0 &&
-			FA.ri.ts_source == FS_FileModTime( FA.sourceFile ) &&
-			FA.ri.ts_output == FS_FileModTime( path ) )
-			continue;
-		
-		printf( "| %s => [%s] %s\n",
-			StackString<256>(FA.sourceFile).str,
-			StackString<256>(FA.outputCategory).str,
-			StackString<256>(FA.outputName).str );
-		
-		ByteArray data;
-		if( FS_LoadBinaryFile( StackPath(FA.sourceFile).str, data ) &&
-			FS_SaveBinaryFile( path, data.data(), data.size() ) )
-		{
-			FA.ri.rev_output = FA.ri.rev_asset;
-			FA.ri.ts_source = FS_FileModTime( FA.sourceFile );
-			FA.ri.ts_output = FS_FileModTime( path );
-			printf( "|----------- saved!\n" );
-		}
-		else
-		{
-			printf( "ERROR: failed to copy file to %s\n", path.c_str() );
+		case SGRX_AT_Texture: {
+			SGRX_TextureAsset* TA = A->ToTexture();
+			
+			sgrx_snprintf( bfr, 520, "%s %s/%s.%s\n", guid,
+				StackString<256>(catPath).str,
+				StackString<256>(TA->outputName).str,
+				SGRX_TextureOutputFormat_Ext( TA->outputType ) );
+			legacyMapping.append( bfr );
+			if( CanSkip( force, A, FS_FileModTime( TA->sourceFile ), path ) )
+				continue;
+			
+			SGRX_IFP32Handle image = SGRX_ProcessTextureAsset( TA );
+			if( image == NULL )
+				continue;
+			
+			if( SGRX_SaveImage( path, image, *TA ) )
+			{
+				TA->ri.rev_output = TA->ri.rev_asset;
+				TA->ri.ts_source = FS_FileModTime( TA->sourceFile );
+				TA->ri.ts_output = FS_FileModTime( path );
+				printf( "|----------- saved! [%dx%dx%d|%d]\n",
+					image->GetWidth(), image->GetHeight(), image->GetDepth(), image->GetSides() );
+			}
+		} break;
+		case SGRX_AT_Mesh: {
+			SGRX_MeshAsset* MA = A->ToMesh();
+			
+			sgrx_snprintf( bfr, 520, "%s %s/%s.ssm\n", guid,
+				StackString<256>(catPath).str,
+				StackString<256>(MA->outputName).str );
+			legacyMapping.append( bfr );
+			if( CanSkip( force, A, FS_FileModTime( MA->sourceFile ), path ) )
+				continue;
+			
+			MeshHandle mesh = SGRX_ProcessMeshAsset( &script, *MA );
+			if( mesh == NULL )
+				continue;
+			
+			ByteArray data;
+			if( mesh->ToMeshData( data ) == false )
+			{
+				puts( "ERROR: failed to serialize mesh" );
+				continue;
+			}
+			
+			if( FS_SaveBinaryFile( path, data.data(), data.size() ) )
+			{
+				MA->ri.rev_output = MA->ri.rev_asset;
+				MA->ri.ts_source = FS_FileModTime( MA->sourceFile );
+				MA->ri.ts_output = FS_FileModTime( path );
+				printf( "|----------- saved!\n" );
+			}
+			else
+			{
+				printf( "ERROR: failed to save file to %s\n", path.c_str() );
+			}
+		} break;
+		case SGRX_AT_AnimBundle: {
+			SGRX_AnimBundleAsset* ABA = A->ToAnimBundle();
+			
+			sgrx_snprintf( bfr, 520, "%s %s/%s.anb\n", guid,
+				StackString<256>(catPath).str,
+				StackString<256>(ABA->outputName).str );
+			legacyMapping.append( bfr );
+			if( CanSkip( force, A, ABA->LastSourceModTime(), path ) )
+				continue;
+			
+			printf( "| multiple sources => [%s] %s (reason: %s)\n",
+				StackString<256>(ABA->outputCategory).str,
+				StackString<256>(ABA->outputName).str,
+				GetReasonForBuilding( force, A, ABA->LastSourceModTime(), path ) );
+			
+			SGRX_AnimBundle bundle;
+			if( SGRX_ProcessAnimBundleAsset( *ABA, bundle ) == false )
+				continue;
+			
+			ByteArray data;
+			ByteWriter bw( &data );
+			bundle.Serialize( bw );
+			
+			if( FS_SaveBinaryFile( path, data.data(), data.size() ) )
+			{
+				ABA->ri.rev_output = ABA->ri.rev_asset;
+				ABA->ri.ts_source = ABA->LastSourceModTime();
+				ABA->ri.ts_output = FS_FileModTime( path );
+				printf( "|----------- saved!\n" );
+			}
+			else
+			{
+				printf( "ERROR: failed to save file to %s\n", path.c_str() );
+			}
+		} break;
+		case SGRX_AT_File: {
+			SGRX_FileAsset* FA = A->ToFile();
+			
+			sgrx_snprintf( bfr, 520, "%s %s/%s\n", guid,
+				StackString<256>(catPath).str,
+				StackString<256>(FA->outputName).str );
+			legacyMapping.append( bfr );
+			if( CanSkip( force, A, FS_FileModTime( FA->sourceFile ), path ) )
+				continue;
+			
+			printf( "| %s => [%s] %s (reason: %s)\n",
+				StackString<256>(FA->sourceFile).str,
+				StackString<256>(FA->outputCategory).str,
+				StackString<256>(FA->outputName).str,
+				GetReasonForBuilding( force, A, FS_FileModTime( FA->sourceFile ), path ) );
+			
+			ByteArray data;
+			if( FS_LoadBinaryFile( StackPath(FA->sourceFile).str, data ) &&
+				FS_SaveBinaryFile( path, data.data(), data.size() ) )
+			{
+				FA->ri.rev_output = FA->ri.rev_asset;
+				FA->ri.ts_source = FS_FileModTime( FA->sourceFile );
+				FA->ri.ts_output = FS_FileModTime( path );
+				printf( "|----------- saved!\n" );
+			}
+			else
+			{
+				printf( "ERROR: failed to copy file to %s\n", path.c_str() );
+			}
+		} break;
 		}
 	}
 	
@@ -3023,11 +2904,13 @@ void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 	}
 }
 
-template< class T > void RemoveAssets( T& arr )
+void SGRX_RemoveAssets( SGRX_AssetScript& script, SGRX_AssetType type )
 {
-	for( size_t i = 0; i < arr.size(); ++i )
+	for( size_t i = 0; i < script.assets.size(); ++i )
 	{
-		RCString path = arr[ i ].GetPath();
+		if( script.assets[ i ]->assetType != type )
+			continue;
+		RCString path = script.assets[ i ]->GetPath();
 		String realpath;
 		if( FS_FindRealPath( path, realpath ) )
 		{
@@ -3038,16 +2921,6 @@ template< class T > void RemoveAssets( T& arr )
 		{
 			printf( "ERROR: failed to remove file: %s\n", path.c_str() );
 		}
-	}
-}
-void SGRX_RemoveAssets( SGRX_AssetScript& script, SGRX_AssetType type )
-{
-	switch( type )
-	{
-	case SGRX_AT_Texture: RemoveAssets( script.textureAssets ); break;
-	case SGRX_AT_Mesh: RemoveAssets( script.meshAssets ); break;
-	case SGRX_AT_AnimBundle: RemoveAssets( script.animBundleAssets ); break;
-	case SGRX_AT_File: RemoveAssets( script.fileAssets ); break;
 	}
 }
 

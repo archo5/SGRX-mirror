@@ -308,9 +308,13 @@ struct SGRX_MeshAsset;
 struct SGRX_AnimBundleAsset;
 struct SGRX_FileAsset;
 
-struct SGRX_Asset
+struct SGRX_Asset : SGRX_RefCounted
 {
 	SGRX_Asset( SGRX_AssetType t ) : assetType( t ){}
+	virtual ~SGRX_Asset(){}
+	virtual SGRX_Asset* Clone() = 0;
+	virtual bool Parse( ConfigReader& cread ) = 0;
+	virtual void Generate( String& out ) = 0;
 	
 	SGRX_TextureAsset* ToTexture() const { return assetType == SGRX_AT_Texture ? (SGRX_TextureAsset*) this : NULL; }
 	SGRX_MeshAsset* ToMesh() const { return assetType == SGRX_AT_Mesh ? (SGRX_MeshAsset*) this : NULL; }
@@ -359,11 +363,12 @@ struct SGRX_Asset
 	String outputCategory;
 	String outputName;
 };
+typedef Handle< SGRX_Asset > AssetHandle;
 
 struct SGRX_TextureAsset : SGRX_Asset
 {
 	SGRX_TextureAsset();
-	void Clone( const SGRX_TextureAsset& other );
+	SGRX_Asset* Clone();
 	bool Parse( ConfigReader& cread );
 	void Generate( String& out );
 	void GetFullName( String& out );
@@ -409,7 +414,7 @@ struct SGRX_MeshAsset : SGRX_Asset
 		flipUVY(false),
 		transform(false)
 	{}
-	void Clone( const SGRX_MeshAsset& other );
+	SGRX_Asset* Clone();
 	bool Parse( ConfigReader& cread );
 	void Generate( String& out );
 	void GetFullName( String& out );
@@ -444,14 +449,12 @@ struct SGRX_ABAnimation
 struct SGRX_AnimBundleAsset : SGRX_Asset
 {
 	SGRX_AnimBundleAsset() : SGRX_Asset( SGRX_AT_AnimBundle ){}
-	void Clone( const SGRX_AnimBundleAsset& other );
+	SGRX_Asset* Clone();
 	bool Parse( ConfigReader& cread );
 	void Generate( String& out );
 	void GetFullName( String& out );
 	void GetDesc( String& out );
 	uint32_t LastSourceModTime();
-	
-	SGRX_RevInfo ri;
 	
 	String bundlePrefix;
 	String previewMesh;
@@ -462,13 +465,11 @@ struct SGRX_AnimBundleAsset : SGRX_Asset
 struct SGRX_FileAsset : SGRX_Asset
 {
 	SGRX_FileAsset() : SGRX_Asset( SGRX_AT_File ){}
-	void Clone( const SGRX_FileAsset& other );
+	SGRX_Asset* Clone();
 	bool Parse( ConfigReader& cread );
 	void Generate( String& out );
 	void GetFullName( String& out );
 	void GetDesc( String& out );
-	
-	SGRX_RevInfo ri;
 	
 	String sourceFile;
 };
@@ -480,19 +481,15 @@ struct SGRX_AssetScript
 	bool Load( const StringView& path );
 	bool Save( const StringView& path );
 	StringView GetCategoryPath( const StringView& name );
+	SGRX_Asset* FindAsset( SGRX_AssetType type, StringView cat, StringView name );
 	// - additional state
 	bool LoadAssetInfo( const StringView& path );
 	bool SaveAssetInfo( const StringView& path );
 	bool LoadOutputInfo( const StringView& path );
 	bool SaveOutputInfo( const StringView& path );
 	
-	MeshHandle GetMesh( StringView path );
-	
 	HashTable< RCString, RCString > categories;
-	Array< SGRX_TextureAsset > textureAssets;
-	Array< SGRX_MeshAsset > meshAssets;
-	Array< SGRX_AnimBundleAsset > animBundleAssets;
-	Array< SGRX_FileAsset > fileAssets;
+	Array< AssetHandle > assets;
 };
 
 
@@ -540,8 +537,8 @@ struct SGRX_Scene3D : SGRX_RefCounted
 };
 typedef Handle< SGRX_Scene3D > ImpScene3DHandle;
 
-SGRX_IFP32Handle SGRX_ProcessTextureAsset( const SGRX_TextureAsset& TA );
-TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset& TA );
+SGRX_IFP32Handle SGRX_ProcessTextureAsset( const SGRX_TextureAsset* TA );
+TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset* TA );
 MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAsset& MA );
 AnimHandle SGRX_ProcessSingleAnim( const SGRX_AnimBundleAsset& ABA, int i );
 void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force = false );

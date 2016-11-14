@@ -504,6 +504,7 @@ void IMGUIRenderView::Process( float deltaTime, bool editable )
 	m_scene->camera.aspect = safe_fdiv( gwsz.x, gwsz.y );
 	
 	m_scene->camera.UpdateMatrices();
+	OnBeforeDraw();
 	
 	ImVec2 gwp = ImGui::GetWindowPos();
 	m_vp.x0 = gwp.x + 1;
@@ -520,6 +521,10 @@ void IMGUIRenderView::_StaticDraw( const ImDrawList* parent_list, const ImDrawCm
 	rsinfo.viewport = &rv->m_vp;
 	rsinfo.debugdraw = rv;
 	GR_RenderScene( rsinfo );
+}
+
+void IMGUIRenderView::OnBeforeDraw()
+{
 }
 
 void IMGUIRenderView::DebugDraw()
@@ -1044,20 +1049,23 @@ void IMGUIMeshPicker::_DrawItem( int i, int x0, int y0, int x1, int y1 )
 	InitEntryPreview( E );
 	
 	bool hasmesh = false;
-	if( m_customCamera == false && E->mesh )
+	if( E->mesh )
 	{
 		SGRX_IMesh* M = E->mesh->GetMesh();
 		if( M )
 		{
-			Vec3 dst = M->m_boundsMin - M->m_boundsMax;
-			Vec3 idst = V3( dst.x ? 1/dst.x : 1, dst.y ? 1/dst.y : 1, dst.z ? 1/dst.z : 1 );
-			if( idst.z > 0 )
-				idst.z = -idst.z;
-			m_scene->camera.direction = idst.Normalized();
-			m_scene->camera.position = ( M->m_boundsMax + M->m_boundsMin ) * 0.5f - m_scene->camera.direction * dst.Length() * 0.8f;
-			m_scene->camera.znear = 0.1f;
-			m_scene->camera.angle = 60;
-			m_scene->camera.UpdateMatrices();
+			if( m_customCamera == false )
+			{
+				Vec3 dst = M->m_boundsMin - M->m_boundsMax;
+				Vec3 idst = V3( dst.x ? 1/dst.x : 1, dst.y ? 1/dst.y : 1, dst.z ? 1/dst.z : 1 );
+				if( idst.z > 0 )
+					idst.z = -idst.z;
+				m_scene->camera.direction = idst.Normalized();
+				m_scene->camera.position = ( M->m_boundsMax + M->m_boundsMin ) * 0.5f - m_scene->camera.direction * dst.Length() * 0.8f;
+				m_scene->camera.znear = 0.1f;
+				m_scene->camera.angle = 60;
+				m_scene->camera.UpdateMatrices();
+			}
 	
 			SGRX_RenderScene rsinfo( V4( GetTimeMsec() / 1000.0f ), m_scene );
 			rsinfo.viewport = &vp;
@@ -1076,7 +1084,7 @@ void IMGUIMeshPicker::_DrawItem( int i, int x0, int y0, int x1, int y1 )
 	if( hasmesh == false && E->path.size() )
 	{
 		GR2D_DrawTextLine( ( x0 + x1 ) / 2, ( y0 + y1 ) / 2,
-			"FAILED TO LOAD MESH", HALIGN_CENTER, VALIGN_CENTER );
+			"ERROR", HALIGN_CENTER, VALIGN_CENTER );
 	}
 }
 

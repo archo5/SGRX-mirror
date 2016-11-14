@@ -36,6 +36,27 @@ struct AssetRenderView : IMGUIRenderView
 	{
 		m_meshPrevInst = m_scene->CreateMeshInstance();
 		lmm_prepmeshinst( m_meshPrevInst );
+		
+		m_light1 = m_scene->CreateLight();
+		m_light1->type = LIGHT_POINT;
+		m_light1->range = 9999;
+		m_light1->color = V3(0.6f,0.5f,0.4f) * 2;
+		
+		m_light2 = m_scene->CreateLight();
+		m_light2->type = LIGHT_POINT;
+		m_light2->range = 9999;
+		m_light2->color = V3(0.4f,0.5f,0.6f) * 3;
+	}
+	void OnBeforeDraw()
+	{
+		SGRX_Camera& CAM = m_scene->camera;
+		Vec3 right = Vec3Cross( CAM.direction, CAM.updir ).Normalized();
+		
+		m_light1->position = CAM.position - CAM.direction * 10 + CAM.updir * 10 - right * 10;
+		m_light1->UpdateTransform();
+		
+		m_light2->position = CAM.position + CAM.direction * 1000 + CAM.updir * 1000 + right * 1000;
+		m_light2->UpdateTransform();
 	}
 	void DebugDraw()
 	{
@@ -80,6 +101,8 @@ struct AssetRenderView : IMGUIRenderView
 	MeshInstHandle m_meshPrevInst;
 	Array< AnimTrackFrame > m_animFrames;
 	AnimPlayer m_animPreview;
+	LightHandle m_light1;
+	LightHandle m_light2;
 };
 
 void FC_SetTexture( TextureHandle tex )
@@ -104,7 +127,8 @@ void FC_SetAnim( MeshHandle mesh, AnimHandle anim )
 	g_NUIRenderView->m_texPreview = NULL;
 	g_NUIRenderView->m_meshPrevInst->SetMesh( mesh );
 	g_NUIRenderView->m_meshPrevInst->enabled = mesh != NULL;
-	g_NUIRenderView->m_meshPrevInst->skin_matrices.resize( mesh.GetBoneCount() );
+	g_NUIRenderView->m_meshPrevInst->skin_matrices
+		.resize_using( mesh.GetBoneCount(), Mat4::Identity );
 	g_NUIRenderView->m_animFrames.resize( mesh.GetBoneCount() );
 	g_NUIRenderView->m_animPreview.m_mesh = mesh;
 	g_NUIRenderView->m_animPreview.m_pose = g_NUIRenderView->m_animFrames;
@@ -211,8 +235,8 @@ void EditFilter( size_t i, SGRX_ImageFilter* IF )
 void UpdateTexturePreview( SGRX_TextureAsset& ta )
 {
 	TextureHandle tex;
-	SGRX_IFP32Handle img = SGRX_ProcessTextureAsset( ta );
-	tex = SGRX_FP32ToTexture( img, ta );
+	SGRX_IFP32Handle img = SGRX_ProcessTextureAsset( &ta );
+	tex = SGRX_FP32ToTexture( img, &ta );
 	if( tex == NULL )
 		tex = GR_GetTexture( "textures/unit.png" );
 	FC_SetTexture( tex );
@@ -297,12 +321,14 @@ struct TexturePicker : IMGUIEntryPicker
 	{
 		m_entries.clear();
 		m_entries.push_back( "" );
-		for( size_t i = 0; i < g_EdAS->textureAssets.size(); ++i )
+		for( size_t i = 0; i < g_EdAS->assets.size(); ++i )
 		{
-			const SGRX_TextureAsset& TA = g_EdAS->textureAssets[ i ];
-			String opt = TA.outputCategory;
+			SGRX_Asset* A = g_EdAS->assets[ i ];
+			if( A->assetType != SGRX_AT_Texture )
+				continue;
+			String opt = A->outputCategory;
 			opt.append( "/" );
-			opt.append( TA.outputName );
+			opt.append( A->outputName );
 			m_entries.push_back( opt );
 		}
 		_Search( m_searchString );
@@ -416,12 +442,14 @@ struct MeshAssetPicker : IMGUIEntryPicker
 	void Reload()
 	{
 		m_entries.clear();
-		for( size_t i = 0; i < g_EdAS->meshAssets.size(); ++i )
+		for( size_t i = 0; i < g_EdAS->assets.size(); ++i )
 		{
-			const SGRX_MeshAsset& TA = g_EdAS->meshAssets[ i ];
-			String opt = TA.outputCategory;
+			SGRX_Asset* A = g_EdAS->assets[ i ];
+			if( A->assetType != SGRX_AT_Mesh )
+				continue;
+			String opt = A->outputCategory;
 			opt.append( "/" );
-			opt.append( TA.outputName );
+			opt.append( A->outputName );
 			m_entries.push_back( opt );
 		}
 		_Search( m_searchString );
@@ -433,7 +461,14 @@ size_t g_CurAnim = NOT_FOUND;
 void UpdateAnimPreview( SGRX_AnimBundleAsset& aba )
 {
 	AnimHandle anim = SGRX_ProcessSingleAnim( aba, g_CurAnim );
-	FC_SetAnim( g_EdAS->GetMesh( aba.previewMesh ), anim );
+	StringView path = aba.previewMesh;
+	SGRX_Asset* A = g_EdAS->FindAsset( SGRX_AT_Mesh,
+		path.until( "/" ), path.after( "/" ) );
+	if( !A )
+	{
+		LOG << "Could not find preview mesh: " << aba.previewMesh;
+	}
+	FC_SetAnim( A ? GR_GetMesh( A->GetPath() ) : NULL, anim );
 }
 
 void EditAnimButton( size_t i, SGRX_ABAnimation& anim )
@@ -626,53 +661,14 @@ void EditCurAsset()
 	ImGui::Columns( 2 );
 	if( ImGui::Button( "Duplicate", ImVec2( ImGui::GetContentRegionAvailWidth(), 16 ) ) )
 	{
-		switch( g_CurAsset->assetType )
-		{
-		case SGRX_AT_Texture: {
-				SGRX_TextureAsset new_asset;
-				new_asset.Clone( *g_CurAsset->ToTexture() );
-				g_EdAS->textureAssets.push_back( new_asset );
-				g_CurAsset = &g_EdAS->textureAssets.last();
-			} break;
-		case SGRX_AT_Mesh: {
-				SGRX_MeshAsset new_asset;
-				new_asset.Clone( *g_CurAsset->ToMesh() );
-				g_EdAS->meshAssets.push_back( new_asset );
-				g_CurAsset = &g_EdAS->meshAssets.last();
-			} break;
-		case SGRX_AT_AnimBundle: {
-				SGRX_AnimBundleAsset new_asset;
-				new_asset.Clone( *g_CurAsset->ToAnimBundle() );
-				g_EdAS->animBundleAssets.push_back( new_asset );
-				g_CurAsset = &g_EdAS->animBundleAssets.last();
-			} break;
-		case SGRX_AT_File: {
-				SGRX_FileAsset new_asset;
-				new_asset.Clone( *g_CurAsset->ToFile() );
-				g_EdAS->fileAssets.push_back( new_asset );
-				g_CurAsset = &g_EdAS->fileAssets.last();
-			} break;
-		}
+		g_CurAsset = g_CurAsset->Clone();
 		g_CurAsset->outputName.append( " - Copy" );
+		g_EdAS->assets.push_back( g_CurAsset );
 	}
 	ImGui::NextColumn();
 	if( ImGui::Button( "Delete", ImVec2( ImGui::GetContentRegionAvailWidth(), 16 ) ) )
 	{
-		switch( g_CurAsset->assetType )
-		{
-		case SGRX_AT_Texture:
-			g_EdAS->textureAssets.erase( g_CurAsset->ToTexture() - g_EdAS->textureAssets.data() );
-			break;
-		case SGRX_AT_Mesh:
-			g_EdAS->meshAssets.erase( g_CurAsset->ToMesh() - g_EdAS->meshAssets.data() );
-			break;
-		case SGRX_AT_AnimBundle:
-			g_EdAS->animBundleAssets.erase( g_CurAsset->ToAnimBundle() - g_EdAS->animBundleAssets.data() );
-			break;
-		case SGRX_AT_File:
-			g_EdAS->fileAssets.erase( g_CurAsset->ToFile() - g_EdAS->fileAssets.data() );
-			break;
-		}
+		g_EdAS->assets.remove_first( g_CurAsset );
 		g_CurAsset = NULL;
 		return;
 	}
@@ -688,15 +684,6 @@ void EditCurAsset()
 	}
 }
 
-
-void RenameAssetCat( SGRX_Asset* A )
-{
-	if( A->outputCategory == g_CurCategory )
-	{
-		A->outputCategory = g_CurCatName;
-		A->ri.rev_asset++;
-	}
-}
 
 void EditCurCategory()
 {
@@ -727,12 +714,15 @@ void EditCurCategory()
 		
 		if( g_RenameAssetCats && g_CurCatName != g_CurCategory )
 		{
-			for( size_t i = 0; i < g_EdAS->textureAssets.size(); ++i )
-				RenameAssetCat( &g_EdAS->textureAssets[ i ] );
-			for( size_t i = 0; i < g_EdAS->meshAssets.size(); ++i )
-				RenameAssetCat( &g_EdAS->meshAssets[ i ] );
-			for( size_t i = 0; i < g_EdAS->animBundleAssets.size(); ++i )
-				RenameAssetCat( &g_EdAS->animBundleAssets[ i ] );
+			for( size_t i = 0; i < g_EdAS->assets.size(); ++i )
+			{
+				SGRX_Asset* A = g_EdAS->assets[ i ];
+				if( A->outputCategory == g_CurCategory )
+				{
+					A->outputCategory = g_CurCatName;
+					A->ri.rev_asset++;
+				}
+			}
 		}
 		
 		SetCurCategory( NOT_FOUND );
@@ -839,37 +829,26 @@ void EditAssetList()
 	ImGui::Separator();
 	
 	Array< SGRX_Asset* > assets;
-	if( g_ShowTextures )
+	for( size_t i = 0; i < g_EdAS->assets.size(); ++i )
 	{
-		for( size_t i = 0; i < g_EdAS->textureAssets.size(); ++i )
+		SGRX_Asset* A = g_EdAS->assets[ i ];
+		switch( A->assetType )
 		{
-			if( !g_Filter.size() || SV(g_EdAS->textureAssets[ i ].outputName).match_loose( g_Filter ) )
-				assets.push_back( &g_EdAS->textureAssets[ i ] );
+		case SGRX_AT_Texture:
+			if( !g_ShowTextures ) continue;
+			break;
+		case SGRX_AT_Mesh:
+			if( !g_ShowMeshes ) continue;
+			break;
+		case SGRX_AT_AnimBundle:
+			if( !g_ShowAnimBundles ) continue;
+			break;
+		case SGRX_AT_File:
+			if( !g_ShowFiles ) continue;
+			break;
 		}
-	}
-	if( g_ShowMeshes )
-	{
-		for( size_t i = 0; i < g_EdAS->meshAssets.size(); ++i )
-		{
-			if( !g_Filter.size() || SV(g_EdAS->meshAssets[ i ].outputName).match_loose( g_Filter ) )
-				assets.push_back( &g_EdAS->meshAssets[ i ] );
-		}
-	}
-	if( g_ShowAnimBundles )
-	{
-		for( size_t i = 0; i < g_EdAS->animBundleAssets.size(); ++i )
-		{
-			if( !g_Filter.size() || SV(g_EdAS->animBundleAssets[ i ].outputName).match_loose( g_Filter ) )
-				assets.push_back( &g_EdAS->animBundleAssets[ i ] );
-		}
-	}
-	if( g_ShowFiles )
-	{
-		for( size_t i = 0; i < g_EdAS->fileAssets.size(); ++i )
-		{
-			if( !g_Filter.size() || SV(g_EdAS->fileAssets[ i ].outputName).match_loose( g_Filter ) )
-				assets.push_back( &g_EdAS->fileAssets[ i ] );
-		}
+		if( !g_Filter.size() || SV(A->outputName).match_loose( g_Filter ) )
+			assets.push_back( A );
 	}
 	qsort( assets.data(), assets.size(), sizeof(SGRX_Asset*), g_AssetCmpFuncs[ g_GroupBy ][ g_SortBy ] );
 	
@@ -967,7 +946,6 @@ struct ASEditor : IGame
 		for( int i = 1; i < argc; ++i )
 		{
 			if( !strcmp( argv[ i ], "--dtex" ) ) op = 1;
-			if( !strcmp( argv[ i ], "--gmtl" ) ) op = 2;
 			if( !strncmp( argv[ i ], "--cat=", 6 ) )
 				cat = argv[ i ] + 6;
 			else if( !strcmp( argv[ i ], "-c" ) && i + 1 < argc )
@@ -979,38 +957,20 @@ struct ASEditor : IGame
 			{
 				SGRX_AssetScript as;
 				as.Load( ASSET_SCRIPT_NAME );
-				for( size_t i = 0; i < as.textureAssets.size(); ++i )
+				for( size_t i = 0; i < as.assets.size(); ++i )
 				{
-					SGRX_TextureAsset& TA = as.textureAssets[ i ];
+					if( as.assets[ i ]->assetType != SGRX_AT_Texture )
+						continue;
+					SGRX_TextureAsset* TA = as.assets[ i ]->ToTexture();
 					if( cat )
 					{
-						if( TA.outputCategory != StringView(cat) )
+						if( TA->outputCategory != StringView(cat) )
 							continue;
 					}
 					printf( "%s/%s.%s\n",
-						StackString<256>(as.GetCategoryPath(TA.outputCategory)).str,
-						StackString<256>(TA.outputName).str,
-						SGRX_TextureOutputFormat_Ext( TA.outputType ) );
-				}
-			}
-			return false;
-		case 2: // generate materials
-			{
-				SGRX_AssetScript as;
-				as.Load( ASSET_SCRIPT_NAME );
-				for( size_t i = 0; i < as.textureAssets.size(); ++i )
-				{
-					SGRX_TextureAsset& TA = as.textureAssets[ i ];
-					if( cat )
-					{
-						if( TA.outputCategory != StringView(cat) )
-							continue;
-					}
-					printf( "material %s\nshader default\n0 %s/%s.%s\n",
-						StackString<256>(TA.outputName).str,
-						StackString<256>(as.GetCategoryPath(TA.outputCategory)).str,
-						StackString<256>(TA.outputName).str,
-						SGRX_TextureOutputFormat_Ext( TA.outputType ) );
+						StackString<256>(as.GetCategoryPath(TA->outputCategory)).str,
+						StackString<256>(TA->outputName).str,
+						SGRX_TextureOutputFormat_Ext( TA->outputType ) );
 				}
 			}
 			return false;
@@ -1093,13 +1053,13 @@ struct ASEditor : IGame
 					LOG << "name:" << name;
 					LOG << "category:" << category;
 					
-					SGRX_TextureAsset ta;
-					ta.sourceFile = subpath;
-					ta.outputCategory = category;
-					ta.outputName = name;
-					ta.outputType = SGRX_TOF_STX_RGBA32;
-					g_EdAS->textureAssets.push_back( ta );
-					SetCurAsset( &g_EdAS->textureAssets.last() );
+					SGRX_TextureAsset* ta = new SGRX_TextureAsset;
+					ta->sourceFile = subpath;
+					ta->outputCategory = category;
+					ta->outputName = name;
+					ta->outputType = SGRX_TOF_STX_RGBA32;
+					g_EdAS->assets.push_back( ta );
+					SetCurAsset( ta );
 				}
 				if( IsMeshFile( path ) && PathIsUnder( path, rootpath ) )
 				{
@@ -1113,12 +1073,12 @@ struct ASEditor : IGame
 					LOG << "name:" << name;
 					LOG << "category:" << category;
 					
-					SGRX_MeshAsset ma;
-					ma.sourceFile = subpath;
-					ma.outputCategory = category;
-					ma.outputName = name;
-					g_EdAS->meshAssets.push_back( ma );
-					SetCurAsset( &g_EdAS->meshAssets.last() );
+					SGRX_MeshAsset* ma = new SGRX_MeshAsset;
+					ma->sourceFile = subpath;
+					ma->outputCategory = category;
+					ma->outputName = name;
+					g_EdAS->assets.push_back( ma );
+					SetCurAsset( ma );
 				}
 			}
 		}
@@ -1127,9 +1087,13 @@ struct ASEditor : IGame
 	void OnTick( float dt, uint32_t gametime )
 	{
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
-		AnimInfo info;
-		GR_ApplyAnimator( &g_NUIRenderView->m_animPreview, g_NUIRenderView->m_meshPrevInst );
-		g_NUIRenderView->m_animPreview.Advance( dt, &info );
+		if( g_NUIRenderView->m_meshPrevInst->skin_matrices.size() )
+		{
+			AnimInfo info = { gametime, g_NUIRenderView->m_meshPrevInst->matrix };
+			g_NUIRenderView->m_animPreview.Advance( dt, &info );
+			if( !GR_ApplyAnimator( &g_NUIRenderView->m_animPreview, g_NUIRenderView->m_meshPrevInst ) )
+				LOG_ERROR << "animator did not apply anim";
+		}
 		
 		SGRX_IMGUI_NewFrame( dt );
 		
@@ -1176,43 +1140,43 @@ struct ASEditor : IGame
 				ImGui::SameLine( 0, 50 );
 				if( ImGui::Button( "Create texture" ) )
 				{
-					SGRX_TextureAsset ta;
+					SGRX_TextureAsset* ta = new SGRX_TextureAsset;
 					if( g_CurAsset )
-						ta.outputCategory = g_CurAsset->outputCategory;
-					ta.outputType = SGRX_TOF_STX_RGBA32;
-					ta.CheckGUID();
-					g_EdAS->textureAssets.push_back( ta );
-					SetCurAsset( &g_EdAS->textureAssets.last() );
+						ta->outputCategory = g_CurAsset->outputCategory;
+					ta->outputType = SGRX_TOF_STX_RGBA32;
+					ta->CheckGUID();
+					g_EdAS->assets.push_back( ta );
+					SetCurAsset( ta );
 				}
 				ImGui::SameLine();
 				if( ImGui::Button( "Create mesh" ) )
 				{
-					SGRX_MeshAsset ma;
+					SGRX_MeshAsset* ma = new SGRX_MeshAsset;
 					if( g_CurAsset )
-						ma.outputCategory = g_CurAsset->outputCategory;
-					ma.CheckGUID();
-					g_EdAS->meshAssets.push_back( ma );
-					SetCurAsset( &g_EdAS->meshAssets.last() );
+						ma->outputCategory = g_CurAsset->outputCategory;
+					ma->CheckGUID();
+					g_EdAS->assets.push_back( ma );
+					SetCurAsset( ma );
 				}
 				ImGui::SameLine();
 				if( ImGui::Button( "Create anim. bundle" ) )
 				{
-					SGRX_AnimBundleAsset aba;
+					SGRX_AnimBundleAsset* aba = new SGRX_AnimBundleAsset;
 					if( g_CurAsset )
-						aba.outputCategory = g_CurAsset->outputCategory;
-					aba.CheckGUID();
-					g_EdAS->animBundleAssets.push_back( aba );
-					SetCurAsset( &g_EdAS->animBundleAssets.last() );
+						aba->outputCategory = g_CurAsset->outputCategory;
+					aba->CheckGUID();
+					g_EdAS->assets.push_back( aba );
+					SetCurAsset( aba );
 				}
 				ImGui::SameLine();
 				if( ImGui::Button( "Create file" ) )
 				{
-					SGRX_FileAsset fa;
+					SGRX_FileAsset* fa = new SGRX_FileAsset;
 					if( g_CurAsset )
-						fa.outputCategory = g_CurAsset->outputCategory;
-					fa.CheckGUID();
-					g_EdAS->fileAssets.push_back( fa );
-					SetCurAsset( &g_EdAS->fileAssets.last() );
+						fa->outputCategory = g_CurAsset->outputCategory;
+					fa->CheckGUID();
+					g_EdAS->assets.push_back( fa );
+					SetCurAsset( fa );
 				}
 				
 				ImGui::EndMenuBar();

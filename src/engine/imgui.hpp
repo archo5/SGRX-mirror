@@ -77,6 +77,7 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIRenderView : SGRX_RefCounted, SGRX_DebugDraw
 	ENGINE_EXPORT bool CanAcceptKeyboardInput();
 	ENGINE_EXPORT void Process( float deltaTime, bool editable = true );
 	ENGINE_EXPORT static void _StaticDraw( const ImDrawList* parent_list, const ImDrawCmd* cmd );
+	ENGINE_EXPORT virtual void OnBeforeDraw();
 	ENGINE_EXPORT virtual void DebugDraw();
 	
 	ENGINE_EXPORT void EditCameraParams();
