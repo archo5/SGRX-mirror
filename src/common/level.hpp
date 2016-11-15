@@ -134,6 +134,19 @@ EXP_STRUCT Transform
 	{
 		if( _parent == nptf )
 			return;
+		
+		// check 1
+		Transform* pp = nptf;
+		while( pp )
+		{
+			if( pp == this )
+			{
+				LOG_WARNING << "SetParent - tried to set self or child as parent";
+				return;
+			}
+			pp = pp->_parent;
+		}
+		
 		if( _parent )
 		{
 			_parent->_ch.remove_first( this );
@@ -189,7 +202,7 @@ EXP_STRUCT Transform
 	FINLINE Quat GetWorldRotation() const { TF_ONREAD; return _worldMatrix.GetRotationQuaternion(); }
 	FINLINE Vec3 GetWorldRotationXYZ() const { TF_ONREAD; return RAD2DEG( _worldMatrix.GetRotationQuaternion().ToXYZ() ); }
 	FINLINE Vec3 GetWorldScale() const { TF_ONREAD; return _worldMatrix.GetScale(); }
-	void SetWorldPosition( Vec3 v ){ _localPosition += _GetInvParentMtx().TransformPos( v - GetWorldPosition() ); OnEdit(); }
+	void SetWorldPosition( Vec3 v ){ _localPosition += _GetInvParentMtx().TransformNormal( v - GetWorldPosition() ); OnEdit(); }
 	FINLINE Mat4 GetWorldMatrix() const { TF_ONREAD; return _worldMatrix; }
 	void SetWorldMatrix( Mat4 mtx ){ SetLocalMatrix( mtx * _GetInvParentMtx() ); }
 	
@@ -474,6 +487,7 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	
 	// parent-child relation
 	GameObject* GetParent() const { return (GameObject*) _parent; }
+	void SetParent( GameObject* obj, bool preserveWorldTransform = true ){ _SetParent( obj, preserveWorldTransform ); }
 	ScrHandle _sgsGetParent(){ return ScrHandle( (GameObject*) _parent ); }
 	FINLINE GameObject* GetChild( size_t i ) const
 	{

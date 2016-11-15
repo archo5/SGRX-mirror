@@ -2180,8 +2180,17 @@ void EdMainFrame::SetEditTransform( EdEditTransform* et )
 }
 
 
+static GameObject* hoveredObj = NULL;
 static void DrawHierarchyItem( GameObject* obj )
 {
+	bool open = false;
+	ImGui::PushID( obj );
+	if( obj->GetChildCount() )
+	{
+		ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_FirstUseEver );
+		open = ImGui::TreeNode( "" );
+		ImGui::SameLine();
+	}
 	if( ImGui::Selectable(
 		obj->m_name.size() ? obj->m_name.c_str() : "<unnamed>",
 		g_EdWorld->IsObjectSelected( obj ) ) )
@@ -2189,14 +2198,76 @@ static void DrawHierarchyItem( GameObject* obj )
 		g_EdWorld->SelectObject( obj,
 			ImGui::IsKeyDown( SDL_SCANCODE_LCTRL ) ? SELOBJ_TOGGLE : SELOBJ_ONLY );
 	}
-	if( obj->GetChildCount() )
+	if( ImGui::IsMouseDragging() )
 	{
-		ImGui::Indent();
+		ImDrawList* dl = ImGui::GetWindowDrawList();
+		if( obj == hoveredObj )
+		{
+			dl->AddRectFilled( ImGui::GetItemRectMin(),
+				ImGui::GetItemRectMax(),
+				ImColor(200,100,100,100), 4 );
+		}
+		else if( ImGui::IsItemHoveredRect() )
+		{
+			ImVec2 mpos = ImGui::GetMousePos(),
+				rmin = ImGui::GetItemRectMin(),
+				rmax = ImGui::GetItemRectMax();
+			if( mpos.x < ( rmin.x + rmax.x ) * 0.5f )
+			{
+				dl->AddRectFilled( rmin,
+					ImVec2( ( rmin.x + rmax.x ) * 0.5f, rmax.y ),
+					ImColor(200,150,100,100), 4 );
+			}
+			else
+			{
+				dl->AddRectFilled(
+					ImVec2( ( rmin.x + rmax.x ) * 0.5f, rmin.y ),
+					rmax, ImColor(200,150,100,100), 4 );
+			}
+		}
+	}
+	if( ImGui::IsItemHovered() && !ImGui::IsMouseDragging() && !ImGui::IsMouseReleased(0) )
+	{
+		hoveredObj = obj;
+	}
+	if( ImGui::IsItemHoveredRect() && ImGui::IsMouseReleased(0) && hoveredObj )
+	{
+		if( obj != hoveredObj )
+		{
+			ImVec2 mpos = ImGui::GetMousePos(),
+				rmin = ImGui::GetItemRectMin(),
+				rmax = ImGui::GetItemRectMax();
+			if( mpos.x < ( rmin.x + rmax.x ) * 0.5f )
+			{
+				hoveredObj->SetParent( obj->GetParent() );
+			}
+			else
+			{
+				hoveredObj->SetParent( obj );
+			}
+		}
+		hoveredObj = NULL;
+	}
+	if( open )
+	{
 		for( size_t i = 0; i < obj->GetChildCount(); ++i )
 		{
-			DrawHierarchyItem( obj );
+			DrawHierarchyItem( obj->GetChild( i ) );
 		}
-		ImGui::Unindent();
+		ImGui::TreePop();
+	}
+	ImGui::PopID();
+}
+static void DrawObjectHierarchy()
+{
+	for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
+	{
+		if( g_Level->m_gameObjects[ i ]->GetParent() == NULL )
+			DrawHierarchyItem( g_Level->m_gameObjects[ i ] );
+	}
+	if( ImGui::IsMouseReleased(0) )
+	{
+		hoveredObj = NULL;
 	}
 }
 
@@ -2471,10 +2542,7 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 		{
 			ImGui::Text( "Objects" );
 			ImGui::Separator();
-			for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
-			{
-				DrawHierarchyItem( g_Level->m_gameObjects[ i ] );
-			}
+			DrawObjectHierarchy();
 		},
 		{
 			g_UIFrame->ViewUI();
