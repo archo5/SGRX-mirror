@@ -1697,6 +1697,7 @@ struct EdWorld
 	void AddObject( EdObject* obj, bool regen = true );
 	void DeleteObject( EdObjIdx idx, bool update = true );
 	
+	bool IsObjectSelected( EdObjIdx idx ){ return m_selection.isset( idx ); }
 	void DeleteSelectedObjects();
 	// returns if there were any selected blocks
 	bool DuplicateSelectedObjectsAndMoveSelection();

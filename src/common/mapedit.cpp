@@ -2180,6 +2180,27 @@ void EdMainFrame::SetEditTransform( EdEditTransform* et )
 }
 
 
+static void DrawHierarchyItem( GameObject* obj )
+{
+	if( ImGui::Selectable(
+		obj->m_name.size() ? obj->m_name.c_str() : "<unnamed>",
+		g_EdWorld->IsObjectSelected( obj ) ) )
+	{
+		g_EdWorld->SelectObject( obj,
+			ImGui::IsKeyDown( SDL_SCANCODE_LCTRL ) ? SELOBJ_TOGGLE : SELOBJ_ONLY );
+	}
+	if( obj->GetChildCount() )
+	{
+		ImGui::Indent();
+		for( size_t i = 0; i < obj->GetChildCount(); ++i )
+		{
+			DrawHierarchyItem( obj );
+		}
+		ImGui::Unindent();
+	}
+}
+
+
 //
 // EDITOR ENTRY POINT
 //
@@ -2446,7 +2467,15 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 			ImGui::EndMenuBar();
 		}
 		
-		IMGUI_HSPLIT( 0.7f,
+		IMGUI_HSPLIT3( 0.2f, 0.7f,
+		{
+			ImGui::Text( "Objects" );
+			ImGui::Separator();
+			for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
+			{
+				DrawHierarchyItem( g_Level->m_gameObjects[ i ] );
+			}
+		},
 		{
 			g_UIFrame->ViewUI();
 		},
