@@ -279,7 +279,6 @@ GameObject* EDGO_FLoad( sgsVariable data )
 		data.getprop( "parent" ).get<StringView>() );
 	if( parent_guid.NotNull() )
 	{
-		LOG << "parent:" << parent_guid;
 		ScriptContext& SC = g_Level->GetScriptCtx();
 		SC.GetGlobal( "ED_ILOAD" ).tthiscall<void>( SC.C, "AddLink",
 			obj->GetScriptedObject(), "parent",

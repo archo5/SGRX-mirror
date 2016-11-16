@@ -2182,6 +2182,11 @@ void EdMainFrame::SetEditTransform( EdEditTransform* et )
 
 
 static GameObject* hoveredObj = NULL;
+static void AfterObjChanges()
+{
+	if( g_mode == EditObjects )
+		g_UIFrame->m_emEditObjs.RecheckSelectionUI();
+}
 static void DrawHierarchyItem( GameObject* obj )
 {
 	bool open = false;
@@ -2198,8 +2203,7 @@ static void DrawHierarchyItem( GameObject* obj )
 	{
 		g_EdWorld->SelectObject( obj,
 			ImGui::IsKeyDown( SDL_SCANCODE_LCTRL ) ? SELOBJ_TOGGLE : SELOBJ_ONLY );
-		if( g_mode == EditObjects )
-			g_UIFrame->m_emEditObjs.RecheckSelectionUI();
+		AfterObjChanges();
 	}
 	if( ImGui::IsMouseDragging() )
 	{
@@ -2233,6 +2237,56 @@ static void DrawHierarchyItem( GameObject* obj )
 	{
 		hoveredObj = obj;
 	}
+	if( ImGui::IsItemHovered() && ImGui::IsMouseClicked(1) )
+	{
+	//	menuObj = obj;
+		ImGui::OpenPopup( "object_h_menu" );
+	}
+	if( ImGui::BeginPopup( "object_h_menu" ) )
+	{
+		ImGui::Text( "%s", obj->m_name.size() ? obj->m_name.c_str() : "<unnamed>" );
+		if( obj->GetParent() )
+		{
+			ImGui::Separator();
+			if( ImGui::Selectable( "Move up (keep world xform)" ) )
+			{
+				obj->SetParent( obj->GetParent()->GetParent(), true );
+				AfterObjChanges();
+			}
+			if( ImGui::Selectable( "Move up (keep local xform)" ) )
+			{
+				obj->SetParent( obj->GetParent()->GetParent(), false );
+				AfterObjChanges();
+			}
+			if( ImGui::Selectable( "Move to top (keep world xform)" ) )
+			{
+				obj->SetParent( NULL, true );
+				AfterObjChanges();
+			}
+			if( ImGui::Selectable( "Move to top (keep local xform)" ) )
+			{
+				obj->SetParent( NULL, false );
+				AfterObjChanges();
+			}
+		}
+		ImGui::Separator();
+		if( ImGui::Selectable( "Delete" ) )
+		{
+			g_Level->DestroyGameObject( obj, false );
+			AfterObjChanges();
+		}
+		if( ImGui::Selectable( "Delete (with children)" ) )
+		{
+			g_Level->DestroyGameObject( obj, true );
+			AfterObjChanges();
+		}
+		if( ImGui::Selectable( "Duplicate" ) )
+		{
+			EDGO_Clone( obj );
+			AfterObjChanges();
+		}
+		ImGui::EndPopup();
+	}
 	if( ImGui::IsItemHoveredRect() && ImGui::IsMouseReleased(0) && hoveredObj )
 	{
 		if( obj != hoveredObj )
@@ -2242,11 +2296,13 @@ static void DrawHierarchyItem( GameObject* obj )
 				rmax = ImGui::GetItemRectMax();
 			if( mpos.x < ( rmin.x + rmax.x ) * 0.5f )
 			{
-				hoveredObj->SetParent( obj->GetParent() );
+				hoveredObj->SetParent( obj->GetParent(), ImGui::GetIO().KeyAlt == false );
+				AfterObjChanges();
 			}
 			else
 			{
-				hoveredObj->SetParent( obj );
+				hoveredObj->SetParent( obj, ImGui::GetIO().KeyAlt == false );
+				AfterObjChanges();
 			}
 		}
 		hoveredObj = NULL;
