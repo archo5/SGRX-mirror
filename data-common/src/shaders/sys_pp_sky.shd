@@ -16,7 +16,6 @@ void main( float2 itex : TEXCOORD0
 {
 	float2 fpos = lerp( projDATA.xy, projDATA.zw, itex );
 	float3 sbcoord = normalize( mul( mInvView, float4( fpos, 1, 0 ) ).xyz );
-	sbcoord = sbcoord.xzy;
 	RT0 = float4( TEXSAMPLE_CUBE_LOD( texSKY, sbcoord, 0 ).rgb, 1 );
 }
 

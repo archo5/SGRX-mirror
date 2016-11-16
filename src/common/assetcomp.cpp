@@ -233,12 +233,38 @@ SGRX_IFP32Handle SGRX_ImageFilter_Resize::Process( SGRX_ImageFP32* image, SGRX_I
 	return out;
 }
 
+static const char* imgfltrearrange_string_table[] =
+{
+	"SlicesToVolume",
+	"TurnCubemapYZ",
+};
+
+const char* SGRX_ImgFltRearrange_ToString( SGRX_ImgFltRearrange_Mode ifrm )
+{
+	int fid = ifrm;
+	if( fid < 0 || fid >= SGRX_IFR__COUNT )
+		fid = 0;
+	return imgfltrearrange_string_table[ fid ];
+}
+
+SGRX_ImgFltRearrange_Mode SGRX_ImgFltRearrange_FromString( const StringView& sv )
+{
+	for( int i = 0; i < SGRX_IFR__COUNT; ++i )
+	{
+		if( sv == imgfltrearrange_string_table[ i ] )
+			return (SGRX_ImgFltRearrange_Mode) i;
+	}
+	return SGRX_IFR_SlicesToVolume;
+}
+
 bool SGRX_ImageFilter_Rearrange::Parse( ConfigReader& cread )
 {
 	StringView key, value;
 	while( cread.Read( key, value ) )
 	{
-		if( key == "WIDTH" )
+		if( key == "MODE" )
+			mode = SGRX_ImgFltRearrange_FromString( value );
+		else if( key == "WIDTH" )
 			width = String_ParseInt( value );
 		else if( key == "FILTER_END" )
 			return true;
@@ -256,7 +282,9 @@ void SGRX_ImageFilter_Rearrange::Generate( String& out )
 {
 	char bfr[ 128 ];
 	sgrx_snprintf( bfr, 128,
+		"  MODE %s\n"
 		"  WIDTH %d\n",
+		SGRX_ImgFltRearrange_ToString( mode ),
 		width );
 	out.append( bfr );
 }
@@ -264,18 +292,62 @@ void SGRX_ImageFilter_Rearrange::Generate( String& out )
 SGRX_IFP32Handle SGRX_ImageFilter_Rearrange::Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs )
 {
 	SGRX_IFP32Handle out = image;
-	int numslices = image->GetWidth() / width;
-	printf( "%d slices; ", numslices );
-	if( numslices >= 1 )
+	if( mode == SGRX_IFR_SlicesToVolume )
 	{
-		out = new SGRX_ImageFP32( width, image->GetHeight(), numslices, 1 );
-		for( int i = 0; i < numslices; ++i )
+		int numslices = image->GetWidth() / width;
+		printf( "%d slices; ", numslices );
+		if( numslices >= 1 )
 		{
-			for( int y = 0; y < image->GetHeight(); ++y )
+			out = new SGRX_ImageFP32( width, image->GetHeight(), numslices, 1 );
+			for( int i = 0; i < numslices; ++i )
 			{
-				for( int x = 0; x < width; ++x )
+				for( int y = 0; y < image->GetHeight(); ++y )
 				{
-					out->Pixel( x, y, i, 0 ) = image->Pixel( x + i * width, y, 0, 0 );
+					for( int x = 0; x < width; ++x )
+					{
+						out->Pixel( x, y, i, 0 ) = image->Pixel( x + i * width, y, 0, 0 );
+					}
+				}
+			}
+		}
+	}
+	else if( mode == SGRX_IFR_TurnCubemapYZ )
+	{
+		if( image->GetSides() == 6 &&
+			image->GetWidth() == image->GetHeight() &&
+			image->GetDepth() <= 1 )
+		{
+			out = image->CreateUninitializedCopy();
+			int width = image->GetWidth();
+			static int sliceremap[6] = {0,1,5,4,2,3};
+			for( int dstslice = 0; dstslice < 6; ++dstslice )
+			{
+				int srcslice = sliceremap[ dstslice ];
+				switch( dstslice )
+				{
+				case 0: // +X -- rotate by 90 degrees (dir.1)
+					for( int y = 0; y < width; ++y )
+						for( int x = 0; x < width; ++x )
+							out->Pixel( x, y, 0, dstslice ) =
+								image->Pixel( width - 1 - y, x, 0, srcslice );
+					break;
+				case 1: // -X -- rotate by 90 degrees (dir.2)
+					for( int y = 0; y < width; ++y )
+						for( int x = 0; x < width; ++x )
+							out->Pixel( x, y, 0, dstslice ) =
+								image->Pixel( y, width - 1 - x, 0, srcslice );
+					break;
+				case 2: case 5: // +Y, -Z -- rotate by 180 degrees (flip on both axes)
+					for( int y = 0; y < width; ++y )
+						for( int x = 0; x < width; ++x )
+							out->Pixel( x, y, 0, dstslice ) =
+								image->Pixel( width - 1 - x, width - 1 - y, 0, srcslice );
+					break;
+				default:
+					for( int y = 0; y < width; ++y )
+						for( int x = 0; x < width; ++x )
+							out->Pixel( x, y, 0, dstslice ) = image->Pixel( x, y, 0, srcslice );
+					break;
 				}
 			}
 		}
@@ -1199,7 +1271,31 @@ bool SGRX_AssetScript::Load( const StringView& path )
 		return false;
 	
 	ConfigReader cread( data );
-	return Parse( cread );
+	bool ret = Parse( cread );
+	if( ret )
+	{
+		// check GUIDs and regenerate duplicates
+		HashTable< SGRX_GUID, NoValue > guids;
+		for( size_t i = 0; i < assets.size(); ++i )
+		{
+			SGRX_GUID& guid = assets[ i ]->assetGUID;
+			if( guid.IsNull() )
+			{
+				printf( "asset %i GUID is NULL, it will be regenerated\n", int(i) );
+				guid.SetGenerated();
+			}
+			if( guids.isset( guid ) )
+			{
+				char guidstr[ GUID_STRING_LENGTH + 1 ];
+				guid.ToCharArray( guidstr );
+				printf( "asset %i GUID %s conflicts with another, it will be regenerated\n",
+					int(i), guidstr );
+				guid.SetGenerated();
+			}
+			guids.set( guid, NoValue() );
+		}
+	}
+	return ret;
 }
 
 bool SGRX_AssetScript::Save( const StringView& path )
@@ -1566,13 +1662,13 @@ SGRX_IFP32Handle SGRX_LoadImage( const StringView& path )
 				ddsinfo.image.width, ddsinfo.image.height,
 				ddsinfo.image.depth, ddsinfo.flags & DDS_CUBEMAP ? 6 : 1 );
 			dds_byte* srcbytes = dds_read_all( &ddsinfo );
-			dds_byte* srcdata = srcbytes;
 			Vec4* dstdata = ih->GetData();
 			switch( ddsinfo.image.format )
 			{
 			case DDS_FMT_R8G8B8A8:
 				for( int s = 0; s < ih->GetSides(); ++s )
 				{
+					dds_byte* srcdata = srcbytes + ddsinfo.sideoffsets[ s ];
 					for( int z = 0; z < ih->GetDepth(); ++z )
 					{
 						for( int y = 0; y < ih->GetHeight(); ++y )
@@ -1593,6 +1689,7 @@ SGRX_IFP32Handle SGRX_LoadImage( const StringView& path )
 			case DDS_FMT_B8G8R8A8:
 				for( int s = 0; s < ih->GetSides(); ++s )
 				{
+					dds_byte* srcdata = srcbytes + ddsinfo.sideoffsets[ s ];
 					for( int z = 0; z < ih->GetDepth(); ++z )
 					{
 						for( int y = 0; y < ih->GetHeight(); ++y )
@@ -1613,6 +1710,7 @@ SGRX_IFP32Handle SGRX_LoadImage( const StringView& path )
 			case DDS_FMT_B8G8R8X8:
 				for( int s = 0; s < ih->GetSides(); ++s )
 				{
+					dds_byte* srcdata = srcbytes + ddsinfo.sideoffsets[ s ];
 					for( int z = 0; z < ih->GetDepth(); ++z )
 					{
 						for( int y = 0; y < ih->GetHeight(); ++y )
@@ -1656,14 +1754,14 @@ SGRX_IFP32Handle SGRX_LoadImage( const StringView& path )
 	}
 }
 
-void SGRX_ImageF32ToRGBA8( SGRX_ImageFP32* image, ByteArray& outdata )
+void SGRX_ImageF32ToRGBA8( SGRX_ImageFP32* image, ByteArray& outdata, int side = 0 )
 {
-	size_t off = outdata.size(), pxcount = image->Size();
+	size_t off = outdata.size(), pxcount = image->SideSize();
 	outdata.resize( off + pxcount * 4 );
 	uint8_t* data = &outdata[ off ];
 	for( size_t i = 0; i < pxcount; ++i )
 	{
-		const Vec4& color = (*image)[ i ];
+		const Vec4& color = (*image)[ i + side * pxcount ];
 		data[ 0 ] = clamp( color.x, 0, 1 ) * 255;
 		data[ 1 ] = clamp( color.y, 0, 1 ) * 255;
 		data[ 2 ] = clamp( color.z, 0, 1 ) * 255;
@@ -1759,8 +1857,11 @@ static void PreprocessSTX( const SGRX_TextureAsset& TA, SGRX_ImageFP32* image,
 static void STXFinalize( ByteArray& filedata, SGRX_ImageFP32* image, uint16_t flags, const Array< SGRX_IFP32Handle >& mips )
 {
 	ByteArray imagedata;
-	for( size_t i = 0; i < mips.size(); ++i )
-		SGRX_ImageF32ToRGBA8( mips[ i ], imagedata );
+	for( int s = 0; s < image->GetSides(); ++s )
+	{
+		for( size_t i = 0; i < mips.size(); ++i )
+			SGRX_ImageF32ToRGBA8( mips[ i ], imagedata, s );
+	}
 	filedata.append( "STX\0", 4 );
 	int type = TEXTYPE_2D;
 	if( image->GetSides() > 1 )
@@ -2873,6 +2974,8 @@ void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 			if( CanSkip( force, A, FS_FileModTime( TA->sourceFile ), path ) )
 				continue;
 			
+			printf( "(reason: %s)\n",
+				GetReasonForBuilding( force, A, FS_FileModTime( TA->sourceFile ), path ) );
 			SGRX_IFP32Handle image = SGRX_ProcessTextureAsset( TA );
 			if( image == NULL )
 				continue;

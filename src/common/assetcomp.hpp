@@ -19,6 +19,7 @@ struct SGRX_ImageFP32 : SGRX_RefCounted
 		m_sides = s;
 	}
 	FINLINE size_t Size() const { return m_pixels.size(); }
+	FINLINE size_t SideSize() const { return m_width * m_height * m_depth; }
 	FINLINE int GetWidth() const { return m_width; }
 	FINLINE int GetHeight() const { return m_height; }
 	FINLINE int GetDepth() const { return m_depth; }
@@ -168,10 +169,17 @@ struct SGRX_ImageFilter_Resize : SGRX_ImageFilter
 	bool srgb;
 };
 
+enum SGRX_ImgFltRearrange_Mode
+{
+	SGRX_IFR_SlicesToVolume,
+	SGRX_IFR_TurnCubemapYZ,
+	
+	SGRX_IFR__COUNT,
+};
 struct SGRX_ImageFilter_Rearrange : SGRX_ImageFilter
 {
 	// Convert a 2D slice list into a volume texture
-	SGRX_ImageFilter_Rearrange() : width(16){}
+	SGRX_ImageFilter_Rearrange() : mode(SGRX_IFR_SlicesToVolume), width(16){}
 	SGRX_IF_CLONE( SGRX_ImageFilter_Rearrange );
 	static bool IsType( SGRX_AssetImageFilterType ift ){ return ift == SGRX_AIF_Rearrange; }
 	SGRX_AssetImageFilterType GetType() const { return SGRX_AIF_Rearrange; }
@@ -180,6 +188,7 @@ struct SGRX_ImageFilter_Rearrange : SGRX_ImageFilter
 	void Generate( String& out );
 	SGRX_IFP32Handle Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs );
 	
+	SGRX_ImgFltRearrange_Mode mode;
 	int width;
 };
 

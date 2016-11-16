@@ -182,6 +182,7 @@ bool PickCategoryName( const char* label, String& name )
 
 void EditFilter( size_t i, SGRX_ImageFilter* IF )
 {
+	static const char* rearrange_modes[] = { "Slices to volume", "Turn cubemap Y->Z" };
 	static const char* sharpen_modes[] = { "0-1", "1-1", "1-2" };
 	
 	switch( IF->GetType() )
@@ -200,6 +201,7 @@ void EditFilter( size_t i, SGRX_ImageFilter* IF )
 		SGRX_CAST( SGRX_ImageFilter_Rearrange*, F, IF );
 		IMGUI_GROUP( "Rearrange", true,
 		{
+			IMGUI_COMBOBOX( "Mode", F->mode, rearrange_modes );
 			IMGUIEditInt( "Width", F->width, 1, 4096 );
 		});
 		} break;
@@ -673,6 +675,7 @@ void EditCurAsset()
 	if( ImGui::Button( "Duplicate", ImVec2( ImGui::GetContentRegionAvailWidth(), 16 ) ) )
 	{
 		g_CurAsset = g_CurAsset->Clone();
+		g_CurAsset->assetGUID.SetGenerated();
 		g_CurAsset->outputName.append( " - Copy" );
 		g_EdAS->assets.push_back( g_CurAsset );
 	}
