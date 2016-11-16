@@ -228,6 +228,34 @@ TextureHandle GR_CreateTexture3D( int width, int height, int depth, SGRX_Texture
 	return tex;
 }
 
+TextureHandle GR_CreateTextureFromBytes( ByteView bytes )
+{
+	LOG_FUNCTION;
+	
+	double t0 = sgrx_hqtime();
+	TextureData texdata;
+	memset( &texdata.info, 0, sizeof(texdata.info) );
+	texdata.info.flags = TEXFLAGS_LERP;
+	ByteFileReader br( bytes );
+	if( !TextureData_Load( &texdata, &br, "<bytes>", 0 ) )
+	{
+		// error is already printed
+		return TextureHandle();
+	}
+	
+	TextureHandle tex = g_Renderer->CreateTexture( &texdata.info, texdata.data.data() );
+	if( !tex )
+	{
+		// error is already printed
+		return TextureHandle();
+	}
+	tex->m_info = texdata.info;
+	
+	if( VERBOSE )
+		LOG << "Created texture from " << bytes.size() << " bytes (time=" << ( sgrx_hqtime() - t0 ) << ")";
+	return tex;
+}
+
 TextureHandle GR_GetTexture( StringView path )
 {
 	TextureHandle tex;

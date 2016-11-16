@@ -107,7 +107,16 @@ struct AssetRenderView : IMGUIRenderView
 
 void FC_SetTexture( TextureHandle tex )
 {
-	g_NUIRenderView->m_texPreview = tex;
+	if( tex.GetInfo().type == TEXTYPE_CUBE )
+	{
+		g_NUIRenderView->m_scene->skyTexture = tex;
+		g_NUIRenderView->m_texPreview = NULL;
+	}
+	else
+	{
+		g_NUIRenderView->m_scene->skyTexture = NULL;
+		g_NUIRenderView->m_texPreview = tex;
+	}
 	g_NUIRenderView->m_meshPrevInst->enabled = false;
 	g_NUIRenderView->m_meshPrevInst->skin_matrices.resize( 0 );
 	g_NUIRenderView->m_animPreview.m_mesh = NULL;
@@ -115,6 +124,7 @@ void FC_SetTexture( TextureHandle tex )
 }
 void FC_SetMesh( MeshHandle mesh )
 {
+	g_NUIRenderView->m_scene->skyTexture = NULL;
 	g_NUIRenderView->m_texPreview = NULL;
 	g_NUIRenderView->m_meshPrevInst->SetMesh( mesh );
 	g_NUIRenderView->m_meshPrevInst->enabled = mesh != NULL;
@@ -124,6 +134,7 @@ void FC_SetMesh( MeshHandle mesh )
 }
 void FC_SetAnim( MeshHandle mesh, AnimHandle anim )
 {
+	g_NUIRenderView->m_scene->skyTexture = NULL;
 	g_NUIRenderView->m_texPreview = NULL;
 	g_NUIRenderView->m_meshPrevInst->SetMesh( mesh );
 	g_NUIRenderView->m_meshPrevInst->enabled = mesh != NULL;

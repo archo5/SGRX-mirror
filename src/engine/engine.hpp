@@ -395,6 +395,24 @@ struct IF_GCC(ENGINE_EXPORT) IFileReader : SGRX_RefCounted
 };
 typedef Handle< IFileReader > HFileReader;
 
+struct ByteFileReader : IFileReader
+{
+	ByteFileReader( ByteView v ) : m_view( v ), m_pos( 0 ){}
+	void Close(){}
+	uint64_t Length(){ return m_view.size(); }
+	bool Seek( uint64_t pos ){ m_pos = TCLAMP( size_t(pos), size_t(0), m_view.size() ); return true; }
+	uint64_t Tell(){ return m_pos; }
+	uint32_t TryRead( uint32_t num, uint8_t* out )
+	{
+		if( num > m_view.size() - m_pos )
+			num = m_view.size() - m_pos;
+		memcpy( out, m_view.part( m_pos ).data(), num );
+		return num;
+	}
+	ByteView m_view;
+	size_t m_pos;
+};
+
 struct IF_GCC(ENGINE_EXPORT) IFileSystem : SGRX_RefCounted
 {
 	ENGINE_EXPORT virtual HFileReader OpenBinaryFile( const StringView& path ) = 0;
@@ -2088,6 +2106,7 @@ ENGINE_EXPORT int GR_GetHeight();
 ENGINE_EXPORT int GR_CalcMipCount( int width, int height = 0, int depth = 0 );
 ENGINE_EXPORT TextureHandle GR_CreateTexture( int width, int height, SGRX_TextureFormat format, uint32_t flags, int mips, const void* data );
 ENGINE_EXPORT TextureHandle GR_CreateTexture3D( int width, int height, int depth, SGRX_TextureFormat format, uint32_t flags, int mips, const void* data );
+ENGINE_EXPORT TextureHandle GR_CreateTextureFromBytes( ByteView bytes );
 ENGINE_EXPORT TextureHandle GR_GetTexture( StringView path );
 ENGINE_EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, SGRX_TextureFormat format, int mips = 1 );
 ENGINE_EXPORT TextureHandle GR_CreateCubeRenderTexture( int width, SGRX_TextureFormat format, int mips = 1 );

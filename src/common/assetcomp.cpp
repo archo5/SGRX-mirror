@@ -12,7 +12,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <libpng/png.h>
-
+extern "C" {
+#include <dds.c>
+}
 
 
 SGRX_IFP32Handle SGRX_ResizeImage( SGRX_ImageFP32* image, int width, int height, int depth )
@@ -33,7 +35,7 @@ SGRX_IFP32Handle SGRX_ResizeImage( SGRX_ImageFP32* image, int width, int height,
 	float xoff = TMAX( 0.0f, image->GetWidth() / fw - 1.0f ) / ( image->GetWidth() * 2 );
 	float yoff = TMAX( 0.0f, image->GetHeight() / fh - 1.0f ) / ( image->GetHeight() * 2 );
 	float zoff = TMAX( 0.0f, image->GetDepth() / fh - 1.0f ) / ( image->GetDepth() * 2 );
-	SGRX_IFP32Handle out = new SGRX_ImageFP32( width, height, depth, 1 );
+	SGRX_IFP32Handle out = new SGRX_ImageFP32( width, height, depth, image->GetSides() );
 	for( int s = 0; s < image->GetSides(); ++s )
 	{
 		if( image->GetDepth() == 1 )
@@ -1541,21 +1543,117 @@ SGRX_IFP32Handle SGRX_LoadImage( const StringView& path )
 		return NULL;
 	}
 	
-	int w = 0, h = 0, nc = 0;
-	stbi_ldr_to_hdr_gamma( 1.0f );
-	float* coldata = stbi_loadf_from_memory(
-		data.data(), data.size(), &w, &h, &nc, 4 );
-	if( coldata == NULL )
+	if( path.ends_with( ".dds" ) )
 	{
-		LOG_ERROR << "Failed to parse image file: " << path;
+		static const dds_u32 dds_supfmt[] = { DDS_FMT_R8G8B8A8, DDS_FMT_B8G8R8A8, DDS_FMT_B8G8R8X8 /*, DDS_FMT_DXT1, DDS_FMT_DXT3, DDS_FMT_DXT5 */, 0 };
+		dds_info ddsinfo;
+		int err = dds_load_from_memory( data.data(), data.size(), &ddsinfo, dds_supfmt );
+		if( err == DDS_SUCCESS || err == DDS_ENOTSUP )
+		{
+			if( err == DDS_ENOTSUP )
+			{
+				LOG_ERROR << "Failed to load texture " << path << " - unsupported DDS image format";
+				return NULL;
+			}
+			dds_u32 cmf = ddsinfo.flags & DDS_CUBEMAP_FULL;
+			if( cmf && cmf != DDS_CUBEMAP_FULL )
+			{
+				dds_close( &ddsinfo );
+				LOG_ERROR << "  Failed to load texture " << path << " - incomplete cubemap";
+				return NULL;
+			}
+			SGRX_IFP32Handle ih = new SGRX_ImageFP32(
+				ddsinfo.image.width, ddsinfo.image.height,
+				ddsinfo.image.depth, ddsinfo.flags & DDS_CUBEMAP ? 6 : 1 );
+			dds_byte* srcbytes = dds_read_all( &ddsinfo );
+			dds_byte* srcdata = srcbytes;
+			Vec4* dstdata = ih->GetData();
+			switch( ddsinfo.image.format )
+			{
+			case DDS_FMT_R8G8B8A8:
+				for( int s = 0; s < ih->GetSides(); ++s )
+				{
+					for( int z = 0; z < ih->GetDepth(); ++z )
+					{
+						for( int y = 0; y < ih->GetHeight(); ++y )
+						{
+							for( int x = 0; x < ih->GetWidth(); ++x )
+							{
+								uint8_t r = srcdata[0];
+								uint8_t g = srcdata[1];
+								uint8_t b = srcdata[2];
+								uint8_t a = srcdata[3];
+								srcdata += 4;
+								*dstdata++ = V4( r, g, b, a ) * INV_255F;
+							}
+						}
+					}
+				}
+				break;
+			case DDS_FMT_B8G8R8A8:
+				for( int s = 0; s < ih->GetSides(); ++s )
+				{
+					for( int z = 0; z < ih->GetDepth(); ++z )
+					{
+						for( int y = 0; y < ih->GetHeight(); ++y )
+						{
+							for( int x = 0; x < ih->GetWidth(); ++x )
+							{
+								uint8_t b = srcdata[0];
+								uint8_t g = srcdata[1];
+								uint8_t r = srcdata[2];
+								uint8_t a = srcdata[3];
+								srcdata += 4;
+								*dstdata++ = V4( r, g, b, a ) * INV_255F;
+							}
+						}
+					}
+				}
+				break;
+			case DDS_FMT_B8G8R8X8:
+				for( int s = 0; s < ih->GetSides(); ++s )
+				{
+					for( int z = 0; z < ih->GetDepth(); ++z )
+					{
+						for( int y = 0; y < ih->GetHeight(); ++y )
+						{
+							for( int x = 0; x < ih->GetWidth(); ++x )
+							{
+								uint8_t b = srcdata[0];
+								uint8_t g = srcdata[1];
+								uint8_t r = srcdata[2];
+								uint8_t a = 255;
+								srcdata += 4;
+								*dstdata++ = V4( r, g, b, a ) * INV_255F;
+							}
+						}
+					}
+				}
+				break;
+			}
+			free( srcbytes );
+			return ih;
+		}
+		LOG_ERROR << "Failed to load texture " << path << " - DDS load error " << err;
 		return NULL;
 	}
-	
-	SGRX_IFP32Handle ih = new SGRX_ImageFP32( w, h, 1, 1 );
-	memcpy( ih->GetData(), coldata, sizeof(Vec4) * w * h );
-	
-	stbi_image_free( coldata );
-	return ih;
+	else
+	{
+		int w = 0, h = 0, nc = 0;
+		stbi_ldr_to_hdr_gamma( 1.0f );
+		float* coldata = stbi_loadf_from_memory(
+			data.data(), data.size(), &w, &h, &nc, 4 );
+		if( coldata == NULL )
+		{
+			LOG_ERROR << "Failed to parse image file: " << path;
+			return NULL;
+		}
+		SGRX_IFP32Handle ih = new SGRX_ImageFP32( w, h, 1, 1 );
+		memcpy( ih->GetData(), coldata, sizeof(Vec4) * w * h );
+		
+		stbi_image_free( coldata );
+		return ih;
+	}
 }
 
 void SGRX_ImageF32ToRGBA8( SGRX_ImageFP32* image, ByteArray& outdata )
@@ -1630,6 +1728,54 @@ fail:
 	return code;
 }
 
+static void PreprocessSTX( const SGRX_TextureAsset& TA, SGRX_ImageFP32* image,
+	uint16_t& flags, Array< SGRX_IFP32Handle >& mips )
+{
+//	if( TA.isSRGB )
+//		flags |= TEXFLAGS_SRGB;
+	if( TA.lerp )
+		flags |= TEXFLAGS_LERP;
+	if( TA.clampx )
+		flags |= TEXFLAGS_CLAMP_X;
+	if( TA.clampy )
+		flags |= TEXFLAGS_CLAMP_Y;
+	
+	mips.push_back( image );
+	if( TA.mips )
+	{
+		flags |= TEXFLAGS_HASMIPS;
+		while( mips.last()->GetWidth() != 1
+			|| mips.last()->GetHeight() != 1
+			|| mips.last()->GetDepth() != 1 )
+		{
+			int w1 = TMAX( mips.last()->GetWidth() / 2, 1 );
+			int h1 = TMAX( mips.last()->GetHeight() / 2, 1 );
+			int d1 = TMAX( mips.last()->GetDepth() / 2, 1 );
+			mips.push_back( SGRX_ResizeImage( mips.last(), w1, h1, d1 ) );
+		}
+	}
+}
+
+static void STXFinalize( ByteArray& filedata, SGRX_ImageFP32* image, uint16_t flags, const Array< SGRX_IFP32Handle >& mips )
+{
+	ByteArray imagedata;
+	for( size_t i = 0; i < mips.size(); ++i )
+		SGRX_ImageF32ToRGBA8( mips[ i ], imagedata );
+	filedata.append( "STX\0", 4 );
+	int type = TEXTYPE_2D;
+	if( image->GetSides() > 1 )
+		type = TEXTYPE_CUBE;
+	if( image->GetDepth() > 1 )
+		type = TEXTYPE_VOLUME;
+	TextureInfo info = { type, mips.size(),
+		image->GetWidth(), image->GetHeight(),
+		image->GetDepth(), TEXFMT_RGBA8, flags };
+	filedata.append( &info, sizeof(info) );
+	uint32_t datasize = imagedata.size();
+	filedata.append( &datasize, sizeof(datasize) );
+	filedata.append( imagedata );
+}
+
 bool SGRX_SaveImage( const StringView& path, SGRX_ImageFP32* image, const SGRX_TextureAsset& TA )
 {
 	ByteArray filedata;
@@ -1638,6 +1784,11 @@ bool SGRX_SaveImage( const StringView& path, SGRX_ImageFP32* image, const SGRX_T
 	switch( TA.outputType )
 	{
 	case SGRX_TOF_PNG_RGBA32:
+		if( image->GetSides() != 1 )
+		{
+			printf( "ERROR: PNG does not support cubemaps\n" );
+			return false;
+		}
 		SGRX_ImageF32ToRGBA8( image, imagedata );
 		if( dumpimg( filedata, imagedata.data(), image->GetWidth(), image->GetHeight() ) )
 		{
@@ -1648,47 +1799,9 @@ bool SGRX_SaveImage( const StringView& path, SGRX_ImageFP32* image, const SGRX_T
 	case SGRX_TOF_STX_RGBA32:
 		{
 			uint16_t flags = 0;
-			
-		//	if( TA.isSRGB )
-		//		flags |= TEXFLAGS_SRGB;
-			if( TA.lerp )
-				flags |= TEXFLAGS_LERP;
-			if( TA.clampx )
-				flags |= TEXFLAGS_CLAMP_X;
-			if( TA.clampy )
-				flags |= TEXFLAGS_CLAMP_Y;
-			
 			Array< SGRX_IFP32Handle > mips;
-			mips.push_back( image );
-			if( TA.mips )
-			{
-				flags |= TEXFLAGS_HASMIPS;
-				while( mips.last()->GetWidth() != 1
-					|| mips.last()->GetHeight() != 1
-					|| mips.last()->GetDepth() != 1 )
-				{
-					int w1 = TMAX( mips.last()->GetWidth() / 2, 1 );
-					int h1 = TMAX( mips.last()->GetHeight() / 2, 1 );
-					int d1 = TMAX( mips.last()->GetDepth() / 2, 1 );
-					mips.push_back( SGRX_ResizeImage( mips.last(), w1, h1, d1 ) );
-				}
-			}
-			for( size_t i = 0; i < mips.size(); ++i )
-				SGRX_ImageF32ToRGBA8( mips[ i ], imagedata );
-			
-			filedata.append( "STX\0", 4 );
-			int type = TEXTYPE_2D;
-			if( image->GetSides() > 1 )
-				type = TEXTYPE_CUBE;
-			if( image->GetDepth() > 1 )
-				type = TEXTYPE_VOLUME;
-			TextureInfo info = { type, mips.size(),
-				image->GetWidth(), image->GetHeight(),
-				image->GetDepth(), TEXFMT_RGBA8, flags };
-			filedata.append( &info, sizeof(info) );
-			uint32_t datasize = imagedata.size();
-			filedata.append( &datasize, sizeof(datasize) );
-			filedata.append( imagedata );
+			PreprocessSTX( TA, image, flags, mips );
+			STXFinalize( filedata, image, flags, mips );
 		}
 		break;
 	default:
@@ -1735,33 +1848,10 @@ TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset
 {
 	if( !image )
 		return NULL;
-	uint32_t flags = 0;
-	
-//	if( TA->isSRGB )
-//		flags |= TEXFLAGS_SRGB;
-	if( TA->lerp )
-		flags |= TEXFLAGS_LERP;
-	if( TA->clampx )
-		flags |= TEXFLAGS_CLAMP_X;
-	if( TA->clampy )
-		flags |= TEXFLAGS_CLAMP_Y;
-	
+	uint16_t flags = 0;
 	Array< SGRX_IFP32Handle > mips;
-	mips.push_back( image );
-	if( TA->mips )
-	{
-		flags |= TEXFLAGS_HASMIPS;
-		while( mips.last()->GetWidth() != 1
-			|| mips.last()->GetHeight() != 1
-			|| mips.last()->GetDepth() != 1 )
-		{
-			int w1 = TMAX( mips.last()->GetWidth() / 2, 1 );
-			int h1 = TMAX( mips.last()->GetHeight() / 2, 1 );
-			int d1 = TMAX( mips.last()->GetDepth() / 2, 1 );
-			mips.push_back( SGRX_ResizeImage( mips.last(), w1, h1, d1 ) );
-		}
-	}
-	
+	PreprocessSTX( *TA, image, flags, mips );
+	/*
 	TextureHandle tex = GR_CreateTexture( image->GetWidth(), image->GetHeight(),
 		TEXFMT_RGBA8, flags, mips.size(), NULL );
 	ByteArray imagedata;
@@ -1771,7 +1861,10 @@ TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset
 		SGRX_ImageF32ToRGBA8( mips[ i ], imagedata );
 		tex.UploadRGBA8Part( imagedata.data(), i );
 	}
-	return tex;
+	return tex;*/
+	ByteArray filedata;
+	STXFinalize( filedata, image, flags, mips );
+	return GR_CreateTextureFromBytes( filedata );
 }
 
 struct VertexSkin
