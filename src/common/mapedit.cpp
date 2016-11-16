@@ -1131,7 +1131,7 @@ void EdWorld::DrawWires_GameObjects( const EdObjIdx& hl )
 		
 		for( size_t j = 0; j < obj->m_resources.size(); ++j )
 		{
-			GOResource* rsrc = obj->m_resources.item( j ).value;
+			GOResource* rsrc = obj->m_resources[ j ];
 			
 			// icon
 			sgsVariable texpathvar = rsrc->GetScriptedObject().getprop( "ED_Icon" );
@@ -2075,14 +2075,13 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 		
 		for( size_t i = 0; i < obj->m_resources.size(); ++i )
 		{
-			GOResource* rsrc = obj->m_resources.item( i ).value;
+			GOResource* rsrc = obj->m_resources[ i ];
 			
 			data.append( "\titem_" );
 			AppendNameSafeGUID( data, rsrc->m_src_guid );
-			data.append( " = obj.RequireResource( " );
-			data.append( sctx.ToSGSON( rsrc->m_name ) );
-			char bfr[ 32 ];
-			sgrx_snprintf( bfr, 32, ", %u, true ).\n\t{\n", (unsigned) rsrc->m_rsrcType );
+			char bfr[ 48 ];
+			sgrx_snprintf( bfr, 48, " = obj.RequireResource( %u, true ).\n\t{\n",
+				(unsigned) rsrc->m_rsrcType );
 			data.append( bfr );
 			// resource properties
 			sgsVariable rsrcdata = EDGO_RSRC_LCSave( rsrc );
@@ -2099,15 +2098,13 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 			data.append( "\t};\n" );
 		}
 		
-		for( size_t i = 0; i < obj->m_bhvr_order.size(); ++i )
+		for( size_t i = 0; i < obj->m_behaviors.size(); ++i )
 		{
-			GOBehavior* bhvr = obj->m_bhvr_order[ i ];
+			GOBehavior* bhvr = obj->m_behaviors[ i ];
 			
 			data.append( "\titem_" );
 			AppendNameSafeGUID( data, bhvr->m_src_guid );
-			data.append( " = obj.RequireBehavior( " );
-			data.append( sctx.ToSGSON( bhvr->m_name ) );
-			data.append( ", " );
+			data.append( " = obj.RequireBehavior( " ); // TODO FIX MULTIPLE BEHAVIORS
 			data.append( sctx.ToSGSON( bhvr->m_type ) );
 			data.append( ", true ).\n\t{\n" );
 			// behavior properties

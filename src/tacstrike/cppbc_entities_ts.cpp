@@ -169,12 +169,9 @@ int TSCharacter::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_type ); return SGS_SUCCESS; }
 		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
 		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
-		SGS_CASE( "resources" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_get_resources() ); return SGS_SUCCESS; }
-		SGS_CASE( "behaviors" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_get_behaviors() ); return SGS_SUCCESS; }
 		SGS_CASE( "moveRefPos" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetMoveRefPos() ); return SGS_SUCCESS; }
 		SGS_CASE( "curWeapon" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->sgsCurWeapon() ); return SGS_SUCCESS; }
 		SGS_CASE( "health" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_health ); return SGS_SUCCESS; }
@@ -214,12 +211,9 @@ int TSCharacter::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->_data, depth ).push( C ); }
-		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_type, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->_get_object(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nresources = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->_get_resources(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nbehaviors = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->_get_behaviors(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmoveRefPos = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetMoveRefPos(), depth ).push( C ); }
 		{ sgs_PushString( C, "\ncurWeapon = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->sgsCurWeapon(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nhealth = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_health, depth ).push( C ); }
@@ -229,7 +223,7 @@ int TSCharacter::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\ninfoFlags = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_infoFlags, depth ).push( C ); }
 		{ sgs_PushString( C, "\ngroup = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_group, depth ).push( C ); }
 		{ sgs_PushString( C, "\ntimeSinceLastHit = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_timeSinceLastHit, depth ).push( C ); }
-		sgs_StringConcat( C, 34 );
+		sgs_StringConcat( C, 28 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -362,12 +356,9 @@ int TSPlayerController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_type ); return SGS_SUCCESS; }
 		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
 		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
-		SGS_CASE( "resources" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->_get_resources() ); return SGS_SUCCESS; }
-		SGS_CASE( "behaviors" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->_get_behaviors() ); return SGS_SUCCESS; }
 		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->enabled ); return SGS_SUCCESS; }
 		SGS_CASE( "m_prevPos" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_prevPos ); return SGS_SUCCESS; }
 		SGS_CASE( "m_shootTimeout" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_shootTimeout ); return SGS_SUCCESS; }
@@ -403,12 +394,9 @@ int TSPlayerController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->_data, depth ).push( C ); }
-		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_type, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->_get_object(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nresources = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->_get_resources(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nbehaviors = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->_get_behaviors(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->enabled, depth ).push( C ); }
 		{ sgs_PushString( C, "\nm_prevPos = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_prevPos, depth ).push( C ); }
 		{ sgs_PushString( C, "\nm_shootTimeout = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_shootTimeout, depth ).push( C ); }
@@ -420,7 +408,7 @@ int TSPlayerController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nahAimPoint = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.GetAimPoint(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nahAimFactor = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.GetAimFactor(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nahCPDistance = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.GetCPDistance(), depth ).push( C ); }
-		sgs_StringConcat( C, 38 );
+		sgs_StringConcat( C, 32 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -548,12 +536,9 @@ int TPSPlayerController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->m_type ); return SGS_SUCCESS; }
 		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
 		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
-		SGS_CASE( "resources" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->_get_resources() ); return SGS_SUCCESS; }
-		SGS_CASE( "behaviors" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->_get_behaviors() ); return SGS_SUCCESS; }
 		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->enabled ); return SGS_SUCCESS; }
 		SGS_CASE( "lastFrameReset" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->lastFrameReset ); return SGS_SUCCESS; }
 		SGS_CASE( "direction" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->m_angles.ToVec3() ); return SGS_SUCCESS; }
@@ -583,16 +568,13 @@ int TPSPlayerController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->_data, depth ).push( C ); }
-		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->m_type, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->_get_object(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nresources = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->_get_resources(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nbehaviors = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->_get_behaviors(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->enabled, depth ).push( C ); }
 		{ sgs_PushString( C, "\nlastFrameReset = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->lastFrameReset, depth ).push( C ); }
 		{ sgs_PushString( C, "\ndirection = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->m_angles.ToVec3(), depth ).push( C ); }
-		sgs_StringConcat( C, 22 );
+		sgs_StringConcat( C, 16 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -826,12 +808,9 @@ int TSEnemyController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->m_type ); return SGS_SUCCESS; }
 		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
 		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
-		SGS_CASE( "resources" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->_get_resources() ); return SGS_SUCCESS; }
-		SGS_CASE( "behaviors" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->_get_behaviors() ); return SGS_SUCCESS; }
 		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->enabled ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<TSEnemyController*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
@@ -857,14 +836,11 @@ int TSEnemyController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<TSEnemyController*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<TSEnemyController*>( obj->data )->_data, depth ).push( C ); }
-		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<TSEnemyController*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<TSEnemyController*>( obj->data )->m_type, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<TSEnemyController*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<TSEnemyController*>( obj->data )->_get_object(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nresources = " ); sgs_DumpData( C, static_cast<TSEnemyController*>( obj->data )->_get_resources(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nbehaviors = " ); sgs_DumpData( C, static_cast<TSEnemyController*>( obj->data )->_get_behaviors(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<TSEnemyController*>( obj->data )->enabled, depth ).push( C ); }
-		sgs_StringConcat( C, 18 );
+		sgs_StringConcat( C, 12 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );

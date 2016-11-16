@@ -63,48 +63,41 @@ void EDGO_EditUI( GameObject* obj )
 	
 	IMGUI_GROUP_BEGIN( "Behaviors", true )
 	{
-		static String bhvrname;
+		static String bhvrtypename;
 		if( ImGui::Button( "Add behavior" ) )
 		{
-			bhvrname = "";
+			bhvrtypename = "";
 			ImGui::OpenPopup( "add_behavior" );
 		}
 		
-		ImGui::SetNextWindowContentSize( ImVec2(330,600) );
+	//	ImGui::SetNextWindowContentSize( ImVec2(330,600) );
 		if( ImGui::BeginPopup( "add_behavior" ) )
 		{
-			IMGUIEditString( "Name", bhvrname, 256 );
-			sgsString sgsname = g_Level->m_scriptCtx.CreateString( bhvrname );
-			bool used = obj->m_behaviors.isset( sgsname );
-			bool can = !used && sgsname.size();
-			if( can )
+			IMGUIEditString( "Filter type", bhvrtypename, 256 );
+			
+			size_t sz = obj->m_behaviors.size();
+			
+			Array< StringView > bhvrlist;
+			g_Level->EnumBehaviors( bhvrlist );
+			for( size_t i = 0; i < bhvrlist.size(); ++i )
 			{
-				size_t sz = obj->m_behaviors.size();
-				
-				Array< StringView > bhvrlist;
-				g_Level->EnumBehaviors( bhvrlist );
-				for( size_t i = 0; i < bhvrlist.size(); ++i )
+				if( bhvrlist[ i ].match_loose( bhvrtypename ) &&
+					ImGui::Selectable( StackString<256>(bhvrlist[ i ]) ) )
 				{
-					if( ImGui::Selectable( StackString<256>(bhvrlist[ i ]) ) )
-					{
-						GOBehavior* bhvr = obj->AddBehavior( sgsname, g_Level->m_scriptCtx.CreateString( bhvrlist[ i ] ) );
-						if( bhvr->m_src_guid.IsNull() )
-							bhvr->m_src_guid.SetGenerated();
-					}
+					GOBehavior* bhvr = obj->AddBehavior(
+						g_Level->m_scriptCtx.CreateString( bhvrlist[ i ] ) );
+					if( bhvr->m_src_guid.IsNull() )
+						bhvr->m_src_guid.SetGenerated();
 				}
-				
-				if( sz != obj->m_behaviors.size() )
-					ImGui::TriggerChangeCheck();
 			}
-			else
-			{
-				ImGui::SameLine();
-				ImGui::Text( used ? "<used>" : "<empty>" );
-			}
+			
+			if( sz != obj->m_behaviors.size() )
+				ImGui::TriggerChangeCheck();
+			
 			ImGui::EndPopup();
 		}
 		
-		for( size_t i = 0; i < obj->m_bhvr_order.size(); ++i )
+		for( size_t i = 0; i < obj->m_behaviors.size(); ++i )
 		{
 			ImGui::PushID( i );
 			
@@ -112,13 +105,12 @@ void EDGO_EditUI( GameObject* obj )
 			float width = ImGui::GetContentRegionAvail().x;
 			
 			char bfr[ 256 ];
-			sgrx_snprintf( bfr, 256, "[%s] %s",
-				obj->m_bhvr_order[ i ]->m_type.c_str(),
-				obj->m_bhvr_order[ i ]->m_name.c_str() );
+			sgrx_snprintf( bfr, 256, "%s",
+				obj->m_behaviors[ i ]->m_type.c_str() );
 			IMGUI_GROUP_BEGIN( bfr, true )
 			{
 				ImplEditorUIHelper ieuih;
-				obj->m_bhvr_order[ i ]->EditUI( &ieuih,
+				obj->m_behaviors[ i ]->EditUI( &ieuih,
 					g_Level->GetScriptCtx().GetGlobal( "ED_IMGUI" ) );
 			}
 			IMGUI_GROUP_END;
@@ -130,17 +122,17 @@ void EDGO_EditUI( GameObject* obj )
 				ImGui::SetCursorPos( cp_before + ImVec2( width - 90, 0 ) );
 				if( ImGui::Button( "[up]", ImVec2( 30, 14 ) ) )
 				{
-					TSWAP( obj->m_bhvr_order[ i - 1 ], obj->m_bhvr_order[ i ] );
+					TSWAP( obj->m_behaviors[ i - 1 ], obj->m_behaviors[ i ] );
 					ImGui::TriggerChangeCheck();
 				}
 			}
 			
-			if( i < obj->m_bhvr_order.size() - 1 )
+			if( i < obj->m_behaviors.size() - 1 )
 			{
 				ImGui::SetCursorPos( cp_before + ImVec2( width - 60, 0 ) );
 				if( ImGui::Button( "[dn]", ImVec2( 30, 14 ) ) )
 				{
-					TSWAP( obj->m_bhvr_order[ i ], obj->m_bhvr_order[ i + 1 ] );
+					TSWAP( obj->m_behaviors[ i ], obj->m_behaviors[ i + 1 ] );
 					ImGui::TriggerChangeCheck();
 				}
 			}
@@ -148,7 +140,7 @@ void EDGO_EditUI( GameObject* obj )
 			ImGui::SetCursorPos( cp_before + ImVec2( width - 30, 0 ) );
 			if( ImGui::Button( "[del]", ImVec2( 30, 14 ) ) )
 			{
-				obj->RemoveBehavior( obj->m_bhvr_order[ i ]->m_name );
+				obj->RemoveBehavior( obj->m_behaviors[ i ] );
 				ImGui::TriggerChangeCheck();
 			}
 			
@@ -163,42 +155,34 @@ void EDGO_EditUI( GameObject* obj )
 	
 	IMGUI_GROUP_BEGIN( "Resources", true )
 	{
-		static String rsrcname;
+		static String rsrctypename;
 		if( ImGui::Button( "Add resource" ) )
 		{
-			rsrcname = "";
+			rsrctypename = "";
 			ImGui::OpenPopup( "add_resource" );
 		}
 		
 		ImGui::SetNextWindowContentSize( ImVec2(330,600) );
 		if( ImGui::BeginPopup( "add_resource" ) )
 		{
-			IMGUIEditString( "Name", rsrcname, 256 );
-			sgsString sgsname = g_Level->m_scriptCtx.CreateString( rsrcname );
-			bool used = obj->m_resources.isset( sgsname );
-			bool can = !used && sgsname.size();
-			if( can )
+			IMGUIEditString( "Filter type", rsrctypename, 256 );
+			
+			GOResource* rsrc = NULL;
+			
+			for( size_t i = 0; i < g_Level->m_goResourceMap.size(); ++i )
 			{
-				GOResource* rsrc = NULL;
-				
-				for( size_t i = 0; i < g_Level->m_goResourceMap.size(); ++i )
-				{
-					if( ImGui::Selectable( g_Level->m_goResourceMap.item( i ).value.name ) )
-						rsrc = obj->AddResource( sgsname, g_Level->m_goResourceMap.item( i ).key );
-				}
-				
-				if( rsrc )
-				{
-					if( rsrc->m_src_guid.IsNull() )
-						rsrc->m_src_guid.SetGenerated();
-					ImGui::TriggerChangeCheck();
-				}
+				if( SV(g_Level->m_goResourceMap.item( i ).value.name).match_loose( rsrctypename ) &&
+					ImGui::Selectable( g_Level->m_goResourceMap.item( i ).value.name ) )
+					rsrc = obj->AddResource( g_Level->m_goResourceMap.item( i ).key );
 			}
-			else
+			
+			if( rsrc )
 			{
-				ImGui::SameLine();
-				ImGui::Text( used ? "<used>" : "<empty>" );
+				if( rsrc->m_src_guid.IsNull() )
+					rsrc->m_src_guid.SetGenerated();
+				ImGui::TriggerChangeCheck();
 			}
+			
 			ImGui::EndPopup();
 		}
 		
@@ -210,13 +194,12 @@ void EDGO_EditUI( GameObject* obj )
 			float width = ImGui::GetContentRegionAvail().x;
 			
 			char bfr[ 256 ];
-			sgrx_snprintf( bfr, 256, "[%s] %s",
-				obj->m_resources.item( i ).value->GetSGSInterface()->name,
-				obj->m_resources.item( i ).key.c_str() );
+			sgrx_snprintf( bfr, 256, "%s",
+				obj->m_resources[ i ]->GetSGSInterface()->name );
 			IMGUI_GROUP_BEGIN( bfr, true )
 			{
 				ImplEditorUIHelper ieuih;
-				obj->m_resources.item( i ).value->EditUI( &ieuih,
+				obj->m_resources[ i ]->EditUI( &ieuih,
 					g_Level->GetScriptCtx().GetGlobal( "ED_IMGUI" ) );
 			}
 			IMGUI_GROUP_END;
@@ -225,7 +208,7 @@ void EDGO_EditUI( GameObject* obj )
 			ImGui::SetCursorPos( cp_before + ImVec2( width - 30, 0 ) );
 			if( ImGui::Button( "[del]", ImVec2( 30, 14 ) ) )
 			{
-				obj->RemoveResource( obj->m_resources.item( i ).key );
+				obj->RemoveResource( obj->m_resources[ i ] );
 				ImGui::TriggerChangeCheck();
 			}
 			ImGui::SetCursorPos( cp_after );
@@ -297,17 +280,15 @@ GameObject* EDGO_FLoad( sgsVariable data )
 	while( it_rsrc.Advance() )
 	{
 		sgsVariable data_rsrc = it_rsrc.GetValue();
-		sgsString name = data_rsrc.getprop( "__name" ).get_string();
 		uint32_t type = data_rsrc.getprop( "__type" ).get<uint32_t>();
 		SGRX_GUID guid = SGRX_GUID::ParseString(
 			data_rsrc.getprop( "__guid" ).get<StringView>() );
 		g_Level->nextObjectGUID = guid.NotNull() ? guid : SGRX_GUID::Generate();
 		
-		GOResource* rsrc = obj->AddResource( name, type );
+		GOResource* rsrc = obj->AddResource( type );
 		if( rsrc == NULL )
 		{
-			LOG_ERROR << "FAILED TO LOAD RESOURCE type="
-				<< type << ", name=" << name.c_str();
+			LOG_ERROR << "FAILED TO LOAD RESOURCE type=" << type;
 			continue;
 		}
 		
@@ -323,22 +304,21 @@ GameObject* EDGO_FLoad( sgsVariable data )
 	while( it_bhvr.Advance() )
 	{
 		sgsVariable data_bhvr = it_bhvr.GetValue();
-		sgsString name = data_bhvr.getprop( "__name" ).get_string();
 		sgsString type = data_bhvr.getprop( "__type" ).get_string();
 		SGRX_GUID guid = SGRX_GUID::ParseString(
 			data_bhvr.getprop( "__guid" ).get<StringView>() );
 		g_Level->nextObjectGUID = guid.NotNull() ? guid : SGRX_GUID::Generate();
 	//	LOG << "BHVR" << guid << g_Level->nextObjectGUID;
 		
-		GOBehavior* bhvr = obj->RequireBehavior( name, type, true );
+		// TODO FIX MULTIPLE BEHAVIOR SUPPORT
+		GOBehavior* bhvr = obj->RequireBehavior( type, true );
 	//	if(bhvr)
 	//		LOG << "---FINL" << bhvr->m_src_guid;
 	//	else
 	//		LOG << "----NO BHVR????" << name.c_str() << "|" << type.c_str();
 		if( bhvr == NULL )
 		{
-			LOG_ERROR << "FAILED TO LOAD BEHAVIOR type="
-				<< type.c_str() << ", name=" << name.c_str();
+			LOG_ERROR << "FAILED TO LOAD BEHAVIOR type=" << type.c_str();
 			continue;
 		}
 		
@@ -376,7 +356,7 @@ sgsVariable EDGO_FSave( GameObject* obj, bool guids )
 	sgsVariable out_rsrc = FNewArray();
 	for( size_t i = 0; i < obj->m_resources.size(); ++i )
 	{
-		GOResource* rsrc = obj->m_resources.item( i ).value;
+		GOResource* rsrc = obj->m_resources[ i ];
 		sgsVariable data_rsrc = FNewDict();
 		
 		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data_rsrc );
@@ -384,7 +364,6 @@ sgsVariable EDGO_FSave( GameObject* obj, bool guids )
 			g_Level->GetScriptCtx().GetGlobal( "ED_ISAVE" ) );
 		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", sgsVariable() );
 		
-		data_rsrc.setprop( "__name", rsrc->m_name.get_variable() );
 		data_rsrc.setprop( "__type", sgsVariable().set_int( rsrc->m_rsrcType ) );
 		if( guids )
 		{
@@ -396,9 +375,9 @@ sgsVariable EDGO_FSave( GameObject* obj, bool guids )
 	data.setprop( "resources", out_rsrc );
 	
 	sgsVariable out_bhvr = FNewArray();
-	for( size_t i = 0; i < obj->m_bhvr_order.size(); ++i )
+	for( size_t i = 0; i < obj->m_behaviors.size(); ++i )
 	{
-		GOBehavior* bhvr = obj->m_bhvr_order[ i ];
+		GOBehavior* bhvr = obj->m_behaviors[ i ];
 		sgsVariable data_bhvr = FNewDict();
 		
 		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data_bhvr );
@@ -406,7 +385,6 @@ sgsVariable EDGO_FSave( GameObject* obj, bool guids )
 			g_Level->GetScriptCtx().GetGlobal( "ED_ISAVE" ) );
 		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", sgsVariable() );
 		
-		data_bhvr.setprop( "__name", bhvr->m_name.get_variable() );
 		data_bhvr.setprop( "__type", bhvr->m_type.get_variable() );
 		if( guids )
 		{
@@ -458,10 +436,9 @@ void EDGO_LCSave( GameObject* obj, LC_GameObject* out )
 	out->srlz_resources.reserve( obj->m_resources.size() );
 	for( size_t i = 0; i < obj->m_resources.size(); ++i )
 	{
-		GOResource* rsrc = obj->m_resources.item( i ).value;
+		GOResource* rsrc = obj->m_resources[ i ];
 		sgsVariable data_rsrc = EDGO_RSRC_LCSave( rsrc );
 		
-		data_rsrc.setprop( "__name", rsrc->m_name.get_variable() );
 		data_rsrc.setprop( "__type", sgsVariable().set_int( rsrc->m_rsrcType ) );
 		data_rsrc.setprop( "__guid",
 			g_Level->GetScriptCtx().CreateString( rsrc->m_src_guid.ToString() ) );
@@ -471,12 +448,11 @@ void EDGO_LCSave( GameObject* obj, LC_GameObject* out )
 	}
 	
 	out->srlz_behaviors.reserve( obj->m_behaviors.size() );
-	for( size_t i = 0; i < obj->m_bhvr_order.size(); ++i )
+	for( size_t i = 0; i < obj->m_behaviors.size(); ++i )
 	{
-		GOBehavior* bhvr = obj->m_bhvr_order[ i ];
+		GOBehavior* bhvr = obj->m_behaviors[ i ];
 		sgsVariable data_bhvr = EDGO_BHVR_LCSave( bhvr );
 		
-		data_bhvr.setprop( "__name", bhvr->m_name.get_variable() );
 		data_bhvr.setprop( "__type", bhvr->m_type.get_variable() );
 		data_bhvr.setprop( "__guid",
 			g_Level->GetScriptCtx().CreateString( bhvr->m_src_guid.ToString() ) );
@@ -697,7 +673,13 @@ static int IMGUI_PickLocalRsrc( SGS_CTX )
 		return sgs_Msg( C, SGS_WARNING, "expected game object as argument 4" );
 	
 	ImGui::PushID( label.c_str() );
-	if( ImGui::Button( rsrc ? rsrc->m_name.c_str() : "<none>",
+	char bfr[ 256 ];
+	if( rsrc )
+	{
+		sgrx_snprintf( bfr, 256, "%s [%d]", rsrc->GetSGSInterface()->name,
+			int(go->m_resources.find_first_at( rsrc )) );
+	}
+	if( ImGui::Button( rsrc ? bfr : "<none>",
 			ImVec2( ImGui::GetContentRegionAvailWidth() * 2.f/3.f, 20 ) ) )
 		ImGui::OpenPopup( "pick_local_rsrc" );
 	ImGui::SameLine();
@@ -709,13 +691,11 @@ static int IMGUI_PickLocalRsrc( SGS_CTX )
 			obj.setprop( prop, sgsVariable() );
 		for( size_t i = 0; i < go->m_resources.size(); ++i )
 		{
-			char bfr[ 256 ];
-			sgrx_snprintf( bfr, 256, "[%s] %s",
-				go->m_resources.item( i ).value->GetSGSInterface()->name,
-				go->m_resources.item( i ).key.c_str() );
+			sgrx_snprintf( bfr, 256, "%s [%d]",
+				go->m_resources[ i ]->GetSGSInterface()->name, int(i) );
 			if( ImGui::Selectable( bfr ) )
 			{
-				obj.setprop( prop, go->m_resources.item( i ).value->GetScriptedObject() );
+				obj.setprop( prop, go->m_resources[ i ]->GetScriptedObject() );
 			}
 		}
 		ImGui::EndPopup();

@@ -139,27 +139,6 @@ void GOResource::EditorDrawWorld()
 		GetScriptedObject().thiscall( C, fn );
 }
 
-int GOResourceTable::getindex( SGS_CTX, sgs_VarObj* obj )
-{
-	H_GOResource* h = ((GOResourceTable*)obj->data)->getptr( sgsString( C, 0 ) );
-	if( h )
-	{
-		(*h)->GetScriptedObject().push( C );
-		return 1;
-	}
-	return _sgs_getindex( C, obj );
-}
-
-sgsVariable GOResourceTable::sgsGetNames()
-{
-	for( size_t i = 0; i < size(); ++i )
-	{
-		item( i ).key.push( C );
-	}
-	sgs_CreateArray( C, NULL, size() );
-	return sgsVariable( C, sgsVariable::PickAndPop );
-}
-
 GOBehavior* GOBehavior::_Create( GameObject* go )
 {
 	return new GOBehavior( go );
@@ -175,17 +154,6 @@ GOBehavior::GOBehavior( GameObject* obj ) :
 	LevelScrObj( obj->m_level ),
 	m_obj( obj )
 {
-}
-
-int GOBehaviorTable::getindex( SGS_CTX, sgs_VarObj* obj )
-{
-	H_GOBehavior* h = ((GOBehaviorTable*)obj->data)->getptr( sgsString( C, 0 ) );
-	if( h )
-	{
-		(*h)->GetScriptedObject().push( C );
-		return 1;
-	}
-	return _sgs_getindex( C, obj );
 }
 
 void GOBehavior::Init()
@@ -284,8 +252,6 @@ void GOBehavior::EditorDrawWorld()
 
 GameObject::GameObject( GameLevel* lev ) :
 	LevelScrObj( lev ),
-	m_resources( lev ),
-	m_behaviors( lev ),
 	m_infoMask( 0 ),
 	m_infoTarget( V3(0) )
 {
@@ -297,17 +263,14 @@ GameObject::~GameObject()
 	m_level->_UnmapGameObjectByID( this );
 }
 
-GOResource* GameObject::AddResource( sgsString name, uint32_t type, bool ovr )
+GOResource* GameObject::AddResource( uint32_t type )
 {
-	if( !ovr && m_resources.isset( name ) )
-		return NULL;
 	GOResource* rsrc = NULL;
 	GOResourceInfo* ri = m_level->m_goResourceMap.getptr( type );
 	if( ri )
 		rsrc = ri->createFunc( this );
 	if( rsrc )
 	{
-		rsrc->m_name = name;
 		rsrc->m_rsrcType = type;
 		if( m_level->nextObjectGUID.NotNull() )
 		{
@@ -315,16 +278,16 @@ GOResource* GameObject::AddResource( sgsString name, uint32_t type, bool ovr )
 			m_level->nextObjectGUID.SetNull();
 		}
 		rsrc->InitScriptInterface();
-		m_resources.set( name, rsrc );
+		m_resources.push_back( rsrc );
 		Game_FireEvent( EID_GOResourceAdd, rsrc );
 	}
 	return rsrc;
 }
 
-GOResource* GameObject::RequireResource( sgsString name, uint32_t type, bool retifnc )
+GOResource* GameObject::RequireResource( uint32_t type, bool retifnc )
 {
-	GOResource* rsrc = m_resources.getcopy( name );
-	if( rsrc && rsrc->m_rsrcType == type )
+	GOResource* rsrc = FindFirstResourceOfTypeID( type );
+	if( rsrc )
 	{
 		if( m_level->nextObjectGUID.NotNull() )
 		{
@@ -333,20 +296,24 @@ GOResource* GameObject::RequireResource( sgsString name, uint32_t type, bool ret
 		}
 		return retifnc ? rsrc : NULL;
 	}
-	return AddResource( name, type, true );
+	return AddResource( type );
 }
 
-void GameObject::RemoveResource( sgsString name )
+void GameObject::RemoveResource( GOResource* rsrc )
 {
-	GOResource* rsrc = m_resources.getcopy( name );
-	if( rsrc )
+	H_GOResource keepref = rsrc;
+	if( rsrc && m_resources.remove_first( rsrc ) )
 	{
 		Game_FireEvent( EID_GOResourceRemove, rsrc );
-		m_resources.unset( name );
 	}
 }
 
-GOBehavior* GameObject::_CreateBehaviorReal( sgsString name, sgsString type )
+void GameObject::RemoveResource( GOResource::ScrHandle rsrc )
+{
+	RemoveResource( (GOResource*) rsrc );
+}
+
+GOBehavior* GameObject::_CreateBehaviorReal( sgsString type )
 {
 	GOBehavior* bhvr = NULL;
 	StringView typekey( type.c_str(), type.size() );
@@ -356,8 +323,7 @@ GOBehavior* GameObject::_CreateBehaviorReal( sgsString name, sgsString type )
 	if( bhvr )
 	{
 		bhvr->InitScriptInterface();
-		m_behaviors.set( name, bhvr );
-		m_bhvr_order.push_back( bhvr );
+		m_behaviors.push_back( bhvr );
 		return bhvr;
 	}
 	
@@ -370,7 +336,7 @@ GOBehavior* GameObject::_CreateBehaviorReal( sgsString name, sgsString type )
 	}
 	
 	sgsString native_name = bclass.getprop("__inherit").get_string();
-	bhvr = _CreateBehaviorReal( name, native_name );
+	bhvr = _CreateBehaviorReal( native_name );
 	if( !bhvr )
 	{
 		LOG_ERROR << "FAILED to create scripted behavior '" << type.c_str() << "'"
@@ -396,18 +362,14 @@ GOBehavior* GameObject::_CreateBehaviorReal( sgsString name, sgsString type )
 	return bhvr;
 }
 
-GOBehavior* GameObject::AddBehavior( sgsString name, sgsString type, bool ovr )
+GOBehavior* GameObject::AddBehavior( sgsString type )
 {
-	if( !ovr && m_behaviors.isset( name ) )
-		return NULL;
-	
 	SGRX_GUID guid = m_level->nextObjectGUID;
 	m_level->nextObjectGUID.SetNull();
 	
-	GOBehavior* bhvr = _CreateBehaviorReal( name, type );
+	GOBehavior* bhvr = _CreateBehaviorReal( type );
 	if( bhvr )
 	{
-		bhvr->m_name = name;
 		bhvr->m_type = type;
 		if( guid.NotNull() )
 		{
@@ -420,9 +382,9 @@ GOBehavior* GameObject::AddBehavior( sgsString name, sgsString type, bool ovr )
 	return bhvr;
 }
 
-GOBehavior* GameObject::RequireBehavior( sgsString name, sgsString type, bool retifnc )
+GOBehavior* GameObject::RequireBehavior( sgsString type, bool retifnc )
 {
-	GOBehavior* bhvr = m_behaviors.getcopy( name );
+	GOBehavior* bhvr = FindFirstBehaviorOfTypeName( type );
 	if( bhvr && bhvr->m_type == type )
 	{
 		if( m_level->nextObjectGUID.NotNull() )
@@ -432,107 +394,90 @@ GOBehavior* GameObject::RequireBehavior( sgsString name, sgsString type, bool re
 		}
 		return retifnc ? bhvr : NULL;
 	}
-	return AddBehavior( name, type, true );
+	return AddBehavior( type );
 }
 
-void GameObject::_RemoveBehavior( GOBehavior* bhvr )
+void GameObject::RemoveBehavior( GOBehavior* bhvr )
 {
-	ASSERT( bhvr );
-	Game_FireEvent( EID_GOBehaviorRemove, bhvr );
-	m_bhvr_order.remove_first( bhvr );
-	m_behaviors.unset( bhvr->m_name );
+	H_GOBehavior keepref = bhvr;
+	if( bhvr && m_behaviors.remove_first( bhvr ) )
+	{
+		Game_FireEvent( EID_GOBehaviorRemove, bhvr );
+	}
 }
 
-void GameObject::RemoveBehavior( sgsVariable nameOrBhvr )
+void GameObject::RemoveBehavior( GOBehavior::ScrHandle rsrc )
 {
-	if( nameOrBhvr.type_id() == SGS_VT_STRING )
-	{
-		GOBehavior* bhvr = m_behaviors.getcopy( nameOrBhvr.get_string() );
-		if( bhvr )
-		{
-			_RemoveBehavior( bhvr );
-		}
-	}
-	else if( nameOrBhvr.type_id() == SGS_VT_OBJECT )
-	{
-		for( size_t i = 0; i < m_bhvr_order.size(); ++i )
-		{
-			if( m_bhvr_order[ i ]->m_sgsObject == nameOrBhvr.get_object_struct() )
-			{
-				_RemoveBehavior( m_bhvr_order[ i ] );
-				break;
-			}
-		}
-	}
+	RemoveBehavior( (GOBehavior*) rsrc );
 }
 
 void GameObject::OnDestroy()
 {
 	for( size_t i = 0; i < m_resources.size(); ++i )
-		m_resources.item( i ).value->OnDestroy();
-	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
-		m_bhvr_order[ i ]->OnDestroy();
+		m_resources[ i ]->OnDestroy();
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
+		m_behaviors[ i ]->OnDestroy();
 }
 
 void GameObject::PrePhysicsFixedUpdate()
 {
 	for( size_t i = 0; i < m_resources.size(); ++i )
-		m_resources.item( i ).value->PrePhysicsFixedUpdate();
-	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
-		m_bhvr_order[ i ]->PrePhysicsFixedUpdate();
+		m_resources[ i ]->PrePhysicsFixedUpdate();
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
+		m_behaviors[ i ]->PrePhysicsFixedUpdate();
 }
 
 void GameObject::FixedUpdate()
 {
 	for( size_t i = 0; i < m_resources.size(); ++i )
-		m_resources.item( i ).value->FixedUpdate();
-	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
-		m_bhvr_order[ i ]->FixedUpdate();
+		m_resources[ i ]->FixedUpdate();
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
+		m_behaviors[ i ]->FixedUpdate();
 }
 
 void GameObject::Update()
 {
 	for( size_t i = 0; i < m_resources.size(); ++i )
-		m_resources.item( i ).value->Update();
-	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
-		m_bhvr_order[ i ]->Update();
+		m_resources[ i ]->Update();
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
+		m_behaviors[ i ]->Update();
 }
 
 void GameObject::PreRender()
 {
 	for( size_t i = 0; i < m_resources.size(); ++i )
-		m_resources.item( i ).value->PreRender();
-	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
-		m_bhvr_order[ i ]->PreRender();
+		m_resources[ i ]->PreRender();
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
+		m_behaviors[ i ]->PreRender();
 }
 
 void GameObject::OnTransformUpdate()
 {
 	for( size_t i = 0; i < m_resources.size(); ++i )
 	{
-		if( m_resources.item( i ).value != _xfChangeInvoker )
-			m_resources.item( i ).value->OnTransformUpdate();
+		if( m_resources[ i ] != _xfChangeInvoker )
+			m_resources[ i ]->OnTransformUpdate();
 	}
-	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
 	{
-		if( m_bhvr_order[ i ] != _xfChangeInvoker )
-			m_bhvr_order[ i ]->OnTransformUpdate();
+		if( m_behaviors[ i ] != _xfChangeInvoker )
+			m_behaviors[ i ]->OnTransformUpdate();
 	}
 }
 
 void GameObject::OnIDUpdate()
 {
 //	for( size_t i = 0; i < m_resources.size(); ++i )
-//		m_resources.item( i ).value->OnIDUpdate();
-	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
-		m_bhvr_order[ i ]->OnIDUpdate();
+//		m_resources[ i ]->OnIDUpdate();
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
+		m_behaviors[ i ]->OnIDUpdate();
 }
 
 void GameObject::sgsSendMessage( sgsString name, sgsVariable arg )
 {
-	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
 	{
-		sgsVariable so = m_bhvr_order[ i ]->GetScriptedObject();
+		sgsVariable so = m_behaviors[ i ]->GetScriptedObject();
 		sgsVariable fn = so.getprop( name );
 		if( fn.not_null() )
 			so.tthiscall<void>( C, fn, arg );
@@ -551,32 +496,32 @@ void GameObject::SendMessage( StringView name, sgsVariable arg )
 void GameObject::DebugDrawWorld()
 {
 	for( size_t i = 0; i < m_resources.size(); ++i )
-		m_resources.item( i ).value->DebugDrawWorld();
-	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
-		m_bhvr_order[ i ]->DebugDrawWorld();
+		m_resources[ i ]->DebugDrawWorld();
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
+		m_behaviors[ i ]->DebugDrawWorld();
 }
 
 void GameObject::DebugDrawUI()
 {
 	for( size_t i = 0; i < m_resources.size(); ++i )
-		m_resources.item( i ).value->DebugDrawUI();
-	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
-		m_bhvr_order[ i ]->DebugDrawUI();
+		m_resources[ i ]->DebugDrawUI();
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
+		m_behaviors[ i ]->DebugDrawUI();
 }
 
 void GameObject::EditorDrawWorld()
 {
 	for( size_t i = 0; i < m_resources.size(); ++i )
-		m_resources.item( i ).value->EditorDrawWorld();
-	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
-		m_bhvr_order[ i ]->EditorDrawWorld();
+		m_resources[ i ]->EditorDrawWorld();
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
+		m_behaviors[ i ]->EditorDrawWorld();
 }
 
 GOResource::ScrHandle GameObject::sgsFindFirstResourceOfType( sgsVariable typeOrMetaObj )
 {
 	for( size_t i = 0; i < m_resources.size(); ++i )
 	{
-		GOResource* rsrc = m_resources.item( i ).value;
+		GOResource* rsrc = m_resources[ i ];
 		int tid = typeOrMetaObj.type_id();
 		if( tid == SGS_VT_INT )
 		{
@@ -599,9 +544,9 @@ GOResource::ScrHandle GameObject::sgsFindFirstResourceOfType( sgsVariable typeOr
 
 GOBehavior::ScrHandle GameObject::sgsFindFirstBehaviorOfType( sgsVariable typeOrMetaObj )
 {
-	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
 	{
-		GOBehavior* bhvr = m_bhvr_order[ i ];
+		GOBehavior* bhvr = m_behaviors[ i ];
 		int tid = typeOrMetaObj.type_id();
 		if( tid == SGS_VT_STRING )
 		{
@@ -627,7 +572,7 @@ sgsVariable GameObject::sgsFindAllResourcesOfType( sgsVariable typeOrMetaObj )
 	int count = 0;
 	for( size_t i = 0; i < m_resources.size(); ++i )
 	{
-		GOResource* rsrc = m_resources.item( i ).value;
+		GOResource* rsrc = m_resources[ i ];
 		int tid = typeOrMetaObj.type_id();
 		if( tid == SGS_VT_INT )
 		{
@@ -652,9 +597,9 @@ sgsVariable GameObject::sgsFindAllResourcesOfType( sgsVariable typeOrMetaObj )
 sgsVariable GameObject::sgsFindAllBehaviorsOfType( sgsVariable typeOrMetaObj )
 {
 	int count = 0;
-	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
 	{
-		GOBehavior* bhvr = m_bhvr_order[ i ];
+		GOBehavior* bhvr = m_behaviors[ i ];
 		int tid = typeOrMetaObj.type_id();
 		if( tid == SGS_VT_STRING )
 		{
@@ -1133,12 +1078,11 @@ bool GameLevel::Load( const StringView& levelname )
 				{
 					sgsVariable data = m_scriptCtx.Unserialize( GO.srlz_resources[ j ] );
 				//	puts(sgs_DebugDumpVar(GetSGSC(), data.var));sgs_Pop(GetSGSC(),1);
-					sgsString name = data.getprop( "__name" ).get_string();
 					uint32_t type = data.getprop( "__type" ).get<uint32_t>();
 					SGRX_GUID guid = SGRX_GUID::ParseString( data.getprop( "__guid" ).get_string().c_str() );
 					
 					nextObjectGUID = guid;
-					GOResource* rsrc = obj->AddResource( name, type );
+					GOResource* rsrc = obj->AddResource( type );
 					if( rsrc )
 					{
 						if( guid.NotNull() )
@@ -1153,12 +1097,11 @@ bool GameLevel::Load( const StringView& levelname )
 				{
 					sgsVariable data = m_scriptCtx.Unserialize( GO.srlz_behaviors[ j ] );
 				//	puts(sgs_DebugDumpVar(GetSGSC(), data.var));sgs_Pop(GetSGSC(),1);
-					sgsString name = data.getprop( "__name" ).get_string();
 					sgsString type = data.getprop( "__type" ).get_string();
 					SGRX_GUID guid = SGRX_GUID::ParseString( data.getprop( "__guid" ).get_string().c_str() );
 					
 					nextObjectGUID = guid;
-					GOBehavior* bhvr = obj->AddBehavior( name, type );
+					GOBehavior* bhvr = obj->AddBehavior( type );
 					if( bhvr )
 					{
 						if( guid.NotNull() )
@@ -1595,14 +1538,11 @@ void GameLevel::_RealDestroyGameObject( GameObject* obj, bool ch )
 		}
 	}
 	
-	while( obj->m_bhvr_order.size() )
-		obj->RemoveBehavior( obj->m_bhvr_order.last()->m_name );
+	while( obj->m_behaviors.size() )
+		obj->RemoveBehavior( obj->m_behaviors.last() );
 	
 	while( obj->m_resources.size() )
-	{
-		obj->RemoveResource( obj->m_resources.item(
-			obj->m_resources.size() - 1 ).value->m_name );
-	}
+		obj->RemoveResource( obj->m_resources.last() );
 	
 	Game_FireEvent( EID_GODestroy, obj );
 	obj->OnDestroy();

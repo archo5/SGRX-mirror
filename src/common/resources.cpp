@@ -664,9 +664,9 @@ void BhControllerBase::Reset()
 static IController g_DummyController;
 IController* GetObjectController( GameObject* obj, bool def )
 {
-	for( size_t i = 0; i < obj->m_bhvr_order.size(); ++i )
+	for( size_t i = 0; i < obj->m_behaviors.size(); ++i )
 	{
-		GOBehavior* bhvr = obj->m_bhvr_order[ i ];
+		GOBehavior* bhvr = obj->m_behaviors[ i ];
 		BhControllerBase* bcb = sgsHandle<BhControllerBase>(
 			obj->m_level->GetSGSC(), bhvr->m_sgsObject );
 		if( bcb && bcb->enabled )

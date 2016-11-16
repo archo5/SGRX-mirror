@@ -891,11 +891,11 @@ void TSCharacter::Hit( float pwr )
 
 GOBehavior* TSCharacter::FindWeapon() const
 {
+	sgsString bhtype = m_level->GetScriptCtx().CreateString( "BhWeapon" );
 	for( size_t i = 0; i < m_obj->GetChildCount(); ++i )
 	{
 		GameObject* subobj = m_obj->GetChild( i );
-		GOBehavior* bhvr = subobj->m_behaviors.getcopy(
-			m_level->GetScriptCtx().CreateString( "weapon" ) );
+		GOBehavior* bhvr = subobj->FindFirstBehaviorOfTypeName( bhtype );
 		if( bhvr )
 			return bhvr;
 	}

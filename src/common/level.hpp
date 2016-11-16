@@ -338,7 +338,6 @@ EXP_STRUCT GOResource : LevelScrObj
 	sgsHandle<GameObject> _get_object(){ return sgsHandle<GameObject>( m_obj ); }
 	SGS_PROPERTY_FUNC( READ _get_object ) SGS_ALIAS( sgsHandle<GameObject> object );
 	
-	SGS_PROPERTY_FUNC( READ VARNAME __name ) sgsString m_name;
 	SGS_PROPERTY_FUNC( READ VARNAME __type ) uint32_t m_rsrcType;
 	SGS_PROPERTY_FUNC( READ SOURCE m_src_guid.ToString() ) SGS_ALIAS( sgsString __guid );
 	
@@ -358,16 +357,6 @@ EXP_STRUCT GOResource : LevelScrObj
 	SGRX_GUID m_src_guid;
 };
 typedef Handle< GOResource > H_GOResource;
-
-EXP_STRUCT GOResourceTable : LevelScrObj, HashTable< sgsString, H_GOResource >
-{
-	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
-	ENT_SGS_IMPLEMENT;
-	typedef sgsHandle< GOResourceTable > ScrHandle;
-	GOResourceTable( GameLevel* lev ) : LevelScrObj( lev ){ InitScriptInterface(); }
-	SGS_IFUNC( getindex ) int getindex( SGS_CTX, sgs_VarObj* obj );
-	SGS_METHOD_NAMED( GetNames ) sgsVariable sgsGetNames();
-};
 
 EXP_STRUCT GOBehavior : LevelScrObj
 {
@@ -402,7 +391,6 @@ EXP_STRUCT GOBehavior : LevelScrObj
 	GFW_EXPORT virtual void EditSave( sgsVariable out, sgsVariable iface );
 	GFW_EXPORT virtual void EditorDrawWorld();
 	
-	SGS_PROPERTY_FUNC( READ VARNAME __name ) sgsString m_name;
 	GameObject* m_obj;
 	SGS_PROPERTY_FUNC( READ VARNAME __type ) sgsString m_type;
 	SGRX_GUID m_src_guid;
@@ -410,21 +398,8 @@ EXP_STRUCT GOBehavior : LevelScrObj
 	
 	sgsHandle<GameObject> _get_object(){ return sgsHandle<GameObject>( m_obj ); }
 	SGS_PROPERTY_FUNC( READ _get_object ) SGS_ALIAS( sgsHandle<GameObject> object );
-	sgsHandle<struct GOResourceTable> _get_resources();
-	SGS_PROPERTY_FUNC( READ _get_resources ) SGS_ALIAS( GOResourceTable::ScrHandle resources );
-	sgsHandle<struct GOBehaviorTable> _get_behaviors();
-	SGS_PROPERTY_FUNC( READ _get_behaviors ) SGS_ALIAS( sgsHandle<struct GOBehaviorTable> behaviors );
 };
 typedef Handle< GOBehavior > H_GOBehavior;
-
-EXP_STRUCT GOBehaviorTable : LevelScrObj, HashTable< sgsString, H_GOBehavior >
-{
-	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
-	ENT_SGS_IMPLEMENT;
-	typedef sgsHandle< GOBehaviorTable > ScrHandle;
-	GOBehaviorTable( GameLevel* lev ) : LevelScrObj( lev ){ InitScriptInterface(); }
-	SGS_IFUNC( getindex ) int getindex( SGS_CTX, sgs_VarObj* obj );
-};
 
 EXP_STRUCT GameObject : LevelScrObj, Transform
 {
@@ -435,15 +410,16 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	GFW_EXPORT GameObject( GameLevel* lev );
 	GFW_EXPORT ~GameObject();
 	
-	GFW_EXPORT GOResource* AddResource( sgsString name, uint32_t type, bool ovr = false );
-	GFW_EXPORT GOResource* RequireResource( sgsString name, uint32_t type, bool retifnc = false );
-	GFW_EXPORT SGS_METHOD void RemoveResource( sgsString name );
+	GFW_EXPORT GOResource* AddResource( uint32_t type );
+	GFW_EXPORT GOResource* RequireResource( uint32_t type, bool retifnc = false );
+	GFW_EXPORT void RemoveResource( GOResource* rsrc );
+	GFW_EXPORT SGS_METHOD void RemoveResource( GOResource::ScrHandle rsrc );
 	
-	GFW_EXPORT GOBehavior* AddBehavior( sgsString name, sgsString type, bool ovr = false );
-	GFW_EXPORT GOBehavior* RequireBehavior( sgsString name, sgsString type, bool retifnc = false );
-	GFW_EXPORT GOBehavior* _CreateBehaviorReal( sgsString name, sgsString type );
-	GFW_EXPORT void _RemoveBehavior( GOBehavior* bhvr );
-	GFW_EXPORT SGS_METHOD void RemoveBehavior( sgsVariable nameOrBhvr );
+	GFW_EXPORT GOBehavior* AddBehavior( sgsString type );
+	GFW_EXPORT GOBehavior* RequireBehavior( sgsString type, bool retifnc = false );
+	GFW_EXPORT GOBehavior* _CreateBehaviorReal( sgsString type );
+	GFW_EXPORT void RemoveBehavior( GOBehavior* bhvr );
+	GFW_EXPORT SGS_METHOD void RemoveBehavior( GOBehavior::ScrHandle bhvr );
 	
 	GFW_EXPORT virtual void OnDestroy();
 	GFW_EXPORT virtual void PrePhysicsFixedUpdate();
@@ -462,9 +438,8 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	GFW_EXPORT virtual void EditorDrawWorld();
 	
 	SGS_PROPERTY_FUNC( READ SOURCE m_src_guid.ToString() ) SGS_ALIAS( sgsString __guid );
-	GOResourceTable m_resources;
-	GOBehaviorTable m_behaviors;
-	Array< H_GOBehavior > m_bhvr_order;
+	Array< H_GOResource > m_resources;
+	Array< H_GOBehavior > m_behaviors;
 	SGRX_GUID m_src_guid;
 	
 	// transforms
@@ -511,35 +486,77 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	SGS_PROPERTY_FUNC( READ SOURCE _ch.size() ) SGS_ALIAS( int childCount );
 	
 	// resources / behaviors
-	SGS_METHOD_NAMED( AddResource ) sgsVariable sgsAddResource( sgsString name, uint32_t type, bool ovr )
-	{ GOResource* rsrc = AddResource( name, type, ovr ); return rsrc ? rsrc->GetScriptedObject() : sgsVariable(); }
-	SGS_METHOD_NAMED( AddBehavior ) sgsVariable sgsAddBehavior( sgsString name, sgsString type, bool ovr )
-	{ GOBehavior* bhvr = AddBehavior( name, type, ovr ); return bhvr ? bhvr->GetScriptedObject() : sgsVariable(); }
-	SGS_METHOD_NAMED( RequireResource ) sgsVariable sgsRequireResource( sgsString name, uint32_t type, bool retifnc )
-	{ GOResource* rsrc = RequireResource( name, type, retifnc ); return rsrc ? rsrc->GetScriptedObject() : sgsVariable(); }
-	SGS_METHOD_NAMED( RequireBehavior ) sgsVariable sgsRequireBehavior( sgsString name, sgsString type, bool retifnc )
-	{ GOBehavior* bhvr = RequireBehavior( name, type, retifnc ); return bhvr ? bhvr->GetScriptedObject() : sgsVariable(); }
-	GOResourceTable::ScrHandle _get_resources(){ return GOResourceTable::ScrHandle( &m_resources ); }
-	SGS_PROPERTY_FUNC( READ _get_resources ) SGS_ALIAS( GOResourceTable::ScrHandle resources );
-	GOBehaviorTable::ScrHandle _get_behaviors(){ return GOBehaviorTable::ScrHandle( &m_behaviors ); }
-	SGS_PROPERTY_FUNC( READ _get_behaviors ) SGS_ALIAS( GOBehaviorTable::ScrHandle behaviors );
+	SGS_METHOD_NAMED( AddResource ) sgsVariable sgsAddResource( uint32_t type )
+	{ GOResource* rsrc = AddResource( type ); return rsrc ? rsrc->GetScriptedObject() : sgsVariable(); }
+	SGS_METHOD_NAMED( AddBehavior ) sgsVariable sgsAddBehavior( sgsString type )
+	{ GOBehavior* bhvr = AddBehavior( type ); return bhvr ? bhvr->GetScriptedObject() : sgsVariable(); }
+	SGS_METHOD_NAMED( RequireResource ) sgsVariable sgsRequireResource( uint32_t type, bool retifnc )
+	{ GOResource* rsrc = RequireResource( type, retifnc ); return rsrc ? rsrc->GetScriptedObject() : sgsVariable(); }
+	SGS_METHOD_NAMED( RequireBehavior ) sgsVariable sgsRequireBehavior( sgsString type, bool retifnc )
+	{ GOBehavior* bhvr = RequireBehavior( type, retifnc ); return bhvr ? bhvr->GetScriptedObject() : sgsVariable(); }
+	SGS_METHOD_NAMED( GetResourceCount ) int sgsGetResourceCount() const { return m_resources.size(); }
+	SGS_METHOD_NAMED( GetBehaviorCount ) int sgsGetBehaviorCount() const { return m_behaviors.size(); }
+	SGS_METHOD_NAMED( GetResourceByNum ) GOResource::ScrHandle sgsGetResourceByNum( int i )
+	{
+		if( i < 0 || i >= int(m_resources.size()) )
+			return GOResource::ScrHandle( m_resources[ i ] );
+		return GOResource::ScrHandle();
+	}
+	SGS_METHOD_NAMED( GetBehaviorByNum ) GOBehavior::ScrHandle sgsGetBehaviorByNum( int i )
+	{
+		if( i < 0 || i >= int(m_behaviors.size()) )
+			return GOBehavior::ScrHandle( m_behaviors[ i ] );
+		return GOBehavior::ScrHandle();
+	}
 	
-	template< class T > T* FindFirstResourceOfType()
+	GOResource* FindFirstResourceOfTypeID( uint32_t type, int skip = 0 )
 	{
 		for( size_t i = 0; i < m_resources.size(); ++i )
 		{
-			GOResource* rsrc = m_resources.item( i ).value;
+			GOResource* rsrc = m_resources[ i ];
+			if( rsrc->m_rsrcType == type )
+			{
+				if( skip --> 0 )
+					continue;
+				return rsrc;
+			}
+		}
+		return NULL;
+	}
+	GOBehavior* FindFirstBehaviorOfTypeName( sgsString type, int skip = 0 )
+	{
+		for( size_t i = 0; i < m_behaviors.size(); ++i )
+		{
+			GOBehavior* bhvr = m_behaviors[ i ];
+			if( bhvr->m_type == type )
+			{
+				if( skip --> 0 )
+					continue;
+				return bhvr;
+			}
+		}
+		return NULL;
+	}
+	template< class T > T* FindFirstResourceOfType( int skip = 0 )
+	{
+		for( size_t i = 0; i < m_resources.size(); ++i )
+		{
+			GOResource* rsrc = m_resources[ i ];
 			T* trh = sgsHandle<T>( rsrc->C, rsrc->m_sgsObject );
 			if( trh )
+			{
+				if( skip --> 0 )
+					continue;
 				return trh;
+			}
 		}
 		return NULL;
 	}
 	template< class T > T* FindFirstBehaviorOfType()
 	{
-		for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+		for( size_t i = 0; i < m_behaviors.size(); ++i )
 		{
-			GOBehavior* bhvr = m_bhvr_order[ i ];
+			GOBehavior* bhvr = m_behaviors[ i ];
 			T* tbh = sgsHandle<T>( bhvr->C, bhvr->m_sgsObject );
 			if( tbh )
 				return tbh;
@@ -573,16 +590,6 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME name ) sgsString m_name;
 	SGS_PROPERTY_FUNC( READ WRITE sgsSetID VARNAME id ) sgsString m_id;
 };
-
-inline sgsHandle<struct GOResourceTable> GOBehavior::_get_resources()
-{
-	return GOResourceTable::ScrHandle( &m_obj->m_resources );
-}
-
-inline sgsHandle<struct GOBehaviorTable> GOBehavior::_get_behaviors()
-{
-	return sgsHandle<struct GOBehaviorTable>( &m_obj->m_behaviors );
-}
 
 
 
