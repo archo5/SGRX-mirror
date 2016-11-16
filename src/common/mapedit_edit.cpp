@@ -713,6 +713,14 @@ void EdEditBlockEditMode::OnTransformEnd()
 	_ReloadBlockProps();
 }
 
+void EdEditBlockEditMode::RecheckSelectionUI()
+{
+	m_numSel = g_EdWorld->GetNumSelectedObjects();
+	m_curObj = g_EdWorld->GetOnlySelectedObject();
+	g_EdWorld->GetSelectedObjectAABB( m_selAABB );
+	_ReloadBlockProps();
+}
+
 void EdEditBlockEditMode::ViewUI()
 {
 	_MouseMove();

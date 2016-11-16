@@ -54,7 +54,6 @@ void reload_mesh_vertices()
 {
 	Array< AMVertex >& outverts = g_MeshVertices;
 	
-	
 	LOG << "Reloading mesh vertices...";
 	outverts.clear();
 	if( g_AnimChar )

@@ -25,6 +25,10 @@ function ED_ILOAD._ResolveLinks()
 	}
 	this._Restart();
 }
+function ED_ILOAD.AddLink( src, prop, dst )
+{
+	this.links.push({ src, prop, dst });
+}
 function ED_ILCSV._Restart()
 {
 	this.links = [];

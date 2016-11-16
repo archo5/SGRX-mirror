@@ -5,6 +5,7 @@
 
 
 bool g_DrawCovers = false;
+int g_mode = LevelInfo;
 
 
 
@@ -2197,6 +2198,8 @@ static void DrawHierarchyItem( GameObject* obj )
 	{
 		g_EdWorld->SelectObject( obj,
 			ImGui::IsKeyDown( SDL_SCANCODE_LCTRL ) ? SELOBJ_TOGGLE : SELOBJ_ONLY );
+		if( g_mode == EditObjects )
+			g_UIFrame->m_emEditObjs.RecheckSelectionUI();
 	}
 	if( ImGui::IsMouseDragging() )
 	{
@@ -2275,8 +2278,6 @@ static void DrawObjectHierarchy()
 //
 // EDITOR ENTRY POINT
 //
-
-int g_mode = LevelInfo;
 
 bool MapEditor::OnInitialize()
 {

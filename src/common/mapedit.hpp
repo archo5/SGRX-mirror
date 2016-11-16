@@ -1923,6 +1923,7 @@ struct EdEditBlockEditMode : EdEditMode
 	EdEditBlockEditMode();
 	void OnEnter();
 	void OnTransformEnd();
+	void RecheckSelectionUI();
 	void ViewUI();
 	void EditUI();
 	void Draw();

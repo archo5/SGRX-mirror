@@ -274,6 +274,18 @@ GameObject* EDGO_FLoad( sgsVariable data )
 	SGRX_GUID guid = SGRX_GUID::ParseString(
 		data.getprop( "guid" ).get<StringView>() );
 	obj->m_src_guid = guid.NotNull() ? guid : SGRX_GUID::Generate();
+	
+	SGRX_GUID parent_guid = SGRX_GUID::ParseString(
+		data.getprop( "parent" ).get<StringView>() );
+	if( parent_guid.NotNull() )
+	{
+		LOG << "parent:" << parent_guid;
+		ScriptContext& SC = g_Level->GetScriptCtx();
+		SC.GetGlobal( "ED_ILOAD" ).tthiscall<void>( SC.C, "AddLink",
+			obj->GetScriptedObject(), "parent",
+			SC.CreateString( parent_guid.ToString() ) );
+	}
+	
 	obj->SetLocalPosition( FLoadProp( data, "position", V3(0) ) );
 	obj->SetLocalRotation( FLoadProp( data, "rotation", Quat::Identity ) );
 	obj->SetLocalScale( FLoadProp( data, "scale", V3(1) ) );
@@ -352,6 +364,9 @@ sgsVariable EDGO_FSave( GameObject* obj, bool guids )
 	{
 		data.setprop( "guid", g_Level->GetScriptCtx().CreateString(
 			obj->m_src_guid.ToString() ) );
+		
+		SGRX_GUID parent_guid = obj->GetParent() ? obj->GetParent()->m_src_guid : SGRX_GUID::Null;
+		data.setprop( "parent", g_Level->GetScriptCtx().CreateString( parent_guid.ToString() ) );
 	}
 	FSaveProp( data, "position", obj->GetLocalPosition() );
 	FSaveProp( data, "rotation", obj->GetLocalRotation() );
