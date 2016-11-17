@@ -261,7 +261,10 @@ TextureHandle GR_GetTexture( StringView path )
 	TextureHandle tex;
 	LOG_FUNCTION_ARG( path );
 	
-	tex = g_Textures->getcopy( path );
+	StringView origpath = path;
+	FS_RESOLVE_PATH( path );
+	
+	tex = g_Textures->getcopy( origpath );
 	if( tex )
 		return tex;
 	
@@ -276,7 +279,7 @@ TextureHandle GR_GetTexture( StringView path )
 		if( fr == NULL )
 		{
 			if( VERBOSE || path != "" )
-				LOG_ERROR << LOG_DATE << "  Could not find texture: " << FS_ResolvePath( path );
+				LOG_ERROR << LOG_DATE << "  Could not find texture: " << path;
 			return TextureHandle();
 		}
 		
@@ -298,11 +301,11 @@ TextureHandle GR_GetTexture( StringView path )
 		tex->m_info = texdata.info;
 	}
 	
-	tex->m_key.append( path.data(), path.size() );
+	tex->m_key.append( origpath.data(), origpath.size() );
 	g_Textures->set( tex->m_key, tex );
 	
 	if( VERBOSE )
-		LOG << "Loaded texture: " << FS_ResolvePath( path ) << " (time=" << ( sgrx_hqtime() - t0 ) << ")";
+		LOG << "Loaded texture: " << path << " (time=" << ( sgrx_hqtime() - t0 ) << ")";
 	return tex;
 }
 

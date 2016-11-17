@@ -353,8 +353,13 @@ class BhObjectMoveDoorSlide : GOBehavior
 }
 BEHAVIOR( "BhObjectMoveDoorSlide", "GOBehavior" );
 
+class BhTrigger : GOBehavior
+{
+}
+BEHAVIOR( "BhTrigger", "GOBehavior" );
+
 // === BOX TRIGGER === //
-class BhBoxTrigger : GOBehavior
+class BhBoxTrigger : BhTrigger
 {
 	function Init()
 	{
@@ -404,10 +409,10 @@ class BhBoxTrigger : GOBehavior
 		BR_AABB( -1, 1, this._GetTransform() );
 	}
 }
-BEHAVIOR( "BhBoxTrigger", "GOBehavior" );
+BEHAVIOR( "BhBoxTrigger", "BhTrigger" );
 
 // === SPHERE TRIGGER === //
-class BhSphereTrigger : GOBehavior
+class BhSphereTrigger : BhTrigger
 {
 	function Init()
 	{
@@ -464,7 +469,7 @@ class BhSphereTrigger : GOBehavior
 		BR_SphereOutline( this.object.LocalToWorld( this.offset ), this.radius, 32 );
 	}
 }
-BEHAVIOR( "BhSphereTrigger", "GOBehavior" );
+BEHAVIOR( "BhSphereTrigger", "BhTrigger" );
 
 // === MESH ARRAY === //
 global BhMeshArray = {};

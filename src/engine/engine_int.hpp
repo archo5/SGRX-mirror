@@ -23,7 +23,9 @@ extern bool g_VerboseLogging;
 #define VERBOSE g_VerboseLogging
 
 
-StringView FS_ResolvePath( StringView path );
+void FS_ResolvePath( StringView& path, char resbfr[50] );
+#define FS_RESOLVE_PATH( path ) char resbfr[ 50 ]; \
+	FS_ResolvePath( path, resbfr );
 
 
 template< class K, class V >

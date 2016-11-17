@@ -491,9 +491,11 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	SGS_METHOD_NAMED( AddBehavior ) sgsVariable sgsAddBehavior( sgsString type )
 	{ GOBehavior* bhvr = AddBehavior( type ); return bhvr ? bhvr->GetScriptedObject() : sgsVariable(); }
 	SGS_METHOD_NAMED( RequireResource ) sgsVariable sgsRequireResource( uint32_t type, bool retifnc )
-	{ GOResource* rsrc = RequireResource( type, retifnc ); return rsrc ? rsrc->GetScriptedObject() : sgsVariable(); }
+	{ GOResource* rsrc = RequireResource( type, sgs_StackSize( C ) >= 2 ? retifnc : true );
+		return rsrc ? rsrc->GetScriptedObject() : sgsVariable(); }
 	SGS_METHOD_NAMED( RequireBehavior ) sgsVariable sgsRequireBehavior( sgsString type, bool retifnc )
-	{ GOBehavior* bhvr = RequireBehavior( type, retifnc ); return bhvr ? bhvr->GetScriptedObject() : sgsVariable(); }
+	{ GOBehavior* bhvr = RequireBehavior( type, sgs_StackSize( C ) >= 2 ? retifnc : true );
+		return bhvr ? bhvr->GetScriptedObject() : sgsVariable(); }
 	SGS_METHOD_NAMED( GetResourceCount ) int sgsGetResourceCount() const { return m_resources.size(); }
 	SGS_METHOD_NAMED( GetBehaviorCount ) int sgsGetBehaviorCount() const { return m_behaviors.size(); }
 	SGS_METHOD_NAMED( GetResourceByNum ) GOResource::ScrHandle sgsGetResourceByNum( int i )

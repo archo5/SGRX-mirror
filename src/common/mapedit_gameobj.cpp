@@ -600,6 +600,27 @@ static int IMGUI_EditString( SGS_CTX )
 	return 0;
 }
 
+static void _IMGUI_HandleFailedPropLoad( sgsVariable obj, sgsString prop )
+{
+	sgsVariable objinfo = g_Level->GetScriptCtx().GetGlobal( "ED_ILOAD" )
+		.getprop( "assets_failed_to_load" ).getindex( obj.getprop( "__guid" ) );
+	sgsVariable pv = objinfo.getprop( prop );
+	if( pv.not_null() )
+	{
+		sgsString val = pv.get_string();
+		ImGui::Text( "Failed to load this resource previously" );
+		ImGui::SameLine();
+		if( ImGui::Button( "Dismiss" ) )
+		{
+			g_Level->GetScriptCtx().Push( objinfo );
+			g_Level->GetScriptCtx().Push( prop );
+			g_Level->GetScriptCtx().GlobalCall( "unset", 2 );
+		}
+		if( val.c_str() )
+			ImGui::Text( "%s", val.c_str() );
+	}
+}
+
 static int IMGUI_PickMesh( SGS_CTX )
 {
 	SGSFN( "ED_IMGUI.PickMesh" );
@@ -611,6 +632,8 @@ static int IMGUI_PickMesh( SGS_CTX )
 	
 	if( g_NUIMeshPicker->Property( caption.c_str(), label.c_str(), value ) )
 		obj.setprop( prop, g_Level->GetScriptCtx().CreateString( value ).get_variable() );
+	
+	_IMGUI_HandleFailedPropLoad( obj, prop );
 	
 	return 0;
 }
@@ -627,6 +650,8 @@ static int IMGUI_PickTexture( SGS_CTX )
 	if( g_NUITexturePicker->Property( caption.c_str(), label.c_str(), value ) )
 		obj.setprop( prop, g_Level->GetScriptCtx().CreateString( value ).get_variable() );
 	
+	_IMGUI_HandleFailedPropLoad( obj, prop );
+	
 	return 0;
 }
 
@@ -642,6 +667,8 @@ static int IMGUI_PickPartSys( SGS_CTX )
 	if( g_NUIPartSysPicker->Property( caption.c_str(), label.c_str(), value ) )
 		obj.setprop( prop, g_Level->GetScriptCtx().CreateString( value ).get_variable() );
 	
+	_IMGUI_HandleFailedPropLoad( obj, prop );
+	
 	return 0;
 }
 
@@ -656,6 +683,8 @@ static int IMGUI_PickSound( SGS_CTX )
 	
 	if( g_NUISoundPicker->Property( caption.c_str(), label.c_str(), value ) )
 		obj.setprop( prop, g_Level->GetScriptCtx().CreateString( value ).get_variable() );
+	
+	_IMGUI_HandleFailedPropLoad( obj, prop );
 	
 	return 0;
 }

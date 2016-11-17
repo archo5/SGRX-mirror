@@ -935,22 +935,8 @@ BasicFileSystem::BasicFileSystem( const StringView& root ) : m_fileRoot(root.str
 		{
 			String path = "assets/";
 			path.append( key );
-			{
-				RCStringPair rcsp = { key, path };
-				g_FSMapping.set( rcsp.key, rcsp );
-			}
-			{
-				RCStringPair rcsp = { val, path };
-				g_FSMapping.set( rcsp.key, rcsp );
-			}
-			{
-				String guidstr;
-				guidstr.push_back( '\0' );
-				SGRX_GUID guid = SGRX_GUID::ParseString( key );
-				guidstr.append( (const char*) guid.bytes, 16 );
-				RCStringPair rcsp = { guidstr, path };
-				g_FSMapping.set( rcsp.key, rcsp );
-			}
+			RCStringPair rcsp = { val, path };
+			g_FSMapping.set( rcsp.key, rcsp );
 		}
 	}
 	if( LoadTextFile( "assets/mapping.legacy.txt", text ) )
@@ -1094,18 +1080,35 @@ Array< FileSysHandle >& Game_FileSystems()
 	return g_FileSystems;
 }
 
-StringView FS_ResolvePath( StringView path )
+void FS_ResolvePath( StringView& path, char resbfr[50] )
 {
 	RCStringPair* rcsp = g_FSMapping.getptr( path );
 	if( rcsp )
-		return rcsp->value;
-	return path;
+		path = rcsp->value;
+	else if( path.size() == 17 && path[0] == '\0' )
+	{
+		SGRX_GUID guid;
+		memcpy( guid.bytes, &path[1], 16 );
+		strcpy( resbfr, "assets/" );
+		guid.ToCharArray( resbfr + 7 );
+		path = resbfr;
+	}
+	else if( path.size() == GUID_STRING_LENGTH )
+	{
+		SGRX_GUID guid = SGRX_GUID::ParseString( path );
+		if( guid.NotNull() )
+		{
+			strcpy( resbfr, "assets/" );
+			guid.ToCharArray( resbfr + 7 );
+			path = resbfr;
+		}
+	}
 }
 
 HFileReader FS_OpenBinaryFile( StringView path )
 {
 	LOG_FUNCTION;
-	path = FS_ResolvePath( path );
+	FS_RESOLVE_PATH( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 	{
 		HFileReader fr = g_FileSystems[ i ]->OpenBinaryFile( path );
@@ -1118,7 +1121,7 @@ HFileReader FS_OpenBinaryFile( StringView path )
 bool FS_LoadBinaryFile( StringView path, ByteArray& out )
 {
 	LOG_FUNCTION;
-	path = FS_ResolvePath( path );
+	FS_RESOLVE_PATH( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->LoadBinaryFile( path, out ) )
 			return true;
@@ -1128,7 +1131,7 @@ bool FS_LoadBinaryFile( StringView path, ByteArray& out )
 bool FS_SaveBinaryFile( StringView path, const void* data, size_t size )
 {
 	LOG_FUNCTION;
-	path = FS_ResolvePath( path );
+	FS_RESOLVE_PATH( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->SaveBinaryFile( path, data, size ) )
 			return true;
@@ -1138,7 +1141,7 @@ bool FS_SaveBinaryFile( StringView path, const void* data, size_t size )
 bool FS_LoadTextFile( StringView path, String& out )
 {
 	LOG_FUNCTION;
-	path = FS_ResolvePath( path );
+	FS_RESOLVE_PATH( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->LoadTextFile( path, out ) )
 			return true;
@@ -1148,7 +1151,7 @@ bool FS_LoadTextFile( StringView path, String& out )
 bool FS_SaveTextFile( StringView path, StringView data )
 {
 	LOG_FUNCTION;
-	path = FS_ResolvePath( path );
+	FS_RESOLVE_PATH( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->SaveTextFile( path, data ) )
 			return true;
@@ -1158,7 +1161,7 @@ bool FS_SaveTextFile( StringView path, StringView data )
 bool FS_FindRealPath( StringView path, String& out )
 {
 	LOG_FUNCTION;
-	path = FS_ResolvePath( path );
+	FS_RESOLVE_PATH( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->FindRealPath( path, out ) )
 			return true;
@@ -1168,7 +1171,7 @@ bool FS_FindRealPath( StringView path, String& out )
 bool FS_FileExists( StringView path )
 {
 	LOG_FUNCTION;
-	path = FS_ResolvePath( path );
+	FS_RESOLVE_PATH( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->FileExists( path ) )
 			return true;
@@ -1178,7 +1181,7 @@ bool FS_FileExists( StringView path )
 bool FS_DirCreate( StringView path )
 {
 	LOG_FUNCTION;
-	path = FS_ResolvePath( path );
+	FS_RESOLVE_PATH( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->DirCreate( path ) )
 			return true;
@@ -1188,7 +1191,7 @@ bool FS_DirCreate( StringView path )
 uint32_t FS_FileModTime( StringView path )
 {
 	LOG_FUNCTION;
-	path = FS_ResolvePath( path );
+	FS_RESOLVE_PATH( path );
 	uint32_t t;
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( ( t = g_FileSystems[ i ]->FileModTime( path ) ) != 0 )
@@ -1199,7 +1202,7 @@ uint32_t FS_FileModTime( StringView path )
 void FS_IterateDirectory( StringView path, IDirEntryHandler* deh )
 {
 	LOG_FUNCTION;
-	path = FS_ResolvePath( path );
+	FS_RESOLVE_PATH( path );
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		g_FileSystems[ i ]->IterateDirectory( path, deh );
 }

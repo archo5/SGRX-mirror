@@ -1,13 +1,15 @@
 
-global ED_IMGUI = {};
-global ED_ILOAD = {};
-global ED_ISAVE = {};
-global ED_ILCSV = class({}, ED_ISAVE);
+global ED_IMGUI = {}; // GUI functions
+global ED_ILOAD = {}; // level source load
+global ED_ISAVE = {}; // level source save
+global ED_ILCSV = class({}, ED_ISAVE); // level cache (compiled) save
 
-function ED_ILOAD._Restart()
+function ED_ILOAD._Restart( end )
 {
 	this.links = [];
 	this.objmap = {};
+	if( !end )
+		this.assets_failed_to_load = map();
 }
 function ED_ILOAD._ResolveLinks()
 {
@@ -23,7 +25,7 @@ function ED_ILOAD._ResolveLinks()
 			src.(link.prop) = dst;
 		}
 	}
-	this._Restart();
+	this._Restart( true );
 }
 function ED_ILOAD.AddLink( src, prop, dst )
 {
@@ -39,7 +41,8 @@ global ED_SDATA = null;
 
 function ED_ILOAD.EditBool( lbl, obj, prop )
 {
-	obj.(prop) = tobool( ED_SDATA[ prop ] );
+	if( @ED_SDATA[ prop ] !== null )
+		obj.(prop) = tobool( ED_SDATA[ prop ] );
 }
 function ED_ISAVE.EditBool( lbl, obj, prop )
 {
@@ -49,7 +52,8 @@ function ED_ISAVE.EditBool( lbl, obj, prop )
 
 function ED_ILOAD.EditInt( lbl, obj, prop, vmin, vmax )
 {
-	obj.(prop) = toint( ED_SDATA[ prop ] );
+	if( @ED_SDATA[ prop ] !== null )
+		obj.(prop) = toint( ED_SDATA[ prop ] );
 }
 function ED_ISAVE.EditInt( lbl, obj, prop, vmin, vmax )
 {
@@ -59,7 +63,8 @@ function ED_ISAVE.EditInt( lbl, obj, prop, vmin, vmax )
 
 function ED_ILOAD.EditFloat( lbl, obj, prop, vmin, vmax, prec )
 {
-	obj.(prop) = toreal( ED_SDATA[ prop ] );
+	if( @ED_SDATA[ prop ] !== null )
+		obj.(prop) = toreal( ED_SDATA[ prop ] );
 }
 function ED_ISAVE.EditFloat( lbl, obj, prop, vmin, vmax, prec )
 {
@@ -69,11 +74,14 @@ function ED_ISAVE.EditFloat( lbl, obj, prop, vmin, vmax, prec )
 
 function ED_ILOAD.EditVec3( lbl, obj, prop, vmin, vmax, prec )
 {
-	d = ED_SDATA[ prop ];
-	if( typeof(d) === "vec3" )
-		obj.(prop) = d;
-	else
-		obj.(prop) = vec3( d.x, d.y, d.z );
+	d = @ED_SDATA[ prop ];
+	if( d !== null )
+	{
+		if( typeof(d) === "vec3" )
+			obj.(prop) = d;
+		else
+			obj.(prop) = vec3( d.x, d.y, d.z );
+	}
 }
 function ED_ISAVE.EditVec3( lbl, obj, prop, vmin, vmax, prec )
 {
@@ -87,7 +95,8 @@ function ED_ILCSV.EditVec3( lbl, obj, prop, vmin, vmax, prec )
 
 function ED_ILOAD.EditFlag( lbl, obj, prop, flag )
 {
-	obj.(prop) = toint( ED_SDATA[ prop ] );
+	if( @ED_SDATA[ prop ] !== null )
+		obj.(prop) = toint( ED_SDATA[ prop ] );
 }
 function ED_ISAVE.EditFlag( lbl, obj, prop, flag )
 {
@@ -108,11 +117,14 @@ function ED_ISAVE.EditMask( lbl, obj, prop, count )
 
 function ED_ILOAD.EditColorRGBLDR( lbl, obj, prop )
 {
-	d = ED_SDATA[ prop ];
-	if( typeof(d) === "vec3" )
-		obj.(prop) = d;
-	else
-		obj.(prop) = vec3( d.x, d.y, d.z );
+	d = @ED_SDATA[ prop ];
+	if( d !== null )
+	{
+		if( typeof(d) === "vec3" )
+			obj.(prop) = d;
+		else
+			obj.(prop) = vec3( d.x, d.y, d.z );
+	}
 }
 function ED_ISAVE.EditColorRGBLDR( lbl, obj, prop )
 {
@@ -126,16 +138,19 @@ function ED_ILCSV.EditColorRGBLDR( lbl, obj, prop )
 
 function ED_ILOAD.EditXFMat4( lbl, obj, prop )
 {
-	a = ED_SDATA[ prop ];
-	m = mat4();
-	if( typeof(a) === "mat4" )
-		m = a;
-	else if( a != null )
+	a = @ED_SDATA[ prop ];
+	if( a !== null )
 	{
-		for( i = 0; i < 16; ++i )
-			m[ i ] = a[ i ];
+		m = mat4();
+		if( typeof(a) === "mat4" )
+			m = a;
+		else if( a != null )
+		{
+			for( i = 0; i < 16; ++i )
+				m[ i ] = a[ i ];
+		}
+		obj.(prop) = m;
 	}
-	obj.(prop) = m;
 }
 function ED_ISAVE.EditXFMat4( lbl, obj, prop )
 {
@@ -147,30 +162,65 @@ function ED_ILCSV.EditXFMat4( lbl, obj, prop )
 	ED_SDATA[ prop ] = mat4( obj.(prop) );
 }
 
-function ED_ILOAD.EditString( lbl, obj, prop, maxlen ){ obj.(prop) = tostring( ED_SDATA[ prop ] ?? "" ); }
-function ED_ISAVE.EditString( lbl, obj, prop, maxlen ){ ED_SDATA[ prop ] = tostring( obj.(prop) ?? "" ); }
+function ED_ILOAD.EditString( lbl, obj, prop, maxlen )
+{
+	if( @ED_SDATA[ prop ] !== null )
+		obj.(prop) = tostring( ED_SDATA[ prop ] ?? "" );
+}
+function ED_ISAVE.EditString( lbl, obj, prop, maxlen )
+{
+	ED_SDATA[ prop ] = tostring( obj.(prop) ?? "" );
+}
 // default ED_ILCSV
 
-function ED_ILOAD.PickMesh( lbl, obj, prop, caption ){ obj.(prop) = tostring( ED_SDATA[ prop ] ?? "" ); }
-function ED_ISAVE.PickMesh( lbl, obj, prop, caption ){ ED_SDATA[ prop ] = tostring( obj.(prop) ?? "" ); }
+function ED_ILOAD._PickAsset( lbl, obj, prop, caption )
+{
+	if( @ED_SDATA[ prop ] !== null )
+	{
+		val = tostring( ED_SDATA[ prop ] ?? "" );
+		obj.(prop) = val;
+		if( obj.(prop) ?? "" !== val && @obj.__guid )
+		{
+			function get_( obj, prop )
+			{
+				ret = @obj[ prop ];
+				if( ret === null )
+					obj[ prop ] = ret = {};
+				return ret;
+			}
+			get_( this.assets_failed_to_load, obj.__guid )[ prop ] = val;
+		//	printvar( "LOADFAIL", obj.__guid, prop, val, obj.(prop), ">>" );
+		}
+	}
+}
+function ED_ISAVE._PickAsset( lbl, obj, prop, caption )
+{
+	ED_SDATA[ prop ] = tostring( obj.(prop) ?? "" );
+}
+
+function ED_ILOAD.PickMesh( lbl, obj, prop, caption ){ this._PickAsset( lbl, obj, prop, caption ); }
+function ED_ISAVE.PickMesh( lbl, obj, prop, caption ){ this._PickAsset( lbl, obj, prop, caption ); }
 // default ED_ILCSV
 
-function ED_ILOAD.PickTexture( lbl, obj, prop, caption ){ obj.(prop) = tostring( ED_SDATA[ prop ] ?? "" ); }
-function ED_ISAVE.PickTexture( lbl, obj, prop, caption ){ ED_SDATA[ prop ] = tostring( obj.(prop) ?? "" ); }
+function ED_ILOAD.PickTexture( lbl, obj, prop, caption ){ this._PickAsset( lbl, obj, prop, caption ); }
+function ED_ISAVE.PickTexture( lbl, obj, prop, caption ){ this._PickAsset( lbl, obj, prop, caption ); }
 // default ED_ILCSV
 
-function ED_ILOAD.PickPartSys( lbl, obj, prop, caption ){ obj.(prop) = tostring( ED_SDATA[ prop ] ?? "" ); }
-function ED_ISAVE.PickPartSys( lbl, obj, prop, caption ){ ED_SDATA[ prop ] = tostring( obj.(prop) ?? "" ); }
+function ED_ILOAD.PickPartSys( lbl, obj, prop, caption ){ this._PickAsset( lbl, obj, prop, caption ); }
+function ED_ISAVE.PickPartSys( lbl, obj, prop, caption ){ this._PickAsset( lbl, obj, prop, caption ); }
 // default ED_ILCSV
 
-function ED_ILOAD.PickSound( lbl, obj, prop, caption ){ obj.(prop) = tostring( ED_SDATA[ prop ] ?? "" ); }
-function ED_ISAVE.PickSound( lbl, obj, prop, caption ){ ED_SDATA[ prop ] = tostring( obj.(prop) ?? "" ); }
+function ED_ILOAD.PickSound( lbl, obj, prop, caption ){ this._PickAsset( lbl, obj, prop, caption ); }
+function ED_ISAVE.PickSound( lbl, obj, prop, caption ){ this._PickAsset( lbl, obj, prop, caption ); }
 // default ED_ILCSV
 
 function ED_ILOAD.PickLocalRsrc( lbl, obj, prop, gobj )
 {
-	obj.(prop) = null;
-	this.links.push({ src = obj, prop, dst = tostring( ED_SDATA[ prop ] ?? "" ) });
+	if( @ED_SDATA[ prop ] !== null )
+	{
+		obj.(prop) = null;
+		this.links.push({ src = obj, prop, dst = tostring( ED_SDATA[ prop ] ?? "" ) });
+	}
 }
 function ED_ISAVE.PickLocalRsrc( lbl, obj, prop, gobj )
 {
@@ -188,7 +238,8 @@ function ED_ILCSV.PickLocalRsrc( lbl, obj, prop, gobj )
 
 function ED_ILOAD.ComboNT( lbl, obj, prop, zssl, start )
 {
-	obj.(prop) = toint( ED_SDATA[ prop ] );
+	if( @ED_SDATA[ prop ] !== null )
+		obj.(prop) = toint( ED_SDATA[ prop ] );
 }
 function ED_ISAVE.ComboNT( lbl, obj, prop, zssl, start )
 {
