@@ -143,6 +143,8 @@ void EdLevelGraphicsCont::LMap::ExportRGBA8( uint32_t* outcol, uint32_t* outnrm 
 {
 	size_t W = width;
 	size_t H = height;
+	ASSERT( lmdata.size() == size_t(width * height) );
+	ASSERT( nmdata.size() == size_t(width * height) );
 	if( W * H )
 	{
 		LightmapF32ToRGBA( outcol, lmdata.data(), W, H );
@@ -155,6 +157,8 @@ void EdLevelGraphicsCont::LMap::ExportRGBA8( uint32_t* outcol, uint32_t* outnrm 
 
 void EdLevelGraphicsCont::LMap::ReloadTex()
 {
+	ASSERT( lmdata.size() == size_t(width * height) );
+	ASSERT( nmdata.size() == size_t(width * height) );
 	if( lmdata.size() )
 	{
 		Array< uint32_t > convdata;

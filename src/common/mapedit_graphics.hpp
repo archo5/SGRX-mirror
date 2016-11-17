@@ -176,9 +176,13 @@ struct EdLevelGraphicsCont : SGRX_IEventHandler
 			arch << height;
 			if( T::IsReader )
 				lmdata.resize( size_t(width) * size_t(height) );
+			if( T::IsWriter )
+				ASSERT( lmdata.size() == size_t( width * height ) );
 			arch.memory( lmdata.data(), lmdata.size_bytes() );
 			if( T::IsReader )
 				nmdata.resize( size_t(width) * size_t(height) );
+			if( T::IsWriter )
+				ASSERT( nmdata.size() == size_t( width * height ) );
 			arch.memory( nmdata.data(), nmdata.size_bytes() );
 			arch << invalid;
 		}
