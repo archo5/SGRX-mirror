@@ -1338,16 +1338,10 @@ static bool read_game_config()
 				if( VERBOSE ) LOG << "CONFIG: Renderer: " << value;
 			}
 		}
-		else if( key == "action" )
-		{
-			StringView name = value.until( "," );
-			StringView threshold = value.after( "," ).after_all( HSPACE_CHARS );
-			Game_AddAction( name, threshold.size() ? String_ParseFloat( threshold ) : 0.25f );
-		}
-		else
-		{
-			LOG_WARNING << "Unknown key (" << key << " = " << value << ")";
-		}
+	//	else
+	//	{
+	//		LOG_WARNING << "Unknown key (" << key << " = " << value << ")";
+	//	}
 	}
 	
 	return true;

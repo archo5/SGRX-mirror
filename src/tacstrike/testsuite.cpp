@@ -853,14 +853,6 @@ struct TestSuite : IGame
 	
 	bool OnConfigure( int argc, char* argv[] )
 	{
-#if 0
-		RenderSettings rs;
-		GR_GetVideoMode( rs );
-		rs.width = 800;
-		rs.height = 600;
-		//rs.fullscreen = FULLSCREEN_WINDOWED;
-		GR_SetVideoMode( rs );
-#endif
 		return true;
 	}
 	
@@ -875,8 +867,11 @@ struct TestSuite : IGame
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 		GR2D_LoadFont( "mono", "fonts/dejavu-sans-mono-regular.ttf" );
 		
-		Game_BindKeyToAction( SDLK_F2, &MOVE_LEFT );
-		Game_BindKeyToAction( SDLK_F3, &MOVE_RIGHT );
+		Game_AddAction( "move_left" );
+		Game_AddAction( "move_right" );
+		
+		Game_BindKeyToAction( SDLK_F2, "move_left" );
+		Game_BindKeyToAction( SDLK_F3, "move_right" );
 		
 		InitTest();
 		return true;

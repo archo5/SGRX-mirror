@@ -961,6 +961,9 @@ EXP_STRUCT BaseGame : IGame
 	GFW_EXPORT virtual bool OnConfigure( int argc, char** argv );
 	GFW_EXPORT virtual bool OnInitialize();
 	GFW_EXPORT virtual void OnDestroy();
+	GFW_EXPORT void InitSoundSystem();
+	GFW_EXPORT void ParseConfigFile();
+	GFW_EXPORT virtual SoundSystemHandle CreateSoundSystem() = 0;
 	GFW_EXPORT virtual PhyWorldHandle CreatePhyWorld() = 0;
 	GFW_EXPORT virtual GameLevel* CreateLevel();
 	GFW_EXPORT virtual void OnLevelChange();
@@ -976,6 +979,7 @@ EXP_STRUCT BaseGame : IGame
 	float m_accum;
 	float m_timeMultiplier;
 	SoundSystemHandle m_soundSys;
+	String m_soundBanks;
 	SoundEventInstanceHandle m_ovrMusic;
 	String m_ovrMusicPath;
 	GameLevel* m_level;

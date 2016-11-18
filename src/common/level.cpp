@@ -1665,6 +1665,7 @@ BaseGame::BaseGame() :
 	m_needsEditor( false )
 {
 	m_mapName = "<UNSPECIFIED>";
+	ParseConfigFile();
 }
 
 int BaseGame::OnArgument( char* arg, int argcleft, char** argvleft )
@@ -1694,8 +1695,7 @@ bool BaseGame::OnConfigure( int argc, char** argv )
 
 bool BaseGame::OnInitialize()
 {
-	if( !m_soundSys )
-		return false;
+	InitSoundSystem();
 	m_level = CreateLevel();
 	return true;
 }
@@ -1707,8 +1707,78 @@ void BaseGame::OnDestroy()
 	m_soundSys = NULL;
 }
 
+void BaseGame::InitSoundSystem()
+{
+	if( m_soundSys == NULL )
+	{
+		m_soundSys = CreateSoundSystem();
+		
+		StringView it = m_soundBanks;
+		while( it.size() )
+		{
+			m_soundSys->Load( it.until( ":" ) );
+			it = it.after( ":" );
+		}
+	}
+}
+
+void BaseGame::ParseConfigFile()
+{
+	LOG_FUNCTION;
+	
+	String text;
+	if( !FS_LoadTextFile( "game.cfg", text ) )
+	{
+		LOG_ERROR << "Failed to load game.cfg";
+		return;
+	}
+	
+	ConfigReader cr( text );
+	StringView key, value;
+	while( cr.Read( key, value ) )
+	{
+		if( key == "startuplevel" )
+		{
+			m_mapName = value;
+		}
+		else if( key == "soundbank" )
+		{
+			if( m_soundBanks.size() )
+				m_soundBanks.append( ":" );
+			m_soundBanks.append( value );
+		}
+		else if( key == "font" )
+		{
+			StringView name = value.until( "=" );
+			StringView path = value.after( "=" );
+			GR2D_LoadFont( name, path );
+		}
+		else if( key == "svgfont" )
+		{
+			StringView name = value.until( "=" );
+			StringView path = value.after( "=" );
+			GR2D_LoadSVGIconFont( name, path );
+		}
+		else if( key == "action" )
+		{
+			StringView name = value.until( "," );
+			StringView threshold = value.after( "," ).after_all( HSPACE_CHARS );
+			Game_AddAction( name, threshold.size() ? String_ParseFloat( threshold ) : 0.25f );
+		}
+		else if( key == "module" || key == "dir2" || key == "renderer" )
+		{
+			// already parsed by engine core
+		}
+		else
+		{
+			LOG_WARNING << "Unknown key (" << key << " = " << value << ")";
+		}
+	}
+}
+
 GameLevel* BaseGame::CreateLevel()
 {
+	InitSoundSystem();
 	GameLevel* level = new GameLevel( CreatePhyWorld() );
 	level->m_soundSys = m_soundSys;
 	sgs_RegFuncConsts( level->GetSGSC(), basegame_api, -1 );
