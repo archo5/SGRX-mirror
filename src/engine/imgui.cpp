@@ -1134,6 +1134,10 @@ bool IMGUICharPicker::HandleDirEntry( const StringView& loc, const StringView& n
 }
 
 
+IMGUIShaderPicker::~IMGUIShaderPicker()
+{
+}
+
 bool IMGUIShaderPicker::HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
 {
 	if( name.starts_with( "mtl_" ) && name.ends_with( ".shd" ) )

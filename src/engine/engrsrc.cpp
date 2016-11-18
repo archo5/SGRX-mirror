@@ -289,8 +289,121 @@ SGRX_DrawItem::SGRX_DrawItem() : MI( NULL ), part( 0 ), type( 0 ), _lightbuf_beg
 }
 
 
-SGRX_Material::SGRX_Material() : flags(0), blendMode(SGRX_MtlBlend_None)
+SGRX_MaterialCore::SGRX_MaterialCore() : flags(0), blendMode(SGRX_MtlBlend_None)
 {
+}
+
+SGRX_MaterialCore::~SGRX_MaterialCore()
+{
+}
+
+static const StringView mtl_texture_keys[ SGRX_MAX_TEXTURES ] =
+{
+	"0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+	"10", "11", "12", "13", "14", "15",
+};
+int SGRX_MaterialCore::Parse( ConfigReader& cr, bool halftex )
+{
+	int numparsed = 0;
+	
+	shader = "";
+	for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
+		SetTexture( i, "" );
+	blendMode = SGRX_MtlBlend_None;
+	flags = 0;
+	
+	StringView key, value;
+	ConfigReader state = cr;
+	while( cr.Read( key, value ) )
+	{
+		numparsed++;
+		if( key == "shader" ) shader = value;
+		else if( key == "blendmode" )
+		{
+			if( value == "basic" ) blendMode = SGRX_MtlBlend_Basic;
+			else if( value == "additive" ) blendMode = SGRX_MtlBlend_Additive;
+			else if( value == "multiply" ) blendMode = SGRX_MtlBlend_Multiply;
+			else blendMode = SGRX_MtlBlend_None;
+		}
+		else if( key == "unlit" ) flags |= SGRX_MtlFlag_Unlit;
+		else if( key == "nocull" ) flags |= SGRX_MtlFlag_Nocull;
+		else if( key == "decal" ) flags |= SGRX_MtlFlag_Decal;
+		else if( key == "disable" ) flags |= SGRX_MtlFlag_Disable;
+		else if( key == "vcol" ) flags |= SGRX_MtlFlag_VCol;
+		else
+		{
+			bool parsed = false;
+			int texcount = SGRX_MAX_TEXTURES / ( halftex ? 2 : 1 );
+			for( int i = 0; i < texcount; ++i )
+			{
+				if( mtl_texture_keys[ i ] == key )
+				{
+					SetTexture( i, value );
+					parsed = true;
+					break;
+				}
+			}
+			// unknown param
+			if( parsed == false )
+			{
+				numparsed--;
+				cr = state;
+				return numparsed;
+			}
+		}
+		state = cr;
+	}
+	return numparsed;
+}
+
+void SGRX_MaterialCore::Generate( String& out, bool halftex )
+{
+	out.append( "shader " ); out.append( shader ); out.append( "\n" );
+	out.append( "blendmode " );
+	switch( blendMode )
+	{
+	case SGRX_MtlBlend_Basic: out.append( "basic\n" ); break;
+	case SGRX_MtlBlend_Additive: out.append( "additive\n" ); break;
+	case SGRX_MtlBlend_Multiply: out.append( "multiply\n" ); break;
+	default: out.append( "none\n" ); break;
+	}
+	if( flags & SGRX_MtlFlag_Unlit ) out.append( "unlit\n" );
+	if( flags & SGRX_MtlFlag_Nocull ) out.append( "nocull\n" );
+	if( flags & SGRX_MtlFlag_Decal ) out.append( "decal\n" );
+	if( flags & SGRX_MtlFlag_Disable ) out.append( "disable\n" );
+	if( flags & SGRX_MtlFlag_VCol ) out.append( "vcol\n" );
+	int texcount = SGRX_MAX_TEXTURES / ( halftex ? 2 : 1 );
+	for( int i = 0; i < texcount; ++i )
+	{
+		out.append( mtl_texture_keys[ i ] );
+		StringView texpath = GetTexture( i );
+		if( texpath.size() )
+		{
+			out.append( " " );
+			out.append( texpath );
+			out.append( "\n" );
+		}
+	}
+}
+
+StringView SGRX_MtlInfo::GetTexture( int i )
+{
+	return textures[ i ];
+}
+
+void SGRX_MtlInfo::SetTexture( int i, StringView path )
+{
+	textures[ i ] = path;
+}
+
+StringView SGRX_Material::GetTexture( int i )
+{
+	return textures[ i ] ? textures[ i ]->m_key : SV();
+}
+
+void SGRX_Material::SetTexture( int i, StringView path )
+{
+	textures[ i ] = path.size() ? GR_GetTexture( path ) : NULL;
 }
 
 

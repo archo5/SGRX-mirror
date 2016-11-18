@@ -1087,15 +1087,34 @@ typedef Handle< SGRX_IVertexInputMapping > VtxInputMapHandle;
 #define SGRX_MtlBlend_Additive 2
 #define SGRX_MtlBlend_Multiply 3
 
-struct SGRX_Material
+struct IF_GCC(ENGINE_EXPORT) SGRX_MaterialCore
 {
-	ENGINE_EXPORT SGRX_Material();
+	ENGINE_EXPORT SGRX_MaterialCore();
+	ENGINE_EXPORT ~SGRX_MaterialCore();
+	ENGINE_EXPORT int Parse( ConfigReader& cr, bool halftex );
+	ENGINE_EXPORT void Generate( String& out, bool halftex );
+	virtual StringView GetTexture( int i ) = 0;
+	virtual void SetTexture( int i, StringView path ) = 0;
 	
 	String shader;
-	TextureHandle textures[ SGRX_MAX_TEXTURES ];
-	
 	uint8_t flags;
 	uint8_t blendMode;
+};
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_MtlInfo : SGRX_MaterialCore
+{
+	StringView GetTexture( int i );
+	void SetTexture( int i, StringView path );
+	
+	String textures[ SGRX_MAX_TEXTURES ];
+};
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_Material : SGRX_MaterialCore
+{
+	StringView GetTexture( int i );
+	void SetTexture( int i, StringView path );
+	
+	TextureHandle textures[ SGRX_MAX_TEXTURES ];
 };
 
 

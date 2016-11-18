@@ -162,7 +162,7 @@ void EDGO_EditUI( GameObject* obj )
 			ImGui::OpenPopup( "add_resource" );
 		}
 		
-		ImGui::SetNextWindowContentSize( ImVec2(330,600) );
+	//	ImGui::SetNextWindowContentSize( ImVec2(330,600) );
 		if( ImGui::BeginPopup( "add_resource" ) )
 		{
 			IMGUIEditString( "Filter type", rsrctypename, 256 );
@@ -600,6 +600,56 @@ static int IMGUI_EditString( SGS_CTX )
 	return 0;
 }
 
+static bool IMGUIEditMaterial( const char* label, String& value )
+{
+	SGRX_MtlInfo mtl;
+	ConfigReader cr( value );
+	mtl.Parse( cr, true );
+	
+	ImGui::BeginChangeCheck();
+	IMGUI_GROUP_BEGIN( label, true )
+	{
+		g_NUIShaderPicker->Property( "Shader", mtl.shader );
+		IMGUIComboBox( "Blend mode", mtl.blendMode, "None\0Basic\0Additive\0Multiply\0" );
+		static const char* options[] = { "Unlit", "No culling", "Decal", "Disable", "Use vertex colors", NULL };
+		IMGUIEditMask( "Options", mtl.flags, 5, options );
+		for( int i = 0; i < 8; ++i )
+		{
+			static const char* textures[] =
+			{
+				"Texture 0", "Texture 1", "Texture 2", "Texture 3",
+				"Texture 4", "Texture 5", "Texture 6", "Texture 7",
+			};
+			g_NUITexturePicker->Property( textures[ i ], textures[ i ], mtl.textures[ i ] );
+		}
+	}
+	IMGUI_GROUP_END;
+	
+	if( ImGui::EndChangeCheck() )
+	{
+		value.clear();
+		mtl.Generate( value, true );
+		return true;
+	}
+	return false;
+}
+
+static int IMGUI_EditMaterial( SGS_CTX )
+{
+	SGSFN( "ED_IMGUI.EditMaterial" );
+	sgsString label( C, 0 );
+	sgsVariable obj( C, 1 );
+	sgsString prop( C, 2 );
+	String value = obj.getprop( prop ).get<String>();
+	
+	bool ret;
+	if( ( ret = IMGUIEditMaterial( label.c_str(), value ) ) )
+		obj.setprop( prop, g_Level->GetScriptCtx().CreateString( value ).get_variable() );
+	
+	sgs_PushBool( C, ret );
+	return 1;
+}
+
 static void _IMGUI_HandleFailedPropLoad( sgsVariable obj, sgsString prop )
 {
 	sgsVariable objinfo = g_Level->GetScriptCtx().GetGlobal( "ED_ILOAD" )
@@ -770,6 +820,7 @@ sgs_RegFuncConst g_imgui_rfc[] =
 	{ "EditColorRGBLDR", IMGUI_EditColorRGBLDR },
 	{ "EditXFMat4", IMGUI_EditXFMat4 },
 	{ "EditString", IMGUI_EditString },
+	{ "EditMaterial", IMGUI_EditMaterial },
 	{ "PickMesh", IMGUI_PickMesh },
 	{ "PickTexture", IMGUI_PickTexture },
 	{ "PickPartSys", IMGUI_PickPartSys },

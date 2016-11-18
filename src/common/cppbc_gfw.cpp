@@ -2345,6 +2345,27 @@ static int _sgs_method__MeshResource__GetWorldMatrix( SGS_CTX )
 	sgs_PushVar(C,data->GetWorldMatrix(  )); return 1;
 }
 
+static int _sgs_method__MeshResource__GetMaterialCount( SGS_CTX )
+{
+	MeshResource* data; if( !SGS_PARSE_METHOD( C, MeshResource::_sgs_interface, data, MeshResource, GetMaterialCount ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetMaterialCount(  )); return 1;
+}
+
+static int _sgs_method__MeshResource__GetMaterial( SGS_CTX )
+{
+	MeshResource* data; if( !SGS_PARSE_METHOD( C, MeshResource::_sgs_interface, data, MeshResource, GetMaterial ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetMaterial( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
+static int _sgs_method__MeshResource__SetMaterial( SGS_CTX )
+{
+	MeshResource* data; if( !SGS_PARSE_METHOD( C, MeshResource::_sgs_interface, data, MeshResource, SetMaterial ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->SetMaterial( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1) ); return 0;
+}
+
 static int _sgs_method__MeshResource__SetShaderConst( SGS_CTX )
 {
 	MeshResource* data; if( !SGS_PARSE_METHOD( C, MeshResource::_sgs_interface, data, MeshResource, SetShaderConst ) ) return 0;
@@ -2462,6 +2483,9 @@ static sgs_RegFuncConst MeshResource__sgs_funcs[] =
 	{ "PreRender", _sgs_method__MeshResource__PreRender },
 	{ "OnTransformUpdate", _sgs_method__MeshResource__OnTransformUpdate },
 	{ "GetWorldMatrix", _sgs_method__MeshResource__GetWorldMatrix },
+	{ "GetMaterialCount", _sgs_method__MeshResource__GetMaterialCount },
+	{ "GetMaterial", _sgs_method__MeshResource__GetMaterial },
+	{ "SetMaterial", _sgs_method__MeshResource__SetMaterial },
 	{ "SetShaderConst", _sgs_method__MeshResource__SetShaderConst },
 	{ NULL, NULL },
 };

@@ -173,6 +173,17 @@ function ED_ISAVE.EditString( lbl, obj, prop, maxlen )
 }
 // default ED_ILCSV
 
+function ED_ILOAD.EditMaterial( lbl, obj, prop )
+{
+	if( @ED_SDATA[ prop ] !== null )
+		obj.(prop) = tostring( ED_SDATA[ prop ] ?? "" );
+}
+function ED_ISAVE.EditMaterial( lbl, obj, prop )
+{
+	ED_SDATA[ prop ] = tostring( obj.(prop) ?? "" );
+}
+// default ED_ILCSV
+
 function ED_ILOAD._PickAsset( lbl, obj, prop, caption )
 {
 	if( @ED_SDATA[ prop ] !== null )

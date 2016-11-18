@@ -2348,6 +2348,7 @@ bool MapEditor::OnInitialize()
 	g_NUIPartSysPicker = new IMGUIFilePicker( SGRXPATH__PARTSYS, ".psy", false );
 	g_NUISurfMtlPicker = new IMGUISurfMtlPicker();
 	g_NUISoundPicker = new IMGUISoundPicker();
+	g_NUIShaderPicker = new IMGUIShaderPicker();
 	
 	g_Level = g_BaseGame->CreateLevel();
 	g_Level->m_editorMode = true;
@@ -2395,9 +2396,10 @@ void MapEditor::OnDestroy()
 	
 	delete g_BaseGame;
 	
+	delete g_NUIShaderPicker;
+	delete g_NUISoundPicker;
 	delete g_NUISurfMtlPicker;
 	delete g_NUIPartSysPicker;
-	delete g_NUISoundPicker;
 	delete g_NUICharPicker;
 	delete g_NUITexturePicker;
 	delete g_NUIMeshPicker;

@@ -244,6 +244,7 @@ struct IF_GCC(ENGINE_EXPORT) IMGUICharPicker : IMGUIMeshPicker, IDirEntryHandler
 
 struct IF_GCC(ENGINE_EXPORT) IMGUIShaderPicker : IDirEntryHandler
 {
+	ENGINE_EXPORT virtual ~IMGUIShaderPicker();
 	ENGINE_EXPORT bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir );
 	ENGINE_EXPORT bool Property( const char* label, String& str );
 	Array< RCString > m_shaderList;

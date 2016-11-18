@@ -80,6 +80,26 @@ void MeshResource::SetMeshData( MeshHandle mesh )
 	// _UpEv already called
 }
 
+String MeshResource::GetMaterial( int i )
+{
+	if( i < 0 || i >= m_meshInst->GetMaterialCount() )
+		return "";
+	SGRX_Material& mtl = m_meshInst->GetMaterial( i );
+	String out;
+	mtl.Generate( out, true );
+	return out;
+}
+
+void MeshResource::SetMaterial( int i, StringView desc )
+{
+	if( i < 0 || i >= m_meshInst->GetMaterialCount() )
+		return;
+	SGRX_Material& mtl = m_meshInst->GetMaterial( i );
+	ConfigReader cr( desc );
+	mtl.Parse( cr, true );
+	m_meshInst->OnUpdate();
+}
+
 void MeshResource::SetShaderConst( int v, Vec4 var )
 {
 	if( v < 0 || v >= MAX_MI_CONSTANTS )

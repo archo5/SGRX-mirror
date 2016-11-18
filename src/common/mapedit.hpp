@@ -57,6 +57,7 @@ MAPEDIT_GLOBAL( IMGUIFilePicker* g_NUIPartSysPicker );
 MAPEDIT_GLOBAL( IMGUITexturePicker* g_NUITexturePicker );
 MAPEDIT_GLOBAL( IMGUICharPicker* g_NUICharPicker );
 MAPEDIT_GLOBAL( IMGUISoundPicker* g_NUISoundPicker );
+MAPEDIT_GLOBAL( IMGUIShaderPicker* g_NUIShaderPicker );
 MAPEDIT_GLOBAL( struct IMGUISurfMtlPicker* g_NUISurfMtlPicker );
 
 

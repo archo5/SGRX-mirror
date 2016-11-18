@@ -54,6 +54,9 @@ EXP_STRUCT MeshResource : GOResource, SGRX_MeshInstUserData
 	void SetLayers( uint32_t layers ){ m_meshInst->layers = layers; }
 	bool HasBulletInteraction() const { return m_meshInst->userData != NULL; }
 	void SetBulletInteraction( bool v ){ m_meshInst->userData = v ? (SGRX_MeshInstUserData*) this : NULL; }
+	SGS_METHOD int GetMaterialCount() const { return m_meshInst->GetMaterialCount(); }
+	SGS_METHOD String GetMaterial( int i );
+	SGS_METHOD void SetMaterial( int i, StringView desc );
 	
 	SGS_PROPERTY_FUNC( READ SOURCE m_meshInst.item ) SGS_ALIAS( void* meshInst );
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME isStatic ) bool m_isStatic;
@@ -63,6 +66,7 @@ EXP_STRUCT MeshResource : GOResource, SGRX_MeshInstUserData
 	SGS_PROPERTY_FUNC( READ GetLightingMode WRITE SetLightingMode VARNAME lightingMode ) int m_lightingMode;
 	SGS_PROPERTY_FUNC( READ GetLayers WRITE SetLayers ) SGS_ALIAS( uint32_t layers );
 	SGS_PROPERTY_FUNC( READ HasBulletInteraction WRITE SetBulletInteraction ) SGS_ALIAS( bool hasBulletInteraction );
+	
 	// editor-only static mesh parameters
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME lmQuality ) float m_lmQuality;
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME castLMS ) bool m_castLMS;
