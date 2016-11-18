@@ -94,13 +94,14 @@ function MeshResource.EditorGUI( ui )
 		ui.EditFloat( "Lightmap quality", this, "lmQuality", 0.01, 100 );
 		ui.EditBool( "Casts lightmap shadows?", this, "castLMS" );
 	}
-	for( i = 0; i < this.GetMaterialCount(); ++i )
+	ui.EditBool( "Override materials?", this, "overrideMaterials" );
+	if( this.overrideMaterials )
 	{
-		obj = class({ ["material" $ i] = this.GetMaterial( i ) }, this );
-		if( ui.EditMaterial( "Material " $ i, obj, "material" $ i ) )
+		for( i = 0; i < this.GetMaterialCount(); ++i )
 		{
-			println("WAT",obj[ "material" $ i ]);
-			this.SetMaterial( i, obj[ "material" $ i ] );
+			obj = class({ ["material" $ i] = this.GetMaterial( i ) }, this );
+			if( ui.EditMaterial( "Material " $ i, obj, "material" $ i ) )
+				this.SetMaterial( i, obj[ "material" $ i ] );
 		}
 	}
 	ui.EditMask( "Layers", this, "layers", 32 );

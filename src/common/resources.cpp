@@ -10,7 +10,8 @@ MeshResource::MeshResource( GameObject* obj ) : GOResource( obj ),
 	m_isVisible( true ),
 	m_lightingMode( SGRX_LM_Dynamic ),
 	m_lmQuality( 1 ),
-	m_castLMS( true )
+	m_castLMS( true ),
+	m_overrideMaterials( false )
 {
 	m_meshInst = m_level->GetScene()->CreateMeshInstance();
 	m_meshInst->SetLightingMode( (SGRX_LightingMode) m_lightingMode );

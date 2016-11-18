@@ -609,6 +609,20 @@ static bool IMGUIEditMaterial( const char* label, String& value )
 	ImGui::BeginChangeCheck();
 	IMGUI_GROUP_BEGIN( label, true )
 	{
+		String mtlname;
+		if( g_NUISurfMtlPicker->Property( "Pick surface material", "Material", mtlname ) )
+		{
+			MapMaterial* mapmtl = g_NUISurfMtlPicker->m_materials.getcopy( mtlname );
+			if( mapmtl )
+			{
+				mtl.shader = mapmtl->shader;
+				mtl.blendMode = mapmtl->blendmode;
+				mtl.flags = mapmtl->flags;
+				for( int i = 0; i < MAX_MATERIAL_TEXTURES; ++i )
+					mtl.textures[ i ] = mapmtl->texture[ i ];
+			}
+		}
+		
 		g_NUIShaderPicker->Property( "Shader", mtl.shader );
 		IMGUIComboBox( "Blend mode", mtl.blendMode, "None\0Basic\0Additive\0Multiply\0" );
 		static const char* options[] = { "Unlit", "No culling", "Decal", "Disable", "Use vertex colors", NULL };

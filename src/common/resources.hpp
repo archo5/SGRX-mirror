@@ -70,6 +70,7 @@ EXP_STRUCT MeshResource : GOResource, SGRX_MeshInstUserData
 	// editor-only static mesh parameters
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME lmQuality ) float m_lmQuality;
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME castLMS ) bool m_castLMS;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME overrideMaterials ) bool m_overrideMaterials;
 	
 	GFW_EXPORT SGS_METHOD void SetShaderConst( int v, Vec4 var );
 	

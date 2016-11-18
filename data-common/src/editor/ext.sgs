@@ -176,7 +176,10 @@ function ED_ISAVE.EditString( lbl, obj, prop, maxlen )
 function ED_ILOAD.EditMaterial( lbl, obj, prop )
 {
 	if( @ED_SDATA[ prop ] !== null )
+	{
 		obj.(prop) = tostring( ED_SDATA[ prop ] ?? "" );
+		return true;
+	}
 }
 function ED_ISAVE.EditMaterial( lbl, obj, prop )
 {

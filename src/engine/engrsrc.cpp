@@ -375,10 +375,10 @@ void SGRX_MaterialCore::Generate( String& out, bool halftex )
 	int texcount = SGRX_MAX_TEXTURES / ( halftex ? 2 : 1 );
 	for( int i = 0; i < texcount; ++i )
 	{
-		out.append( mtl_texture_keys[ i ] );
 		StringView texpath = GetTexture( i );
 		if( texpath.size() )
 		{
+			out.append( mtl_texture_keys[ i ] );
 			out.append( " " );
 			out.append( texpath );
 			out.append( "\n" );
