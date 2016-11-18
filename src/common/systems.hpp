@@ -143,7 +143,6 @@ EXP_STRUCT ScriptedSequenceSystem : IGameLevelSystem
 	GFW_EXPORT void DrawUI();
 	void _StartCutscene(){ m_time = 0; }
 	
-	InputState m_cmdSkip;
 	GFW_EXPORT SGS_METHOD_NAMED( Start ) void sgsStart( sgsVariable func, float t );
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _StartCutscene VARNAME func ) sgsVariable m_func;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME time ) float m_time;

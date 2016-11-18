@@ -21,23 +21,6 @@ void register_tsent_cvars()
 
 
 extern Vec2 CURSOR_POS;
-extern InputState MOVE_LEFT;
-extern InputState MOVE_RIGHT;
-extern InputState MOVE_UP;
-extern InputState MOVE_DOWN;
-extern InputState MOVE_X;
-extern InputState MOVE_Y;
-extern InputState AIM_X;
-extern InputState AIM_Y;
-extern InputState WP_SHOOT;
-extern InputState WP_LOCK_ON;
-extern InputState WP_REMOVE_LOCK_ON;
-extern InputState WP_RELOAD;
-extern InputState WP_DROP;
-extern InputState WP_HOLSTER;
-extern InputState CROUCH;
-extern InputState JUMP;
-extern InputState DO_ACTION;
 
 
 #define MAGNUM_CAMERA_NOTICE_TIME 2
@@ -1142,8 +1125,9 @@ void TSPlayerController::Update()
 	{
 		pos = P->GetQueryPosition();
 	//	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
-	//	m_aimHelper.Tick( dt, m_obj, pos, CURSOR_POS / screen_size, WP_LOCK_ON.value > 0.5f );
-		m_aimHelper.Tick( V2( AIM_X.value, AIM_Y.value ), m_obj );
+	//	m_aimHelper.Tick( dt, m_obj, pos, CURSOR_POS / screen_size, Game_GetActionState("wp_lock_on").value > 0.5f );
+		m_aimHelper.Tick( V2( Game_GetActionState( "aim_x" ).value,
+			Game_GetActionState( "aim_y" ).value ), m_obj );
 		
 		// movement factor
 		Vec3 relpos1 = pos - m_aimHelper.GetAimPoint();
@@ -1181,15 +1165,18 @@ void TSPlayerController::Update()
 	if( map )
 		map->viewPos = pos;
 	
-	if( WP_REMOVE_LOCK_ON.value )
+	if( Game_GetActionState( "wp_remove_lock_on" ).value )
 		m_aimHelper.RemoveLockOn();
 	
-	Vec2 walkaxis = V2( MOVE_X.value, MOVE_Y.value );
+	Vec2 walkaxis = V2( Game_GetActionState( "move_x" ).value,
+		Game_GetActionState( "move_y" ).value );
 	ApplyDeadzone( walkaxis );
 	i_move = V2
 	(
-		-walkaxis.x + MOVE_LEFT.value - MOVE_RIGHT.value,
-		walkaxis.y + MOVE_DOWN.value - MOVE_UP.value
+		-walkaxis.x + Game_GetActionState( "move_left" ).value -
+			Game_GetActionState( "move_right" ).value,
+		walkaxis.y + Game_GetActionState( "move_down" ).value -
+			Game_GetActionState( "move_up" ).value
 	);
 	
 	CameraResource* maincam = m_level->GetMainCamera();
@@ -1212,12 +1199,13 @@ void TSPlayerController::Update()
 	}
 	if( m_aimHelper.m_relocking )
 	{
-		Vec3 n = V3( AIM_X.value, AIM_Y.value, 0 );
+		Vec3 n = V3( Game_GetActionState( "aim_x" ).value,
+			Game_GetActionState( "aim_y" ).value, 0 );
 		n = m_level->GetScene()->camera.mInvView.TransformNormal( n );
 		P->TurnTo( -n.ToVec2().Normalized(), 10.0f * m_level->GetDeltaTime() );
 	}
 	
-	if( CROUCH.IsPressed() )
+	if( Game_GetActionState("crouch").IsPressed() )
 	{
 		i_crouch = !i_crouch;
 	}
@@ -1230,12 +1218,13 @@ Vec3 TSPlayerController::GetInput( uint32_t iid )
 	case ACT_Chr_Move: return V3( i_move.x, i_move.y, 1 );
 	case ACT_Chr_Turn: return i_turn;
 	case ACT_Chr_Crouch: return V3(i_crouch);
-	case ACT_Chr_Jump: return V3(JUMP.value);
+	case ACT_Chr_Jump: return V3(Game_GetActionState("jump").value);
 	case ACT_Chr_AimAt: return V3( m_aimHelper.IsAiming() /* aim? */, 32 /* speed */, 0 );
 	case ACT_Chr_AimTarget: return i_aim_target;
-	case ACT_Chr_Shoot: return V3(WP_SHOOT.value);
-	case ACT_Chr_DoAction: return V3(DO_ACTION.value);
-	case ACT_Chr_ReloadHolsterDrop: return V3(WP_RELOAD.value, WP_HOLSTER.value, WP_DROP.value);
+	case ACT_Chr_Shoot: return V3(Game_GetActionState("wp_shoot").value);
+	case ACT_Chr_DoAction: return V3(Game_GetActionState("do_action").value);
+	case ACT_Chr_ReloadHolsterDrop: return V3(Game_GetActionState("wp_reload").value,
+		Game_GetActionState("wp_holster").value, Game_GetActionState("wp_drop").value);
 	}
 	return V3(0);
 }
@@ -1282,7 +1271,8 @@ TPSPlayerController::TPSPlayerController( GameObject* obj ) :
 void TPSPlayerController::Update()
 {
 	float deltaTime = m_level->GetDeltaTime();
-	Vec2 joystick_aim = V2( AIM_X.value, AIM_Y.value );
+	Vec2 joystick_aim = V2( Game_GetActionState( "aim_x" ).value,
+		Game_GetActionState( "aim_y" ).value );
 	joystick_aim = -joystick_aim.Normalized() *
 		TCLAMP( TREVLERP<float>( 0.2f, 1.0f, joystick_aim.Length() ), 0.0f, 1.0f );
 	m_angles.yaw += joystick_aim.x * 10 * deltaTime;
@@ -1305,7 +1295,7 @@ void TPSPlayerController::Update()
 	
 	m_angles.pitch = TCLAMP( m_angles.pitch, -FLT_PI/3.0f, FLT_PI/3.0f );
 	
-	if( CROUCH.IsPressed() )
+	if( Game_GetActionState("crouch").IsPressed() )
 	{
 		i_crouch = !i_crouch;
 	}
@@ -1318,12 +1308,13 @@ Vec3 TPSPlayerController::GetInput( uint32_t iid )
 	case ACT_Chr_Move: return V3( i_move.x, i_move.y, 1 );
 	case ACT_Chr_Turn: return i_turn;
 	case ACT_Chr_Crouch: return V3(i_crouch);
-	case ACT_Chr_Jump: return V3(JUMP.value);
+	case ACT_Chr_Jump: return V3(Game_GetActionState("jump").value);
 	case ACT_Chr_AimAt: return V3( 1 /* yes */, 32 /* speed */, 0 );
 	case ACT_Chr_AimTarget: return i_aim_target;
-	case ACT_Chr_Shoot: return V3(WP_SHOOT.value);
-	case ACT_Chr_DoAction: return V3(DO_ACTION.value);
-	case ACT_Chr_ReloadHolsterDrop: return V3(WP_RELOAD.value, WP_HOLSTER.value, WP_DROP.value);
+	case ACT_Chr_Shoot: return V3(Game_GetActionState("wp_shoot").value);
+	case ACT_Chr_DoAction: return V3(Game_GetActionState("do_action").value);
+	case ACT_Chr_ReloadHolsterDrop: return V3(Game_GetActionState("wp_reload").value,
+		Game_GetActionState("wp_holster").value, Game_GetActionState("wp_drop").value);
 	}
 	return V3(0);
 }
@@ -1365,8 +1356,10 @@ void TPSPlayerController::UpdateMoveAim( bool tick )
 {
 	Vec2 move = V2
 	(
-		MOVE_X.value + MOVE_RIGHT.value - MOVE_LEFT.value,
-		MOVE_Y.value + MOVE_DOWN.value - MOVE_UP.value
+		Game_GetActionState("move_x").value + Game_GetActionState("move_right").value -
+			Game_GetActionState("move_left").value,
+		Game_GetActionState("move_y").value + Game_GetActionState("move_down").value -
+			Game_GetActionState("move_up").value
 	);
 	SGRX_Scene* scene = m_level->GetScene();
 	SGRX_Camera& CAM = scene->camera;

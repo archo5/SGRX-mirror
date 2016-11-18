@@ -592,10 +592,10 @@ void GFXSystem::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& in
 
 
 ScriptedSequenceSystem::ScriptedSequenceSystem( GameLevel* lev ) :
-	IGameLevelSystem( lev, e_system_uid ), m_cmdSkip( "skip_cutscene" ), m_time( 0 )
+	IGameLevelSystem( lev, e_system_uid ), m_time( 0 )
 {
-	Game_RegisterAction( &m_cmdSkip );
-//	Game_BindInputToAction( ACTINPUT_MAKE_KEY( SDLK_SPACE ), &m_cmdSkip );
+	Game_AddAction( "skip_cutscene" );
+	Game_BindInputToAction( ACTINPUT_MAKE_KEY( SDLK_SPACE ), "skip_cutscene" );
 	
 	_InitScriptInterface( this );
 	AddSelfToLevel( "scrSeq" );
@@ -613,7 +613,7 @@ void ScriptedSequenceSystem::Tick( float deltaTime, float blendFactor )
 			m_func = sgsVariable();
 			m_subtitle = "";
 		}
-		if( m_cmdSkip.value )
+		if( Game_GetActionState( "skip_cutscene" ).value )
 			m_time += deltaTime * 20;
 		else
 			m_time += deltaTime;

@@ -3,28 +3,6 @@
 #include "tsgame.hpp"
 
 
-InputState ESCAPE( "escape" );
-InputState MOVE_LEFT( "move_left" );
-InputState MOVE_RIGHT( "move_right" );
-InputState MOVE_UP( "move_up" );
-InputState MOVE_DOWN( "move_down" );
-InputState MOVE_X( "move_x" );
-InputState MOVE_Y( "move_y" );
-InputState AIM_X( "aim_x", 0 );
-InputState AIM_Y( "aim_y", 0 );
-InputState WP_SHOOT( "wp_shoot" );
-InputState WP_LOCK_ON( "wp_lock_on" );
-InputState WP_REMOVE_LOCK_ON( "wp_remove_lock_on" );
-InputState WP_RELOAD( "wp_reload" );
-InputState WP_DROP( "wp_drop" );
-InputState WP_HOLSTER( "wp_holster" );
-InputState SLOW_WALK( "slow_walk" );
-InputState SPRINT( "sprint" );
-InputState CROUCH( "crouch" );
-InputState JUMP( "jump" );
-InputState SHOW_OBJECTIVES( "show_objectives" );
-InputState DO_ACTION( "do_action" );
-InputState SLOWDOWN_TEST( "slowdown_test" );
 Vec2 CURSOR_POS = V2(0);
 
 
@@ -79,23 +57,6 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		GR2D_LoadFont( "mono", "fonts/dejavu-sans-mono-regular.ttf:nohint" );
 		GR2D_LoadSVGIconFont( "tsicons", "ui/tsicons.svf" );
 		GR2D_SetFont( "core", 12 );
-		
-		Game_RegisterAction( &ESCAPE );
-		Game_RegisterAction( &MOVE_LEFT );
-		Game_RegisterAction( &MOVE_RIGHT );
-		Game_RegisterAction( &MOVE_UP );
-		Game_RegisterAction( &MOVE_DOWN );
-		Game_RegisterAction( &WP_SHOOT );
-		Game_RegisterAction( &WP_LOCK_ON );
-		Game_RegisterAction( &WP_REMOVE_LOCK_ON );
-		Game_RegisterAction( &WP_RELOAD );
-		Game_RegisterAction( &WP_DROP );
-		Game_RegisterAction( &WP_HOLSTER );
-		Game_RegisterAction( &SLOW_WALK );
-		Game_RegisterAction( &SPRINT );
-		Game_RegisterAction( &CROUCH );
-		Game_RegisterAction( &JUMP );
-		Game_RegisterAction( &DO_ACTION );
 		
 		Game_BindKeyToAction( SDLK_ESCAPE, &ESCAPE );
 		Game_BindKeyToAction( SDLK_a, &MOVE_LEFT );

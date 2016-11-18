@@ -5,10 +5,6 @@
 #include <gamegui.hpp>
 
 
-InputState MOVE_LEFT( "move_left" );
-InputState MOVE_RIGHT( "move_right" );
-
-
 struct ITest
 {
 	virtual StringView GetName() const { return "<unnamed test>"; }
@@ -879,9 +875,6 @@ struct TestSuite : IGame
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 		GR2D_LoadFont( "mono", "fonts/dejavu-sans-mono-regular.ttf" );
 		
-		Game_RegisterAction( &MOVE_LEFT );
-		Game_RegisterAction( &MOVE_RIGHT );
-
 		Game_BindKeyToAction( SDLK_F2, &MOVE_LEFT );
 		Game_BindKeyToAction( SDLK_F3, &MOVE_RIGHT );
 		
@@ -903,11 +896,11 @@ struct TestSuite : IGame
 			m_accum -= FIXED_TICK_SIZE;
 		}
 		
-		if( MOVE_LEFT.IsPressed() )
+		if( Game_GetActionState( "move_left" ).IsPressed() )
 		{
 			SetTest( ( g_CurTest + TESTCOUNT - 1 ) % TESTCOUNT );
 		}
-		if( MOVE_RIGHT.IsPressed() )
+		if( Game_GetActionState( "move_right" ).IsPressed() )
 		{
 			SetTest( ( g_CurTest + 1 ) % TESTCOUNT );
 		}

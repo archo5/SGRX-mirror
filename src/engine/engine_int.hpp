@@ -366,21 +366,45 @@ struct SGRX_Joystick : SGRX_RCRsrc
 typedef Handle< SGRX_Joystick > JoystickHandle;
 
 
+struct InputAction : SGRX_RefCounted
+{
+	InputAction( const StringView& nm, float thr = 0.25f ) :
+		name( nm ), threshold(thr)
+	{}
+	
+	void _SetState( float x )
+	{
+		x = clamp( x, -1, 1 );
+		data.state = fabsf( x ) >= threshold;
+		data.value = data.state ? x : 0;
+	}
+	void _Advance()
+	{
+		data.prev_value = data.value;
+		data.prev_state = data.state;
+	}
+	
+	RCString name;
+	float threshold;
+	InputData data; 
+};
+typedef Handle< InputAction > InputActionHandle;
+
+
 struct ActionMap
 {
-	typedef HashTable< StringView, InputState* > NameCmdMap;
-	typedef HashTable< ActionInput, InputState* > InputCmdMap;
+	typedef HashTable< StringView, InputActionHandle > NameCmdMap;
+	typedef HashTable< ActionInput, InputAction* > InputCmdMap;
 	
 	void Advance()
 	{
-		for( size_t i = 0; i < m_inputCmdMap.size(); ++i )
-			m_inputCmdMap.item( i ).value->_Advance();
+		for( size_t i = 0; i < m_nameCmdMap.size(); ++i )
+			m_nameCmdMap.item( i ).value->_Advance();
 	}
-	void Register( InputState* cmd ){ m_nameCmdMap.set( cmd->name, cmd ); }
-	void Unregister( InputState* cmd ){ m_nameCmdMap.unset( cmd->name ); }
-	InputState* FindAction( const StringView& sv ){ return m_nameCmdMap.getcopy( sv ); }
+	void Register( InputAction* cmd ){ m_nameCmdMap.set( cmd->name, cmd ); }
+	InputAction* FindAction( StringView name ){ return m_nameCmdMap.getcopy( name ); }
 	
-	bool Map( ActionInput input, InputState* cmd )
+	bool Map( ActionInput input, InputAction* cmd )
 	{
 		if( cmd )
 			m_inputCmdMap.set( input, cmd );
@@ -388,8 +412,12 @@ struct ActionMap
 			m_inputCmdMap.unset( input );
 		return !!cmd;
 	}
+	bool Map( ActionInput input, StringView name )
+	{
+		return Map( input, FindAction( name ) );
+	}
 	void Unmap( ActionInput input ){ m_inputCmdMap.unset( input ); }
-	InputState* Get( ActionInput input ){ return m_inputCmdMap.getcopy( input ); }
+	InputAction* Get( ActionInput input ){ return m_inputCmdMap.getcopy( input ); }
 	
 	NameCmdMap m_nameCmdMap;
 	InputCmdMap m_inputCmdMap;

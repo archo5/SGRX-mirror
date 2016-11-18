@@ -459,29 +459,6 @@ void Game_FireEvent( SGRX_EventID eid, const EventData& edata )
 }
 
 
-void InputState::_SetState( float x )
-{
-	x = clamp( x, -1, 1 );
-	state = fabsf( x ) >= threshold;
-	value = state ? x : 0;
-}
-
-void InputState::_Advance()
-{
-	prev_value = value;
-	prev_state = state;
-}
-
-void Game_RegisterAction( InputState* cmd )
-{
-	g_ActionMap->Register( cmd );
-}
-
-void Game_UnregisterAction( InputState* cmd )
-{
-	g_ActionMap->Unregister( cmd );
-}
-
 void Game_RegisterCObj( CObj& cobj )
 {
 	g_CObjs->set( cobj.name, &cobj );
@@ -511,57 +488,81 @@ bool Game_DoCommand( StringView cmd )
 	return true;
 }
 
-InputState* Game_FindAction( const StringView& cmd )
+void Game_AddAction( StringView name, float threshold )
 {
-	return g_ActionMap->FindAction( cmd );
+	g_ActionMap->Register( new InputAction( name, threshold ) );
 }
 
-void Game_BindKeyToAction( uint32_t key, InputState* cmd )
+bool Game_ActionExists( StringView name )
 {
-	g_ActionMap->Map( ACTINPUT_MAKE_KEY( key ), cmd );
+	return g_ActionMap->FindAction( name ) != NULL;
 }
 
-void Game_BindMouseButtonToAction( int btn, InputState* cmd )
+InputData Game_GetActionState( StringView name )
 {
-	g_ActionMap->Map( ACTINPUT_MAKE_MOUSE( btn ), cmd );
+	InputAction* act = g_ActionMap->FindAction( name );
+	if( act )
+		return act->data;
+	return InputData();
 }
 
-void Game_BindGamepadButtonToAction( int btn, InputState* cmd )
+bool Game_GetActionState( StringView name, InputData& out )
 {
-	g_ActionMap->Map( ACTINPUT_MAKE_GPADBTN( btn ), cmd );
+	InputAction* act = g_ActionMap->FindAction( name );
+	if( act )
+	{
+		out = act->data;
+		return true;
+	}
+	return false;
 }
 
-void Game_BindGamepadAxisToAction( int axis, InputState* cmd )
+void Game_BindKeyToAction( uint32_t key, StringView name )
 {
-	g_ActionMap->Map( ACTINPUT_MAKE_GPADAXIS( axis ), cmd );
+	g_ActionMap->Map( ACTINPUT_MAKE_KEY( key ), name );
 }
 
-ActionInput Game_GetActionBinding( InputState* cmd )
+void Game_BindMouseButtonToAction( int btn, StringView name )
+{
+	g_ActionMap->Map( ACTINPUT_MAKE_MOUSE( btn ), name );
+}
+
+void Game_BindGamepadButtonToAction( int btn, StringView name )
+{
+	g_ActionMap->Map( ACTINPUT_MAKE_GPADBTN( btn ), name );
+}
+
+void Game_BindGamepadAxisToAction( int axis, StringView name )
+{
+	g_ActionMap->Map( ACTINPUT_MAKE_GPADAXIS( axis ), name );
+}
+
+ActionInput Game_GetActionBinding( StringView name )
 {
 	ActionMap::InputCmdMap* icm = &g_ActionMap->m_inputCmdMap;
 	for( size_t i = 0; i < icm->size(); ++i )
 	{
-		if( icm->item(i).value == cmd )
+		if( icm->item(i).value->name == name )
 			return icm->item(i).key;
 	}
 	return 0;
 }
 
-int Game_GetActionBindings( InputState* cmd, ActionInput* out, int bufsize )
+int Game_GetActionBindings( StringView name, ActionInput* out, int bufsize )
 {
 	int num = 0;
 	ActionMap::InputCmdMap* icm = &g_ActionMap->m_inputCmdMap;
 	for( size_t i = 0; i < icm->size() && num < bufsize; ++i )
 	{
-		if( icm->item(i).value == cmd )
+		if( icm->item(i).value->name == name )
 			out[ num++ ] = icm->item(i).key;
 	}
 	return num;
 }
 
-void Game_BindInputToAction( ActionInput iid, InputState* cmd )
+void Game_BindInputToAction( ActionInput iid, StringView name )
 {
-	g_ActionMap->Map( iid, cmd );
+	g_ActionMap->Map( iid, name );
 }
 
 void Game_UnbindInput( ActionInput iid )
@@ -698,22 +699,22 @@ void Game_OnEvent( const Event& e )
 	
 	if( e.type == SDL_CONTROLLERBUTTONDOWN || e.type == SDL_CONTROLLERBUTTONUP )
 	{
-		InputState* cmd = g_ActionMap->Get( ACTINPUT_MAKE_GPADBTN( e.cbutton.button ) );
-		if( cmd )
-			cmd->_SetState( e.cbutton.state );
+		InputAction* iact = g_ActionMap->Get( ACTINPUT_MAKE_GPADBTN( e.cbutton.button ) );
+		if( iact )
+			iact->_SetState( e.cbutton.state );
 	}
 	else if( e.type == SDL_CONTROLLERAXISMOTION )
 	{
-		InputState* cmd = g_ActionMap->Get( ACTINPUT_MAKE_GPADAXIS( e.caxis.axis ) );
-		if( cmd )
-			cmd->_SetState( e.caxis.value / 32767.0f );
+		InputAction* iact = g_ActionMap->Get( ACTINPUT_MAKE_GPADAXIS( e.caxis.axis ) );
+		if( iact )
+			iact->_SetState( e.caxis.value / 32767.0f );
 	}
 	
 	if( e.type == SDL_KEYDOWN || e.type == SDL_KEYUP )
 	{
-		InputState* cmd = g_ActionMap->Get( ACTINPUT_MAKE_KEY( e.key.keysym.sym ) );
-		if( cmd )
-			cmd->_SetState( e.key.state );
+		InputAction* iact = g_ActionMap->Get( ACTINPUT_MAKE_KEY( e.key.keysym.sym ) );
+		if( iact )
+			iact->_SetState( e.key.state );
 	}
 	
 	if( e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP )
@@ -724,9 +725,9 @@ void Game_OnEvent( const Event& e )
 		if( e.button.button == SDL_BUTTON_MIDDLE ) btn = SGRX_MB_MIDDLE;
 		if( btn >= 0 )
 		{
-			InputState* cmd = g_ActionMap->Get( ACTINPUT_MAKE_MOUSE( btn ) );
-			if( cmd )
-				cmd->_SetState( e.button.state );
+			InputAction* iact = g_ActionMap->Get( ACTINPUT_MAKE_MOUSE( btn ) );
+			if( iact )
+				iact->_SetState( e.button.state );
 		}
 	}
 	
@@ -1255,20 +1256,21 @@ static bool read_config()
 	StringView key, value;
 	while( cr.Read( key, value ) )
 	{
-		if( key == "game" )
-		{
-			if( value.size() )
-			{
-				g_GameLibName = value;
-				if( VERBOSE ) LOG << "CONFIG: Game library: " << value;
-			}
-		}
-		else if( key == "dir" )
+		if( key == "dir" )
 		{
 			if( value.size() )
 			{
 				g_GameDir = value;
 				if( VERBOSE ) LOG << "CONFIG: Game directory: " << value;
+			}
+		}
+#if 0
+		else if( key == "game" )
+		{
+			if( value.size() )
+			{
+				g_GameLibName = value;
+				if( VERBOSE ) LOG << "CONFIG: Game library: " << value;
 			}
 		}
 		else if( key == "dir2" )
@@ -1286,6 +1288,61 @@ static bool read_config()
 				g_RendererName = value;
 				if( VERBOSE ) LOG << "CONFIG: Renderer: " << value;
 			}
+		}
+#endif
+		else
+		{
+			LOG_WARNING << "Unknown key (" << key << " = " << value << ")";
+		}
+	}
+	
+	return true;
+}
+
+static bool read_game_config()
+{
+	LOG_FUNCTION;
+	
+	String text;
+	if( !FS_LoadTextFile( "game.cfg", text ) )
+	{
+		LOG << "Failed to load game.cfg";
+		return false;
+	}
+	
+	ConfigReader cr( text );
+	StringView key, value;
+	while( cr.Read( key, value ) )
+	{
+		if( key == "module" )
+		{
+			if( value.size() )
+			{
+				g_GameLibName = value;
+				if( VERBOSE ) LOG << "CONFIG: Game library: " << value;
+			}
+		}
+		else if( key == "dir2" )
+		{
+			if( value.size() )
+			{
+				g_GameDir2 = value;
+				if( VERBOSE ) LOG << "CONFIG: Game directory #2: " << value;
+			}
+		}
+		else if( key == "renderer" )
+		{
+			if( value.size() )
+			{
+				g_RendererName = value;
+				if( VERBOSE ) LOG << "CONFIG: Renderer: " << value;
+			}
+		}
+		else if( key == "action" )
+		{
+			StringView name = value.until( "," );
+			StringView threshold = value.after( "," ).after_all( HSPACE_CHARS );
+			Game_AddAction( name, threshold.size() ? String_ParseFloat( threshold ) : 0.25f );
 		}
 		else
 		{
@@ -1543,22 +1600,28 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	{
 		if( strpeq( argv[i], "-game=" ) )
 		{
-			g_GameLibName = argv[i] + STRLIT_LEN("-game=");
-			if( VERBOSE ) LOG << "ARG: Game library: " << g_GameLibName;
-		}
-		else if( strpeq( argv[i], "-dir=" ) )
-		{
-			g_GameDir = argv[i] + STRLIT_LEN("-dir=");
+			g_GameDir = argv[i] + STRLIT_LEN("-game=");
 			if( VERBOSE ) LOG << "ARG: Game directory: " << g_GameDir;
+		}
+#if 0
+		else if( strpeq( argv[i], "-lib=" ) )
+		{
+			g_GameLibName = argv[i] + STRLIT_LEN("-lib=");
+			if( VERBOSE ) LOG << "ARG: Game library: " << g_GameLibName;
 		}
 		else if( strpeq( argv[i], "-dir2=" ) )
 		{
 			g_GameDir = argv[i] + STRLIT_LEN("-dir2=");
 			if( VERBOSE ) LOG << "ARG: Game directory #2: " << g_GameDir2;
 		}
+#endif
 	}
 	
 	g_FileSystems.push_back( new BasicFileSystem( g_GameDir ) );
+	
+	if( !read_game_config() )
+		return 5;
+	
 	if( g_GameDir2.size() )
 		g_FileSystems.push_back( new BasicFileSystem( g_GameDir2 ) );
 	

@@ -113,26 +113,6 @@ struct IF_GCC(ENGINE_EXPORT) CVarEnum : CVar
 	StringView* val_list;
 };
 
-struct IF_GCC(ENGINE_EXPORT) InputState : CObj
-{
-	InputState( const StringView& nm, float thr = 0.25f ) :
-		CObj( nm, COBJ_TYPE_INPUTSTATE ),
-		threshold(thr),
-		value(0), prev_value(0),
-		state(false), prev_state(false)
-	{}
-	
-	FINLINE bool IsPressed() const { return state && !prev_state; }
-	FINLINE bool IsReleased() const { return !state && prev_state; }
-	
-	ENGINE_EXPORT void _SetState( float x );
-	ENGINE_EXPORT void _Advance();
-	
-	float threshold;
-	float value, prev_value;
-	bool state, prev_state;
-};
-
 typedef int32_t IntType;
 struct IVec2 { IntType x, y; };
 struct IVec3 { IntType x, y, z; };
@@ -334,6 +314,18 @@ typedef uint64_t ActionInput;
 #define ACTINPUT_GET_TYPE( iid ) (((iid)>>32ull)&0xffffffff)
 #define ACTINPUT_GET_VALUE( iid ) ((iid)&0xffffffff)
 
+struct InputData
+{
+	InputData() : value(0), prev_value(0),
+		state(false), prev_state(false){}
+	
+	FINLINE bool IsPressed() const { return state && !prev_state; }
+	FINLINE bool IsReleased() const { return !state && prev_state; }
+	
+	float value, prev_value;
+	bool state, prev_state;
+};
+
 struct IGame;
 typedef Handle< IGame > GameHandle;
 ENGINE_EXPORT GameHandle Game_Get();
@@ -341,21 +333,22 @@ ENGINE_EXPORT GameHandle Game_Change( IGame* ng );
 ENGINE_EXPORT void Game_RegisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid );
 ENGINE_EXPORT void Game_UnregisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid = 0 );
 ENGINE_EXPORT void Game_FireEvent( SGRX_EventID eid, const EventData& edata );
-ENGINE_EXPORT void Game_RegisterAction( InputState* cmd );
-ENGINE_EXPORT void Game_UnregisterAction( InputState* cmd );
 ENGINE_EXPORT void Game_RegisterCObj( CObj& cobj );
 ENGINE_EXPORT void Game_UnregisterCObj( CObj& cobj );
 ENGINE_EXPORT CObj* Game_FindCObj( StringView name );
 ENGINE_EXPORT bool Game_DoCommand( StringView cmd );
 #define REGCOBJ( cobj ) Game_RegisterCObj( cobj );
-ENGINE_EXPORT InputState* Game_FindAction( const StringView& cmd );
-ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, InputState* cmd );
-ENGINE_EXPORT void Game_BindMouseButtonToAction( int btn, InputState* cmd );
-ENGINE_EXPORT void Game_BindGamepadButtonToAction( int btn, InputState* cmd );
-ENGINE_EXPORT void Game_BindGamepadAxisToAction( int axis, InputState* cmd );
-ENGINE_EXPORT ActionInput Game_GetActionBinding( InputState* cmd );
-ENGINE_EXPORT int Game_GetActionBindings( InputState* cmd, ActionInput* out, int bufsize );
-ENGINE_EXPORT void Game_BindInputToAction( ActionInput iid, InputState* cmd );
+ENGINE_EXPORT void Game_AddAction( StringView name, float threshold = 0.25f );
+ENGINE_EXPORT bool Game_ActionExists( StringView name );
+ENGINE_EXPORT InputData Game_GetActionState( StringView name );
+ENGINE_EXPORT bool Game_GetActionState( StringView name, InputData& out );
+ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, StringView name );
+ENGINE_EXPORT void Game_BindMouseButtonToAction( int btn, StringView name );
+ENGINE_EXPORT void Game_BindGamepadButtonToAction( int btn, StringView name );
+ENGINE_EXPORT void Game_BindGamepadAxisToAction( int axis, StringView name );
+ENGINE_EXPORT ActionInput Game_GetActionBinding( StringView name );
+ENGINE_EXPORT int Game_GetActionBindings( StringView name, ActionInput* out, int bufsize );
+ENGINE_EXPORT void Game_BindInputToAction( ActionInput iid, StringView name );
 ENGINE_EXPORT void Game_UnbindInput( ActionInput iid );
 ENGINE_EXPORT StringView Game_GetInputName( ActionInput iid );
 ENGINE_EXPORT Vec2 Game_GetRealCursorPos();
