@@ -3839,6 +3839,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Log
 #define LOG_XTD( x ) SGRX_Log::MakeLoggable( x )
 #define LOG_FUNCTION SGRX_Log::RegFunc __regfn( __FUNCTION__, __FILE__, __LINE__ )
 #define LOG_FUNCTION_ARG( x ) SGRX_Log::RegFunc __regfn( __FUNCTION__, __FILE__, __LINE__, x )
+#define LOG_FUNCTION_CHANGE_ARG( x ) __regfn.arg = (x)
 #define LOG_TIME( x ) { double _t0 = sgrx_hqtime(); { x; } double _t1 = sgrx_hqtime(); \
 	LOG << "TIME[" #x "]: " << ( _t1 - _t0 ); }
 

@@ -568,6 +568,8 @@ FontRenderer::GlyphCache::Node* FontRenderer::_GetGlyph( uint32_t ch )
 
 bool GR2D_LoadFont( const StringView& key, const StringView& path )
 {
+	LOG_FUNCTION;
+	
 	SGRX_IFont* fif = NULL;
 	if( ( fif = sgrx_int_CreateFont( path ) ) == NULL )
 	{
@@ -581,6 +583,8 @@ bool GR2D_LoadFont( const StringView& key, const StringView& path )
 
 bool GR2D_LoadSVGIconFont( const StringView& key, const StringView& path )
 {
+	LOG_FUNCTION;
+	
 	SGRX_IFont* fif = NULL;
 	if( ( fif = sgrx_int_CreateSVGIconFont( path ) ) == NULL )
 	{

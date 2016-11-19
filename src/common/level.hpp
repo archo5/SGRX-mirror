@@ -304,7 +304,12 @@ typedef struct GOBehavior* GOBehaviorCreateFunc( struct GameObject* );
 	static void Register( GameLevel* lev ){ \
 		lev->_RegisterNativeBehavior< cls >( _sgs_interface->name ); \
 		lev->m_goNativeBhvrMap.set( _sgs_interface->name, _Create ); }
-		
+
+typedef IGameLevelSystem* GameLevelSystemCreateFunc( GameLevel* );
+#define IMPLEMENT_SYSTEM( cls, id ) \
+	enum { e_system_uid = id }; \
+	static StringView _Name(){ return #cls; } \
+	static IGameLevelSystem* _Create( GameLevel* lev ){ return new cls( lev ); }
 
 EXP_STRUCT GOResource : LevelScrObj
 {
@@ -748,7 +753,7 @@ EXP_STRUCT GameLevel :
 	CameraResource* GetMainCamera()     { return m_mainCamera; }
 	bool GetEditorMode() const          { return m_editorMode; }
 	
-	GFW_EXPORT bool Load( const StringView& levelname );
+	GFW_EXPORT bool Load( StringView levelname );
 	template< class T > void RegisterNativeClass( StringView type )
 	{
 		sgsVariable iface = sgs_GetClassInterface< T >( GetSGSC() );
@@ -962,7 +967,9 @@ EXP_STRUCT BaseGame : IGame
 	GFW_EXPORT virtual bool OnInitialize();
 	GFW_EXPORT virtual void OnDestroy();
 	GFW_EXPORT void InitSoundSystem();
-	GFW_EXPORT void ParseConfigFile();
+	GFW_EXPORT void ParseConfigFile( bool init );
+	template< class T > void RegisterSystem(){ RegisterSystem( T::_Name(), T::_Create ); }
+	GFW_EXPORT void RegisterSystem( StringView name, GameLevelSystemCreateFunc func );
 	GFW_EXPORT virtual SoundSystemHandle CreateSoundSystem() = 0;
 	GFW_EXPORT virtual PhyWorldHandle CreatePhyWorld() = 0;
 	GFW_EXPORT virtual GameLevel* CreateLevel();
@@ -979,13 +986,14 @@ EXP_STRUCT BaseGame : IGame
 	float m_accum;
 	float m_timeMultiplier;
 	SoundSystemHandle m_soundSys;
-	String m_soundBanks;
 	SoundEventInstanceHandle m_ovrMusic;
 	String m_ovrMusicPath;
 	GameLevel* m_level;
 	BaseEditor* m_editor;
 	bool m_needsEditor;
-	StringView m_mapName;
+	String m_mapName;
+	HashTable< RCString, GameLevelSystemCreateFunc* > m_systemCreateFuncs;
+	String m_levelSystems;
 };
 
 

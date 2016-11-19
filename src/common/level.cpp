@@ -998,9 +998,10 @@ struct ScriptedLoadingScreen
 
 
 
-bool GameLevel::Load( const StringView& levelname )
+bool GameLevel::Load( StringView levelname )
 {
 	LOG_FUNCTION_ARG( levelname );
+	LOG << "Loading level " << levelname;
 	
 	ScriptedLoadingScreen LS( m_enableLoadingScreen, levelname );
 	
@@ -1013,7 +1014,10 @@ bool GameLevel::Load( const StringView& levelname )
 		
 		sgrx_snprintf( bfr, sizeof(bfr), SGRXPATH__LEVELS "/%.*s" SGRX_LEVEL_COMPILED_SFX, TMIN( (int) levelname.size(), 200 ), levelname.data() );
 		if( !FS_LoadBinaryFile( bfr, ba ) )
+		{
+			LOG_ERROR << "Level cache does not exist - " << levelname;
 			return false;
+		}
 	}
 	
 	{
@@ -1022,7 +1026,6 @@ bool GameLevel::Load( const StringView& levelname )
 	}
 	
 	m_levelName = levelname;
-	LOG << "Loading level " << m_levelName;
 	
 	{
 		LOG_FUNCTION_ARG( "SCRIPT" );
@@ -1665,7 +1668,16 @@ BaseGame::BaseGame() :
 	m_needsEditor( false )
 {
 	m_mapName = "<UNSPECIFIED>";
-	ParseConfigFile();
+	ParseConfigFile( false );
+	RegisterSystem<LevelMapSystem>();
+	RegisterSystem<LevelCoreSystem>();
+	RegisterSystem<GFXSystem>();
+	RegisterSystem<ScriptedSequenceSystem>();
+	RegisterSystem<MusicSystem>();
+	RegisterSystem<DamageSystem>();
+	RegisterSystem<BulletSystem>();
+	RegisterSystem<AIDBSystem>();
+	RegisterSystem<DevelopSystem>();
 }
 
 int BaseGame::OnArgument( char* arg, int argcleft, char** argvleft )
@@ -1696,7 +1708,10 @@ bool BaseGame::OnConfigure( int argc, char** argv )
 bool BaseGame::OnInitialize()
 {
 	InitSoundSystem();
+	ParseConfigFile( true );
 	m_level = CreateLevel();
+//	m_level->m_enableLoadingScreen = false;
+	m_level->Load( m_mapName );
 	return true;
 }
 
@@ -1712,17 +1727,10 @@ void BaseGame::InitSoundSystem()
 	if( m_soundSys == NULL )
 	{
 		m_soundSys = CreateSoundSystem();
-		
-		StringView it = m_soundBanks;
-		while( it.size() )
-		{
-			m_soundSys->Load( it.until( ":" ) );
-			it = it.after( ":" );
-		}
 	}
 }
 
-void BaseGame::ParseConfigFile()
+void BaseGame::ParseConfigFile( bool init )
 {
 	LOG_FUNCTION;
 	
@@ -1737,43 +1745,73 @@ void BaseGame::ParseConfigFile()
 	StringView key, value;
 	while( cr.Read( key, value ) )
 	{
-		if( key == "startuplevel" )
+		if( init == false )
 		{
-			m_mapName = value;
-		}
-		else if( key == "soundbank" )
-		{
-			if( m_soundBanks.size() )
-				m_soundBanks.append( ":" );
-			m_soundBanks.append( value );
-		}
-		else if( key == "font" )
-		{
-			StringView name = value.until( "=" );
-			StringView path = value.after( "=" );
-			GR2D_LoadFont( name, path );
-		}
-		else if( key == "svgfont" )
-		{
-			StringView name = value.until( "=" );
-			StringView path = value.after( "=" );
-			GR2D_LoadSVGIconFont( name, path );
-		}
-		else if( key == "action" )
-		{
-			StringView name = value.until( "," );
-			StringView threshold = value.after( "," ).after_all( HSPACE_CHARS );
-			Game_AddAction( name, threshold.size() ? String_ParseFloat( threshold ) : 0.25f );
-		}
-		else if( key == "module" || key == "dir2" || key == "renderer" )
-		{
-			// already parsed by engine core
+			if( key == "startuplevel" )
+			{
+				m_mapName = value;
+			}
 		}
 		else
 		{
-			LOG_WARNING << "Unknown key (" << key << " = " << value << ")";
+			if( key == "soundbank" )
+			{
+				m_soundSys->Load( value );
+			}
+			else if( key == "soundvolume" )
+			{
+				m_soundSys->SetVolume( value.until( "=" ),
+					String_ParseFloat( value.after( "=" ) ) );
+			}
+			else if( key == "font" )
+			{
+				StringView name = value.until( "=" );
+				StringView path = value.after( "=" );
+				GR2D_LoadFont( name, path );
+			}
+			else if( key == "svgfont" )
+			{
+				StringView name = value.until( "=" );
+				StringView path = value.after( "=" );
+				GR2D_LoadSVGIconFont( name, path );
+			}
+			else if( key == "action" )
+			{
+				StringView name = value.until( "," );
+				StringView threshold = value.after( "," ).after_all( HSPACE_CHARS );
+				Game_AddAction( name, threshold.size() ? String_ParseFloat( threshold ) : 0.25f );
+			}
+			else if( key == "bind" )
+			{
+				StringView input = value.until( "=" );
+				StringView action = value.after( "=" );
+				ActionInput iid = Game_GetInputFromNameID( input );
+				if( Game_ActionExists( action ) == false )
+				{
+					LOG_WARNING << "ARG[bind]: No such action - " << action;
+				}
+				else if( iid == ACTINPUT_UNASSIGNED )
+				{
+					LOG_WARNING << "ARG[bind]: No such input - " << input;
+				}
+				else
+				{
+					Game_BindInputToAction( iid, action );
+				}
+			}
+			else if( key == "system" )
+			{
+				if( m_levelSystems.size() )
+					m_levelSystems.append( ":" );
+				m_levelSystems.append( value );
+			}
 		}
 	}
+}
+
+void BaseGame::RegisterSystem( StringView name, GameLevelSystemCreateFunc func )
+{
+	m_systemCreateFuncs.set( name, func );
 }
 
 GameLevel* BaseGame::CreateLevel()
@@ -1784,6 +1822,18 @@ GameLevel* BaseGame::CreateLevel()
 	sgs_RegFuncConsts( level->GetSGSC(), basegame_api, -1 );
 	level->SetGlobalToSelf();
 	level->GetPhyWorld()->SetGravity( V3( 0, 0, -9.81f ) );
+	
+	StringView it = m_levelSystems;
+	while( it.size() )
+	{
+		GameLevelSystemCreateFunc* createFunc = m_systemCreateFuncs.getcopy( it.until( ":" ) );
+		if( createFunc )
+		{
+			level->AddSystem( (*createFunc)( level ) );
+		}
+		it = it.after( ":" );
+	}
+	
 	return level;
 }
 

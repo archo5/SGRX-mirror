@@ -47,50 +47,20 @@ struct SGRX_MeshInstUserData
 };
 
 
-enum EMapItemType
-{
-	MI_None = 0,
-	MI_Mask_Object = 0xff00,
-	MI_Mask_State = 0x00ff,
-	MI_Object_Player = 0x0100,
-	MI_Object_Enemy = 0x0200,
-	MI_Object_Camera = 0x0300,
-	MI_Object_Objective = 0x0400,
-	MI_State_Normal = 0x0001,
-	MI_State_Suspicious = 0x0002,
-	MI_State_Alerted = 0x0003,
-};
-
-struct MapItemInfo
-{
-	int type; // EMapItemType combo
-	Vec3 position;
-	Vec3 direction;
-	float sizeFwd;
-	float sizeRight;
-};
-
 EXP_STRUCT LevelMapSystem : IGameLevelSystem
 {
 	SGS_OBJECT;
 	SGS_NO_DESTRUCT;
-	
-	enum { e_system_uid = 9 };
+	IMPLEMENT_SYSTEM( LevelMapSystem, 9 );
 	
 	GFW_EXPORT LevelMapSystem( GameLevel* lev );
 	GFW_EXPORT void Clear();
 	GFW_EXPORT bool LoadChunk( const StringView& type, ByteView data );
-//	GFW_EXPORT void UpdateItem( Entity* e, const MapItemInfo& data );
-//	GFW_EXPORT void RemoveItem( Entity* e );
 	
 	GFW_EXPORT SGS_METHOD void DrawUIRect( float x0, float y0, float x1, float y1, float linesize, sgsVariable cb );
 	
-//	GFW_EXPORT SGS_METHOD_NAMED( Update ) void sgsUpdate( EntityScrHandle e, int type, Vec3 pos, Vec3 dir, float szfwd, float szrt );
-//	GFW_EXPORT SGS_METHOD_NAMED( Remove ) void sgsRemove( EntityScrHandle e );
-	
 	SGS_PROPERTY Vec3 viewPos;
-
-	HashTable< GameObject*, MapItemInfo > m_mapItemData;
+	
 	Array< Vec2 > m_lines;
 	Array< LC_Map_Layer > m_layers;
 	
@@ -100,7 +70,7 @@ EXP_STRUCT LevelMapSystem : IGameLevelSystem
 
 EXP_STRUCT LevelCoreSystem : IGameLevelSystem
 {
-	enum { e_system_uid = 10 };
+	IMPLEMENT_SYSTEM( LevelCoreSystem, 10 );
 	
 	GFW_EXPORT LevelCoreSystem( GameLevel* lev );
 	GFW_EXPORT virtual void Clear();
@@ -116,7 +86,7 @@ EXP_STRUCT LevelCoreSystem : IGameLevelSystem
 
 EXP_STRUCT GFXSystem : IGameLevelSystem, SGRX_RenderDirector, SGRX_IEventHandler
 {
-	enum { e_system_uid = 15 };
+	IMPLEMENT_SYSTEM( GFXSystem, 15 );
 	
 	GFW_EXPORT GFXSystem( GameLevel* lev );
 	GFW_EXPORT void HandleEvent( SGRX_EventID eid, const EventData& edata );
@@ -135,8 +105,7 @@ EXP_STRUCT ScriptedSequenceSystem : IGameLevelSystem
 {
 	SGS_OBJECT;
 	SGS_NO_DESTRUCT;
-	
-	enum { e_system_uid = 11 };
+	IMPLEMENT_SYSTEM( ScriptedSequenceSystem, 11 );
 	
 	GFW_EXPORT ScriptedSequenceSystem( GameLevel* lev );
 	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
@@ -154,8 +123,7 @@ EXP_STRUCT MusicSystem : IGameLevelSystem
 {
 	SGS_OBJECT;
 	SGS_NO_DESTRUCT;
-	
-	enum { e_system_uid = 12 };
+	IMPLEMENT_SYSTEM( MusicSystem, 12 );
 	
 	GFW_EXPORT MusicSystem( GameLevel* lev );
 	GFW_EXPORT ~MusicSystem();
@@ -169,7 +137,7 @@ EXP_STRUCT MusicSystem : IGameLevelSystem
 
 EXP_STRUCT DamageSystem : IGameLevelSystem, SGRX_ScenePSRaycast
 {
-	enum { e_system_uid = 5 };
+	IMPLEMENT_SYSTEM( DamageSystem, 5 );
 	
 	struct Material : SGRX_RefCounted
 	{
@@ -212,8 +180,7 @@ struct BulletSystem : IGameLevelSystem
 {
 	SGS_OBJECT;
 	SGS_NO_DESTRUCT;
-	
-	enum { e_system_uid = 6 };
+	IMPLEMENT_SYSTEM( BulletSystem, 6 );
 	
 	struct Bullet
 	{
@@ -388,8 +355,7 @@ EXP_STRUCT AIDBSystem : IGameLevelSystem
 {
 	SGS_OBJECT;
 	SGS_NO_DESTRUCT;
-	
-	enum { e_system_uid = 7 };
+	IMPLEMENT_SYSTEM( AIDBSystem, 7 );
 	
 	int GetNumSounds(){ return m_sounds.size(); }
 	GFW_EXPORT bool CanHearSound( Vec3 pos, int i );
@@ -450,7 +416,7 @@ EXP_STRUCT AIDBSystem : IGameLevelSystem
 
 EXP_STRUCT DevelopSystem : IGameLevelSystem, SGRX_IEventHandler
 {
-	enum { e_system_uid = 14 };
+	IMPLEMENT_SYSTEM( DevelopSystem, 14 );
 	
 	GFW_EXPORT DevelopSystem( GameLevel* lev );
 	GFW_EXPORT void HandleEvent( SGRX_EventID eid, const EventData& edata );

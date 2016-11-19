@@ -488,6 +488,14 @@ bool Game_DoCommand( StringView cmd )
 	return true;
 }
 
+void Game_ListActions( Array< StringView >& out )
+{
+	out.clear();
+	out.reserve( g_ActionMap->m_nameCmdMap.size() );
+	for( size_t i = 0; i < g_ActionMap->m_nameCmdMap.size(); ++i )
+		out.push_back( g_ActionMap->m_nameCmdMap.item( i ).key );
+}
+
 void Game_AddAction( StringView name, float threshold )
 {
 	g_ActionMap->Register( new InputAction( name, threshold ) );
@@ -568,6 +576,38 @@ void Game_BindInputToAction( ActionInput iid, StringView name )
 void Game_UnbindInput( ActionInput iid )
 {
 	g_ActionMap->Unmap( iid );
+}
+
+ActionInput Game_GetInputFromNameID( StringView name )
+{
+	if( name == "btn:Left" ) return ACTINPUT_MAKE_MOUSE( SGRX_MB_LEFT );
+	if( name == "btn:Right" ) return ACTINPUT_MAKE_MOUSE( SGRX_MB_RIGHT );
+	if( name == "btn:Middle" ) return ACTINPUT_MAKE_MOUSE( SGRX_MB_MIDDLE );
+	if( name == "btn:X1" ) return ACTINPUT_MAKE_MOUSE( SGRX_MB_X1 );
+	if( name == "btn:X2" ) return ACTINPUT_MAKE_MOUSE( SGRX_MB_X2 );
+	
+	if( name == "ctrl:LeftX" ) return ACTINPUT_MAKE_GPADAXIS( SDL_CONTROLLER_AXIS_LEFTX );
+	if( name == "ctrl:LeftY" ) return ACTINPUT_MAKE_GPADAXIS( SDL_CONTROLLER_AXIS_LEFTY );
+	if( name == "ctrl:RightX" ) return ACTINPUT_MAKE_GPADAXIS( SDL_CONTROLLER_AXIS_RIGHTX );
+	if( name == "ctrl:RightY" ) return ACTINPUT_MAKE_GPADAXIS( SDL_CONTROLLER_AXIS_RIGHTY );
+	if( name == "ctrl:LefttStick" ) return ACTINPUT_MAKE_GPADAXIS( SDL_CONTROLLER_BUTTON_LEFTSTICK );
+	if( name == "ctrl:RightStick" ) return ACTINPUT_MAKE_GPADAXIS( SDL_CONTROLLER_BUTTON_RIGHTSTICK );
+	if( name == "ctrl:Start" ) return ACTINPUT_MAKE_GPADAXIS( SDL_CONTROLLER_BUTTON_START );
+	if( name == "ctrl:A" ) return ACTINPUT_MAKE_GPADBTN( SDL_CONTROLLER_BUTTON_A );
+	if( name == "ctrl:B" ) return ACTINPUT_MAKE_GPADBTN( SDL_CONTROLLER_BUTTON_B );
+	if( name == "ctrl:X" ) return ACTINPUT_MAKE_GPADBTN( SDL_CONTROLLER_BUTTON_X );
+	if( name == "ctrl:Y" ) return ACTINPUT_MAKE_GPADBTN( SDL_CONTROLLER_BUTTON_Y );
+	if( name == "ctrl:LS" ) return ACTINPUT_MAKE_GPADBTN( SDL_CONTROLLER_BUTTON_LEFTSHOULDER );
+	if( name == "ctrl:RS" ) return ACTINPUT_MAKE_GPADBTN( SDL_CONTROLLER_BUTTON_RIGHTSHOULDER );
+	
+	if( name.starts_with( "key:" ) )
+	{
+		SDL_Keycode key = SDL_GetKeyFromName( StackString<64>( name.part( 4 ) ) );
+		if( key != SDLK_UNKNOWN )
+			return ACTINPUT_MAKE_KEY( key );
+	}
+	
+	return ACTINPUT_UNASSIGNED;
 }
 
 StringView Game_GetInputName( ActionInput iid )
@@ -1643,6 +1683,7 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	
 	registercvars();
 	
+	LOG_FUNCTION_CHANGE_ARG( "LOAD GAME LIB" );
 	g_GameLibName.append( STRLIT_BUF( ".dll" ) );
 	
 	g_GameLib = SDL_LoadObject( StackPath( g_GameLibName ) );
@@ -1664,9 +1705,11 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 		return 48;
 	}
 	
+	LOG_FUNCTION_CHANGE_ARG( "CFG GAME LIB" );
 	if( g_Game->OnConfigure( argc, argv ) == false )
 		return 51;
 	
+	LOG_FUNCTION_CHANGE_ARG( "" );
 	SDL_GL_SetAttribute( SDL_GL_RED_SIZE, 8 );
 	SDL_GL_SetAttribute( SDL_GL_GREEN_SIZE, 8 );
 	SDL_GL_SetAttribute( SDL_GL_BLUE_SIZE, 8 );
@@ -1675,9 +1718,11 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	if( init_graphics() )
 		return 56;
 	
+	LOG_FUNCTION_CHANGE_ARG( "INIT GAME" );
 	if( g_Game->OnInitialize() == false )
 		return 63;
 	
+	LOG_FUNCTION_CHANGE_ARG( "" );
 	uint32_t prevtime = GetTimeMsec();
 	SDL_Event event;
 	while( g_Running )
@@ -1735,9 +1780,11 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 		Game_Process( fdt );
 	}
 	
+	LOG_FUNCTION_CHANGE_ARG( "DESTROY GAME" );
 	g_Game->OnDestroy();
 	g_Game = NULL;
 	
+	LOG_FUNCTION_CHANGE_ARG( "" );
 	delete g_Joysticks;
 	g_Joysticks = NULL;
 	

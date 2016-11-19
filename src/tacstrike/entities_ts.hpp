@@ -386,7 +386,7 @@ struct TSEnemyController : BhControllerBase
 
 struct TSGameSystem : IGameLevelSystem
 {
-	enum { e_system_uid = 1000 };
+	IMPLEMENT_SYSTEM( TSGameSystem, 1000 );
 	TSGameSystem( GameLevel* lev );
 };
 

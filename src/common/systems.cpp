@@ -9,10 +9,12 @@ CVarBool gcv_cl_show_log( "cl_show_log", false );
 CVarBool gcv_dbg_navmesh( "dbg_navmesh", false );
 #define DBG_LIST_NONE 0
 #define DBG_LIST_INFOTARGETS 1
+#define DBG_LIST_ACTIONS 2
 StringView dbg_list_vnames[] =
 {
 	"none",
 	"infotargets",
+	"actions",
 	"",
 };
 CVarEnum gcv_dbg_list( "dbg_list", dbg_list_vnames );
@@ -23,28 +25,11 @@ LevelMapSystem::LevelMapSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_syst
 	_InitScriptInterface( this );
 	AddSelfToLevel( "map" );
 	
-	sgs_RegIntConst ric[] =
-	{
-		{ "MI_None", MI_None },
-		{ "MI_Mask_Object", MI_Mask_Object },
-		{ "MI_Mask_State", MI_Mask_State },
-		{ "MI_Object_Player", MI_Object_Player },
-		{ "MI_Object_Enemy", MI_Object_Enemy },
-		{ "MI_Object_Camera", MI_Object_Camera },
-		{ "MI_Object_Objective", MI_Object_Objective },
-		{ "MI_State_Normal", MI_State_Normal },
-		{ "MI_State_Suspicious", MI_State_Suspicious },
-		{ "MI_State_Alerted", MI_State_Alerted },
-		{ NULL, 0 },
-	};
-	sgs_RegIntConsts( m_level->GetSGSC(), ric, -1 );
-	
 	m_tex_mapline = GR_GetTexture( "ui/mapline.png" );
 }
 
 void LevelMapSystem::Clear()
 {
-	m_mapItemData.clear();
 	m_lines.clear();
 	m_layers.clear();
 	viewPos = V3(0);
@@ -66,18 +51,6 @@ bool LevelMapSystem::LoadChunk( const StringView& type, ByteView data )
 	}
 	return true;
 }
-
-#if 0
-void LevelMapSystem::UpdateItem( Entity* e, const MapItemInfo& data )
-{
-	m_mapItemData[ e ] = data;
-}
-
-void LevelMapSystem::RemoveItem( Entity* e )
-{
-	m_mapItemData.unset( e );
-}
-#endif
 
 void LevelMapSystem::DrawUIRect( float x0, float y0, float x1, float y1, float linesize, sgsVariable cb )
 {
@@ -126,88 +99,6 @@ void LevelMapSystem::DrawUIRect( float x0, float y0, float x1, float y1, float l
 		}
 	}
 	
-	for( size_t i = 0; i < m_mapItemData.size(); ++i )
-	{
-		MapItemInfo& mii = m_mapItemData.item( i ).value;
-		Vec2 viewpos = mii.position.ToVec2();
-		
-		if( ( mii.type & MI_Mask_Object ) == MI_Object_Player )
-		{
-			br.Reset().SetTexture( m_tex_mapline )
-				.Col( 0.2f, 0.9f, 0.1f ).Box( viewpos.x, viewpos.y, 1, 1 );
-		}
-		else if( ( mii.type & MI_Mask_Object ) == MI_Object_Objective )
-		{
-			Vec2 tv = viewproj.TransformPos( V3( viewpos, 0 ) ).ToVec2();
-			Vec2 tv_abs = V2( fabsf( tv.x ), fabsf( tv.y ) );
-			br.Reset().SetTexture( m_tex_mapline ).Col( 0.9f, 0.2f, 0.1f );
-			if( tv_abs.x > 1 || tv_abs.y > 1 )
-			{
-				// render as line at the edge
-				tv /= TMAX( tv_abs.x, tv_abs.y );
-				Vec2 tv1 = tv * 0.9f;
-				br.TexLine(
-					inv_vp.TransformPos( V3( tv, 0 ) ).ToVec2(),
-					inv_vp.TransformPos( V3( tv1, 0 ) ).ToVec2(),
-					0.5f );
-			}
-			else
-			{
-				// render as regular point in map
-				br.Box( viewpos.x, viewpos.y, 2, 2 );
-			}
-		}
-		else
-		{
-			uint32_t viewcol = 0xffffffff;
-			uint32_t dotcol = COLOR_RGB( 245, 20, 10 );
-			switch( mii.type & MI_Mask_State )
-			{
-			case MI_State_Normal:
-				viewcol = mii.type & MI_Object_Enemy ?
-					COLOR_RGB( 230, 230, 230 ) : COLOR_RGB( 180, 230, 180 );
-				break;
-			case MI_State_Suspicious:
-				viewcol = COLOR_RGB( 170, 170, 100 );
-				break;
-			case MI_State_Alerted:
-				viewcol = COLOR_RGB( 170, 100, 100 );
-				break;
-			}
-			viewcol &= 0x7fffffff;
-			uint32_t viewcol_a0 = viewcol & 0x00ffffff;
-			Vec2 viewdir = mii.direction.ToVec2().Normalized();
-			Vec2 viewtan = viewdir.Perp();
-			br.Reset().Colu( viewcol_a0 )
-				.SetPrimitiveType( PT_Triangles )
-				.Pos( viewpos + viewdir * mii.sizeFwd - viewtan * mii.sizeRight )
-				.Pos( viewpos + viewdir * mii.sizeFwd + viewtan * mii.sizeRight )
-				.Colu( viewcol ).Pos( viewpos );
-			
-			br.Reset().SetTexture( m_tex_mapline )
-				.Colu( dotcol ).Box( viewpos.x, viewpos.y, 1, 1 );
-		}
-	}
-	
-#if 0
-	ObjectiveSystem* objSys = m_level->GetSystem<ObjectiveSystem>();
-	if( objSys )
-	{
-		for( size_t i = 0; i < objSys->m_objectives.size(); ++i )
-		{
-			OSObjective& obj = objSys->m_objectives[ i ];
-			if( obj.hasLocation == false || obj.state != OSObjective::Open )
-				continue;
-			
-			Vec2 viewpos = obj.location.ToVec2();
-			
-			uint32_t dotcol = COLOR_RGB( 20, 245, 10 );
-			br.Reset().SetTexture( m_tex_mapline )
-				.Colu( dotcol ).Box( viewpos.x, viewpos.y, 1, 1 );
-		}
-	}
-#endif
-	
 	if( cb.not_null() )
 	{
 		cb.tcall<void>( C, viewproj, inv_vp );
@@ -218,19 +109,6 @@ void LevelMapSystem::DrawUIRect( float x0, float y0, float x1, float y1, float l
 	GR2D_UnsetScissorRect();
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 }
-
-#if 0
-void LevelMapSystem::sgsUpdate( EntityScrHandle e, int type, Vec3 pos, Vec3 dir, float szfwd, float szrt )
-{
-	MapItemInfo mii = { type, pos, dir, szfwd, szrt };
-	UpdateItem( e, mii );
-}
-
-void LevelMapSystem::sgsRemove( EntityScrHandle e )
-{
-	RemoveItem( e );
-}
-#endif
 
 
 
@@ -595,7 +473,7 @@ ScriptedSequenceSystem::ScriptedSequenceSystem( GameLevel* lev ) :
 	IGameLevelSystem( lev, e_system_uid ), m_time( 0 )
 {
 	Game_AddAction( "skip_cutscene" );
-	Game_BindInputToAction( ACTINPUT_MAKE_KEY( SDLK_SPACE ), "skip_cutscene" );
+//	Game_BindInputToAction( ACTINPUT_MAKE_KEY( SDLK_SPACE ), "skip_cutscene" );
 	
 	_InitScriptInterface( this );
 	AddSelfToLevel( "scrSeq" );
@@ -1974,6 +1852,16 @@ void DevelopSystem::HandleEvent( SGRX_EventID eid, const EventData& edata )
 				}
 			}
 		}
+		if( ev->type == SDL_KEYDOWN )
+		{
+			if( ev->key.keysym.sym == SDLK_r &&
+				ev->key.repeat == 0 &&
+				( ev->key.keysym.mod & KMOD_CTRL ) &&
+				( ev->key.keysym.mod & KMOD_SHIFT ) )
+			{
+				m_level->m_nextLevel = m_level->GetLevelName();
+			}
+		}
 		if( ev->type == SDL_TEXTINPUT )
 		{
 			if( consoleMode && !justEnabledConsole )
@@ -2085,6 +1973,27 @@ void DevelopSystem::DrawUI()
 			sgrx_snprintf( bfr, 256, "%04d | obj=%p flags=%08X pos=[%.4g;%.4g;%.4g]",
 				int(i), o, o->m_infoMask, p.x, p.y, p.z );
 			GR2D_DrawTextLine( 0, 11 + i * 9, bfr );
+		}
+		} break;
+	case DBG_LIST_ACTIONS: {
+		GR2D_SetFont( "system_outlined", 7 );
+		GR2D_DrawTextLine( 0, 0, "Actions:" );
+		Array< StringView > actions;
+		Game_ListActions( actions );
+		String line;
+		for( size_t i = 0; i < actions.size(); ++i )
+		{
+			InputData data = Game_GetActionState( actions[ i ] );
+			
+			char bfr[ 256 ];
+			sgrx_snprintf( bfr, 256, "%04d \"", int(i) );
+			line = bfr;
+			line.append( actions[ i ] );
+			sgrx_snprintf( bfr, 256, "\" | state=%s prev_state=%s value=%f prev_value=%f",
+				data.state ? "X" : "-", data.prev_state ? "X" : "-", data.value, data.prev_value );
+			line.append( bfr );
+			
+			GR2D_DrawTextLine( 0, 11 + i * 9, line );
 		}
 		} break;
 	}
