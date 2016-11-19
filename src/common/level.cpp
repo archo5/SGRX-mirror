@@ -1621,9 +1621,15 @@ sgsVariable GameLevel::GetBehaviorInterface( StringView name )
 
 
 
-BaseEditor::BaseEditor( BaseGame* game ) : m_editorGame( NULL ), m_origGame( NULL )
+BaseEditor::BaseEditor( BaseGame* game, int type ) : m_editorGame( NULL ), m_origGame( NULL )
 {
-	m_lib = Sys_LoadLib( "editor.dll" );
+	const char* modname = NULL;
+	switch( type )
+	{
+	case ET_MapEditor: modname = "editor.dll"; break;
+	case ET_AssetEditor: modname = "aedit.dll"; break;
+	}
+	m_lib = Sys_LoadLib( modname );
 	if( !m_lib )
 		return;
 	IGame* (*pfnCreateGame)() = (IGame*(*)()) Sys_GetProc( m_lib, "CreateGame" );
@@ -1666,7 +1672,7 @@ BaseGame::BaseGame() :
 	m_timeMultiplier( 1 ),
 	m_level( NULL ),
 	m_editor( NULL ),
-	m_needsEditor( false )
+	m_needsEditor( ET_NoEditor )
 {
 	m_mapName = "<UNSPECIFIED>";
 	ParseConfigFile( false );
@@ -1685,7 +1691,12 @@ int BaseGame::OnArgument( char* arg, int argcleft, char** argvleft )
 {
 	if( streq( arg, "EDIT" ) )
 	{
-		m_needsEditor = true;
+		m_needsEditor = ET_MapEditor;
+		return 1;
+	}
+	if( streq( arg, "AEDIT" ) )
+	{
+		m_needsEditor = ET_AssetEditor;
 		return 1;
 	}
 	if( strpeq( arg, "-map=" ) )
@@ -1700,7 +1711,7 @@ bool BaseGame::OnConfigure( int argc, char** argv )
 	IGame::OnConfigure( argc, argv );
 	if( m_needsEditor )
 	{
-		m_editor = new BaseEditor( this );
+		m_editor = new BaseEditor( this, m_needsEditor );
 		return m_editor->m_editorGame->OnConfigure( argc, argv );
 	}
 	return true;

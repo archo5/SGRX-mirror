@@ -50,7 +50,8 @@ float SHADOWMAP_2x2( sampler2D tex, float4 sizeinfo, float2 tc, float depth )
 #define TEXSAMPLE_2D_BIAS( name, tc, bias ) name.SampleBias( SMP_##name, tc, bias )
 #define TEXSAMPLE_3D( name, tc ) name.Sample( SMP_##name, tc )
 #define TEXSAMPLE_3D_LOD( name, tc, lod ) name.SampleLevel( SMP_##name, tc, lod )
-#define TEXSAMPLE_CUBE_LOD( name, tc, lod ) name.Sample( SMP_##name, float4(tc,lod) )
+#define TEXSAMPLE_CUBE( name, tc ) name.Sample( SMP_##name, tc )
+#define TEXSAMPLE_CUBE_LOD( name, tc, lod ) name.SampleLevel( SMP_##name, tc, lod )
 #define TEXSAMPLE_CUBE_BIAS( name, tc, bias ) name.SampleBias( SMP_##name, tc, bias )
 #define ARG_OUT_RT0 ,out float4 RT0 : SV_TARGET0
 #define ARG_OUT_RT1 ,out float4 RT1 : SV_TARGET1

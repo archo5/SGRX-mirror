@@ -949,9 +949,16 @@ FINLINE void GameObject::sgsSetID( sgsString id )
 }
 
 
+enum EditorType
+{
+	ET_NoEditor = 0,
+	ET_MapEditor,
+	ET_AssetEditor,
+};
+
 struct BaseEditor
 {
-	GFW_EXPORT BaseEditor( struct BaseGame* game );
+	GFW_EXPORT BaseEditor( struct BaseGame* game, int type );
 	GFW_EXPORT ~BaseEditor();
 	
 	void* m_lib;
@@ -990,7 +997,7 @@ EXP_STRUCT BaseGame : IGame
 	String m_ovrMusicPath;
 	GameLevel* m_level;
 	BaseEditor* m_editor;
-	bool m_needsEditor;
+	int m_needsEditor;
 	String m_mapName;
 	HashTable< RCString, GameLevelSystemCreateFunc* > m_systemCreateFuncs;
 	String m_levelSystems;

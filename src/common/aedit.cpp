@@ -1231,3 +1231,8 @@ extern "C" EXPORT IGame* CreateGame()
 	return new ASEditor;
 }
 
+extern "C" EXPORT void SetBaseGame( void* game )
+{
+	// g_Game->SetBaseGame( game );
+}
+
