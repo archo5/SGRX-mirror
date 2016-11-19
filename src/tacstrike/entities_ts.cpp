@@ -924,12 +924,6 @@ bool TSAimHelper::ProcessGameObject( GameObject* obj )
 
 
 
-void ApplyDeadzone( Vec2& v, float lmin = 0.1f, float lmax = 0.9f )
-{
-	float len = TCLAMP( v.Length(), lmin, lmax );
-	v = v.Normalized() * TREVLERP<float>( lmin, lmax, len );
-}
-
 TSAimHelperV2::TSAimHelperV2( GameLevel* lev ) :
 	m_level(lev),
 	m_ownerObj(NULL), m_aimTarget(NULL), m_aimFactor(0),

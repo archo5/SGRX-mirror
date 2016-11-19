@@ -205,6 +205,24 @@ static int Input_GetReleased( SGS_CTX )
 	return sgs_PushBool( C, data.IsReleased() );
 }
 
+static int Input_GetAxis( SGS_CTX )
+{
+	char *str1 = NULL, *str2 = NULL;
+	float vmin = 0.15f, vmax = 0.9f;
+	SGSFN( "Input_GetAxis" );
+	if( !sgs_LoadArgs( C, "ss|ff", &str1, &str2, &vmin, &vmax ) )
+		return 0;
+	InputData data1, data2;
+	if( !Game_GetActionState( sgs_GetVar<StringView>()( C, 0 ), data1 ) )
+		return sgs_Msg( C, SGS_WARNING, "action not found: %s", str1 );
+	if( !Game_GetActionState( sgs_GetVar<StringView>()( C, 1 ), data2 ) )
+		return sgs_Msg( C, SGS_WARNING, "action not found: %s", str2 );
+	Vec2 axis = V2( data1.value, data2.value );
+	ApplyDeadzone( axis, vmin, vmax );
+	sgs_CreateVec2( C, NULL, axis.x, axis.y );
+	return 1;
+}
+
 static int Input_GetCursorPos( SGS_CTX )
 {
 	SGSFN( "Input_GetCursorPos" );
@@ -221,6 +239,7 @@ static sgs_RegFuncConst g_engine_rfc[] =
 	{ "Input_GetState", Input_GetState },
 	{ "Input_GetPressed", Input_GetPressed },
 	{ "Input_GetReleased", Input_GetReleased },
+	{ "Input_GetAxis", Input_GetAxis },
 	{ "Input_GetCursorPos", Input_GetCursorPos },
 	SGS_RC_END(),
 };

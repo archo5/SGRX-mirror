@@ -326,6 +326,12 @@ struct InputData
 	bool state, prev_state;
 };
 
+inline void ApplyDeadzone( Vec2& v, float lmin = 0.15f, float lmax = 0.9f )
+{
+	float len = TCLAMP( v.Length(), lmin, lmax );
+	v = v.Normalized() * TREVLERP<float>( lmin, lmax, len );
+}
+
 struct IGame;
 typedef Handle< IGame > GameHandle;
 ENGINE_EXPORT GameHandle Game_Get();
