@@ -116,7 +116,7 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIPickerCore
 	
 	virtual size_t GetEntryCount() const = 0;
 	virtual RCString GetEntryName( size_t i ) const = 0;
-	virtual RCString GetEntryPath( size_t i ) const = 0;
+	virtual RCString GetEntryKey( size_t i ) const = 0;
 	ENGINE_EXPORT virtual bool EntryUI( size_t i, String& str );
 	
 	LayoutType m_layoutType;
@@ -132,7 +132,7 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIEntryPicker : IMGUIPickerCore
 {
 	virtual size_t GetEntryCount() const { return m_entries.size(); }
 	virtual RCString GetEntryName( size_t i ) const { return m_entries[ i ]; }
-	virtual RCString GetEntryPath( size_t i ) const { return m_entries[ i ]; }
+	virtual RCString GetEntryKey( size_t i ) const { return m_entries[ i ]; }
 	
 	Array< RCString > m_entries;
 };
@@ -200,7 +200,7 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIAssetPickerCore : IMGUIPreviewPickerCore
 	
 	virtual size_t GetEntryCount() const { return m_entries.size(); }
 	virtual RCString GetEntryName( size_t i ) const { return m_entries[ i ]->name; }
-	virtual RCString GetEntryPath( size_t i ) const { return m_entries[ i ]->path; }
+	virtual RCString GetEntryKey( size_t i ) const { return m_entries[ i ]->key; }
 	
 	bool m_customCamera;
 	Array< BaseEntryHandle > m_entries;

@@ -14,7 +14,7 @@ static int _sgs_method__TSCharacter__InitializeMesh( SGS_CTX )
 {
 	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, InitializeMesh ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->InitializeMesh( sgs_GetVar<StringView>()(C,0) ); return 0;
+	data->InitializeMesh(  ); return 0;
 }
 
 static int _sgs_method__TSCharacter__IsTouchingPoint( SGS_CTX )
@@ -24,11 +24,25 @@ static int _sgs_method__TSCharacter__IsTouchingPoint( SGS_CTX )
 	sgs_PushVar(C,data->IsTouchingPoint( sgs_GetVar<Vec3>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2) )); return 1;
 }
 
-static int _sgs_method__TSCharacter__IsPlayingAnim( SGS_CTX )
+static int _sgs_method__TSCharacter__SetACVar( SGS_CTX )
 {
-	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, IsPlayingAnim ) ) return 0;
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, SetACVar ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->IsPlayingAnim(  )); return 1;
+	data->SetACVar( sgs_GetVar<StringView>()(C,0), sgs_GetVar<float>()(C,1) ); return 0;
+}
+
+static int _sgs_method__TSCharacter__CheckMarker( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, CheckMarker ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->CheckMarker( sgs_GetVar<StringView>()(C,0) )); return 1;
+}
+
+static int _sgs_method__TSCharacter__GetAttachmentMatrix( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetAttachmentMatrix ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetAttachmentMatrix( sgs_GetVar<StringView>()(C,0) )); return 1;
 }
 
 static int _sgs_method__TSCharacter__PlayAnim( SGS_CTX )
@@ -50,20 +64,6 @@ static int _sgs_method__TSCharacter__PlayPickupAnim( SGS_CTX )
 	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, PlayPickupAnim ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->PlayPickupAnim( sgs_GetVar<Vec3>()(C,0) ); return 0;
-}
-
-static int _sgs_method__TSCharacter__SetSkin( SGS_CTX )
-{
-	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, SetSkin ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->SetSkin( sgs_GetVar<StringView>()(C,0) ); return 0;
-}
-
-static int _sgs_method__TSCharacter__SetACVar( SGS_CTX )
-{
-	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, SetACVar ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->sgsSetACVar( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<float>()(C,1) ); return 0;
 }
 
 static int _sgs_method__TSCharacter__IsAlive( SGS_CTX )
@@ -134,20 +134,6 @@ static int _sgs_method__TSCharacter__GetAimDir( SGS_CTX )
 	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetAimDir ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	sgs_PushVar(C,data->GetAimDir(  )); return 1;
-}
-
-static int _sgs_method__TSCharacter__GetAttachmentPos( SGS_CTX )
-{
-	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetAttachmentPos ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->sgsGetAttachmentPos( sgs_GetVar<StringView>()(C,0), sgs_GetVar<Vec3>()(C,1) )); return 1;
-}
-
-static int _sgs_method__TSCharacter__GetAttachmentMatrix( SGS_CTX )
-{
-	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetAttachmentMatrix ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->sgsGetAttachmentMatrix( sgs_GetVar<StringView>()(C,0) )); return 1;
 }
 
 int TSCharacter::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -236,12 +222,12 @@ static sgs_RegFuncConst TSCharacter__sgs_funcs[] =
 	{ "SendMessage", _sgs_method__TSCharacter__SendMessage },
 	{ "InitializeMesh", _sgs_method__TSCharacter__InitializeMesh },
 	{ "IsTouchingPoint", _sgs_method__TSCharacter__IsTouchingPoint },
-	{ "IsPlayingAnim", _sgs_method__TSCharacter__IsPlayingAnim },
+	{ "SetACVar", _sgs_method__TSCharacter__SetACVar },
+	{ "CheckMarker", _sgs_method__TSCharacter__CheckMarker },
+	{ "GetAttachmentMatrix", _sgs_method__TSCharacter__GetAttachmentMatrix },
 	{ "PlayAnim", _sgs_method__TSCharacter__PlayAnim },
 	{ "StopAnim", _sgs_method__TSCharacter__StopAnim },
 	{ "PlayPickupAnim", _sgs_method__TSCharacter__PlayPickupAnim },
-	{ "SetSkin", _sgs_method__TSCharacter__SetSkin },
-	{ "SetACVar", _sgs_method__TSCharacter__SetACVar },
 	{ "IsAlive", _sgs_method__TSCharacter__IsAlive },
 	{ "Reset", _sgs_method__TSCharacter__Reset },
 	{ "Hit", _sgs_method__TSCharacter__Hit },
@@ -252,8 +238,6 @@ static sgs_RegFuncConst TSCharacter__sgs_funcs[] =
 	{ "GetWorldPosition", _sgs_method__TSCharacter__GetWorldPosition },
 	{ "GetQueryPosition", _sgs_method__TSCharacter__GetQueryPosition },
 	{ "GetAimDir", _sgs_method__TSCharacter__GetAimDir },
-	{ "GetAttachmentPos", _sgs_method__TSCharacter__GetAttachmentPos },
-	{ "GetAttachmentMatrix", _sgs_method__TSCharacter__GetAttachmentMatrix },
 	{ NULL, NULL },
 };
 

@@ -112,6 +112,44 @@ void MeshResource::SetShaderConst( int v, Vec4 var )
 }
 
 
+CharacterResource::CharacterResource( GameObject* obj ) : GOResource( obj ),
+	m_animChar( obj->m_level->GetScene(), obj->m_level->GetPhyWorld() )
+{
+}
+
+CharacterResource::~CharacterResource()
+{
+}
+
+void CharacterResource::FixedUpdate()
+{
+	GOResource::FixedUpdate();
+	m_animChar.FixedTick( m_level->GetDeltaTime() );
+}
+
+void CharacterResource::Update()
+{
+	GOResource::Update();
+	m_animChar.PreRender( m_level->GetBlendFactor() );
+}
+
+void CharacterResource::OnTransformUpdate()
+{
+	_UpdateMatrix();
+}
+
+void CharacterResource::_UpdateMatrix()
+{
+	GetMeshInst()->SetTransform( GetWorldMatrix() );
+	_UpdateLighting();
+}
+
+void CharacterResource::_UpdateLighting()
+{
+	m_level->LightMesh( GetMeshInst() );
+}
+
+
 LightResource::LightResource( GameObject* obj ) : GOResource( obj ),
 	m_isStatic( false ),
 	m_type( LIGHT_POINT ),

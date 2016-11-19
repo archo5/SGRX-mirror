@@ -228,6 +228,10 @@ function ED_ILOAD.PickSound( lbl, obj, prop, caption ){ this._PickAsset( lbl, ob
 function ED_ISAVE.PickSound( lbl, obj, prop, caption ){ this._PickAsset( lbl, obj, prop, caption ); }
 // default ED_ILCSV
 
+function ED_ILOAD.PickChar( lbl, obj, prop, caption ){ this._PickAsset( lbl, obj, prop, caption ); }
+function ED_ISAVE.PickChar( lbl, obj, prop, caption ){ this._PickAsset( lbl, obj, prop, caption ); }
+// default ED_ILCSV
+
 function ED_ILOAD.PickLocalRsrc( lbl, obj, prop, gobj )
 {
 	if( @ED_SDATA[ prop ] !== null )

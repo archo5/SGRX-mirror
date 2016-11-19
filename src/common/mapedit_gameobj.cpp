@@ -753,6 +753,23 @@ static int IMGUI_PickSound( SGS_CTX )
 	return 0;
 }
 
+static int IMGUI_PickChar( SGS_CTX )
+{
+	SGSFN( "ED_IMGUI.PickChar" );
+	sgsString label( C, 0 );
+	sgsVariable obj( C, 1 );
+	sgsString prop( C, 2 );
+	sgsString caption( C, 3 );
+	String value = obj.getprop( prop ).get<String>();
+	
+	if( g_NUICharPicker->Property( caption.c_str(), label.c_str(), value ) )
+		obj.setprop( prop, g_Level->GetScriptCtx().CreateString( value ).get_variable() );
+	
+	_IMGUI_HandleFailedPropLoad( obj, prop );
+	
+	return 0;
+}
+
 static int IMGUI_PickLocalRsrc( SGS_CTX )
 {
 	SGSFN( "ED_IMGUI.PickLocalRsrc" );
@@ -839,6 +856,7 @@ sgs_RegFuncConst g_imgui_rfc[] =
 	{ "PickTexture", IMGUI_PickTexture },
 	{ "PickPartSys", IMGUI_PickPartSys },
 	{ "PickSound", IMGUI_PickSound },
+	{ "PickChar", IMGUI_PickChar },
 	{ "PickLocalRsrc", IMGUI_PickLocalRsrc },
 	{ "ComboNT", IMGUI_ComboNT },
 	{ "Button", IMGUI_Button },

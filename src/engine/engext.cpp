@@ -1330,10 +1330,8 @@ AnimCharInst::AnimCharInst( SceneHandle sh, PhyWorldHandle phyWorld ) :
 bool AnimCharInst::SetAnimChar( const StringView& sv )
 {
 	AnimCharHandle ch = GR_GetAnimChar( sv );
-	if( !ch )
-		return false;
 	SetAnimChar( ch );
-	return true;
+	return ch != NULL;
 }
 
 void AnimCharInst::SetAnimChar( AnimCharacter* ch )

@@ -763,6 +763,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	
 	// register core resources
 	MeshResource::Register( this );
+	CharacterResource::Register( this );
 	LightResource::Register( this );
 	FlareResource::Register( this );
 	ParticleSystemResource::Register( this );

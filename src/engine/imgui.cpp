@@ -596,11 +596,11 @@ bool IMGUIPickerCore::Popup( const char* caption, String& str )
 				if( x )
 					ImGui::SameLine();
 				
-				RCString path = GetEntryPath( m_filtered[ i ] );
-				ImGui::PushID( path.c_str() );
+				RCString key = GetEntryKey( m_filtered[ i ] );
+				ImGui::PushID( key.c_str() );
 				if( EntryUI( m_filtered[ i ], str ) )
 				{
-					str = path;
+					str = key;
 					opened = false;
 					changed = true;
 				}
@@ -611,11 +611,11 @@ bool IMGUIPickerCore::Popup( const char* caption, String& str )
 		{
 			for( size_t i = 0; i < m_filtered.size(); ++i )
 			{
-				RCString path = GetEntryPath( m_filtered[ i ] );
-				ImGui::PushID( path.c_str() );
+				RCString key = GetEntryKey( m_filtered[ i ] );
+				ImGui::PushID( key.c_str() );
 				if( EntryUI( m_filtered[ i ], str ) )
 				{
-					str = path;
+					str = key;
 					opened = false;
 					changed = true;
 				}
@@ -1117,7 +1117,7 @@ bool IMGUICharPicker::HandleDirEntry( const StringView& loc, const StringView& n
 		return true;
 	char bfr[ 256 ];
 	sgrx_snprintf( bfr, 256, "%s/%s", StackString<256>(loc).str, StackString<256>(name).str );
-	LOG << "[Ch]: " << bfr;
+//	LOG << "[Ch]: " << bfr;
 	StringView fullname = bfr;
 	if( isdir )
 	{

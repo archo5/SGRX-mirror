@@ -218,7 +218,6 @@ void TSCamera::Update()
 
 TSCharacter::TSCharacter( GameObject* obj ) :
 	GOBehavior( obj ),
-	m_animChar( obj->m_level->GetScene(), obj->m_level->GetPhyWorld() ),
 	m_health( 100 ), m_armor( 0 ),
 	m_damageMultiplier( 1 ), m_acceptsCriticalDamage( true ),
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
@@ -251,31 +250,6 @@ TSCharacter::TSCharacter( GameObject* obj ) :
 	m_bodyHandle = m_level->GetPhyWorld()->CreateRigidBody( rbinfo );
 	m_shapeHandle = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.22f) );
 	
-	m_shadowInst = m_level->GetScene()->CreateLight();
-	m_shadowInst->type = LIGHT_PROJ;
-	m_shadowInst->direction = V3(0,0,-1);
-	m_shadowInst->updir = V3(0,1,0);
-	m_shadowInst->angle = 60;
-	m_shadowInst->range = 1.5f;
-	m_shadowInst->UpdateTransform();
-	m_shadowInst->projectionMaterial.textures[0] = GR_GetTexture( "textures/fx/blobshadow.png" );//GR_GetTexture( "textures/unit.png" );
-	m_shadowInst->projectionMaterial.textures[1] = GR_GetTexture( "textures/fx/projfalloff2.png" );
-	m_shadowInst->enabled = false;//true;
-	
-#if 0
-	m_shootPS.Load( "psys/gunflash.psy" );
-	m_shootPS.AddToScene( m_level->GetScene() );
-	m_shootPS.OnRenderUpdate();
-	m_shootLT = m_level->GetScene()->CreateLight();
-	m_shootLT->type = LIGHT_POINT;
-	m_shootLT->enabled = false;
-	m_shootLT->position = V3(0);
-	m_shootLT->color = V3(0.9f,0.7f,0.5f)*1;
-	m_shootLT->range = 4;
-	m_shootLT->power = 4;
-	m_shootLT->UpdateTransform();
-	m_shootTimeout = 0;
-#endif
 	m_timeSinceLastHit = 9999;
 }
 
@@ -292,15 +266,14 @@ void TSCharacter::OnTransformUpdate()
 	m_ivPos.Set( pos );
 }
 
-void TSCharacter::InitializeMesh( const StringView& path )
+void TSCharacter::InitializeMesh()
 {
-	m_animChar.SetAnimChar( path );
-	
-	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
-	MI->userData = (SGRX_MeshInstUserData*) this;
-	MI->layers = 0x2;
-	MI->matrix = Mat4::CreateSRT( V3(1), Quat::Identity, m_ivPos.curr );
-	m_level->LightMesh( MI, V3(1) );
+	if( CharacterResource* cre = m_obj->FindFirstResourceOfType<CharacterResource>() )
+	{
+		SGRX_MeshInstance* MI = cre->GetMeshInst();
+		MI->userData = (SGRX_MeshInstUserData*) this;
+		MI->layers = 0x2;
+	}
 	
 	ProcessAnims( 0 );
 }
@@ -358,8 +331,8 @@ void TSCharacter::ProcessAnims( float deltaTime )
 	
 	float f_turn_btm = ( atan2( rundir.y, rundir.x ) - M_PI / 2 ) / ( M_PI * 2 );
 	float f_turn_top = ( atan2( aimdir.y, aimdir.x ) - M_PI / 2 ) / ( M_PI * 2 );
-	m_animChar.SetFloat( "btm_angle", f_turn_btm );
-	m_animChar.SetFloat( "top_angle", f_turn_top );
+	SetACVar( "btm_angle", f_turn_btm );
+	SetACVar( "top_angle", f_turn_top );
 }
 
 void TSCharacter::FixedUpdate()
@@ -394,13 +367,13 @@ void TSCharacter::FixedUpdate()
 		fwdq *= -1;
 	}
 	
-	m_animChar.SetFloat( "health", m_health );
-	m_animChar.SetFloat( "time_since_last_hit", m_timeSinceLastHit );
+	SetACVar( "health", m_health );
+	SetACVar( "time_since_last_hit", m_timeSinceLastHit );
 	
-	m_animChar.SetFloat( "run", clamp( i_move.Length(), 0, 1 ) * fwdq );
-	m_animChar.SetBool( "crouch", m_isCrouching );
+	SetACVar( "run", clamp( i_move.Length(), 0, 1 ) * fwdq );
+	SetACVar( "crouch", m_isCrouching );
 	GOBehavior* wpn = FindWeapon();
-	m_animChar.SetFloat( "aim", wpn ? (
+	SetACVar( "aim", wpn ? (
 		!wpn->GetScriptedObject().getprop("holstered").get<bool>()) : 0 );
 	
 	
@@ -414,24 +387,28 @@ void TSCharacter::FixedUpdate()
 	
 	ProcessAnims( deltaTime );
 	
-	if( IsAlive() && m_animChar.CheckMarker( "step" ) )
+	if( CharacterResource* cre = m_obj->FindFirstResourceOfType<CharacterResource>() )
 	{
-		Vec3 pos = m_bodyHandle->GetPosition();
-		Vec3 lvel = m_bodyHandle->GetLinearVelocity();
-		SoundEventInstanceHandle fsev = m_level->GetSoundSys()->CreateEventInstance( "/footsteps" );
-		SGRX_Sound3DAttribs s3dattr = { pos, lvel, V3(0), V3(0) };
-		fsev->Set3DAttribs( s3dattr );
-		fsev->Start();
-		m_level->GetSystem<AIDBSystem>()->AddSound( m_obj->GetWorldPosition(), 4, 0.2f, AIS_Footstep );
+		if( IsAlive() && cre->CheckMarker( "step" ) )
+		{
+			Vec3 pos = m_bodyHandle->GetPosition();
+			Vec3 lvel = m_bodyHandle->GetLinearVelocity();
+			SoundEventInstanceHandle fsev = m_level->GetSoundSys()->CreateEventInstance( "/footsteps" );
+			SGRX_Sound3DAttribs s3dattr = { pos, lvel, V3(0), V3(0) };
+			fsev->Set3DAttribs( s3dattr );
+			fsev->Start();
+			m_level->GetSystem<AIDBSystem>()->AddSound( m_obj->GetWorldPosition(), 4, 0.2f, AIS_Footstep );
+		}
 	}
 	
-	m_animChar.FixedTick( deltaTime );
+	// WHY WAS THIS HERE?
+//	m_animChar.FixedTick( deltaTime );
 	// reset flags
 	{
 		if( m_pickupTrigger )
 		{
 			m_pickupTrigger = false;
-			m_animChar.SetBool( "pickup", false );
+			SetACVar( "pickup", false );
 		}
 	}
 	m_timeSinceLastHit += deltaTime;
@@ -489,13 +466,10 @@ void TSCharacter::Update()
 		m_bodyHandle->ApplyCentralForce( PFT_Velocity, cmap.GetForce() * deltaTime );
 	}
 	
-	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
-	MI->matrix = Mat4::CreateTranslation( pos ); // Mat4::CreateSRT( V3(1), rdir, pos );
-	m_shadowInst->position = pos + V3(0,0,1);
-	
-	m_level->LightMesh( MI, V3(0,0,m_isCrouching ? 0.6f : 1) );
-	
-	m_animChar.PreRender( blendFactor );
+	// DO WE NEED TO TRANSFER THIS TO CharacterResource?
+//	m_level->LightMesh( MI, V3(0,0,m_isCrouching ? 0.6f : 1) );
+	// WHY WAS THIS HERE?
+//	m_animChar.PreRender( blendFactor );
 	// update position
 	{
 		TempSwapper<const void*> ts( m_obj->_xfChangeInvoker, this );
@@ -506,24 +480,13 @@ void TSCharacter::Update()
 	
 	if( m_health > 0 )
 	{
-		Vec3 tgtpos = m_animChar.GetLocalAttachmentPos( m_animChar.FindAttachment( "target" ) );
 		m_obj->SetInfoMask( m_infoFlags );
-		m_obj->SetInfoTarget( tgtpos );
-	}
-	
-	
-	AnimDeformer& AnD = m_animChar.m_anDeformer;
-	for( size_t i = 0; i < AnD.forces.size(); ++i )
-	{
-		AnimDeformer::Force& F = AnD.forces[ i ];
-		float t = F.lifetime;
-		F.amount = sinf( t * FLT_PI ) * expf( -t * 8 ) * 7 * F.dir.Length();
-		if( F.lifetime > 3 )
+		if( CharacterResource* cre = m_obj->FindFirstResourceOfType<CharacterResource>() )
 		{
-			AnD.forces.erase( i-- );
+			Vec3 tgtpos = cre->GetLocalAttachmentPos( "target" );
+			m_obj->SetInfoTarget( tgtpos );
 		}
 	}
-	
 	
 	GOBehavior* wpn = FindWeapon();
 	if( wpn )
@@ -556,41 +519,6 @@ void TSCharacter::Update()
 		else
 			wpn->SendMessage( "SetShootTarget", sgsVariable() );
 	}
-	
-	
-#if 0
-	m_shootLT->enabled = false;
-	if( m_shootTimeout > 0 )
-	{
-		m_shootTimeout -= deltaTime;
-		m_shootLT->enabled = true;
-	}
-	if( ctrl->GetInputB( ACT_Chr_Shoot ) && IsAlive() && m_shootTimeout <= 0 )
-	{
-		Mat4 mtx = GetBulletOutputMatrix();
-		Vec3 origin = mtx.TransformPos( V3(0) );
-		Vec3 dir = ( ctrl->GetInputV3( ACT_Chr_AimTarget ) - origin ).Normalized();
-		dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
-		m_level->GetSystem<BulletSystem>()->Add( origin, dir * 100, 1, 1, ownerType );
-		m_shootPS.SetTransform( mtx );
-		m_shootPS.Trigger();
-		m_shootLT->position = origin;
-		m_shootLT->UpdateTransform();
-		m_shootLT->enabled = true;
-		m_shootTimeout += 0.1f;
-		m_level->GetSystem<AIDBSystem>()->AddSound( m_obj->GetWorldPosition(), 10, 0.2f, AIS_Shot );
-		
-		m_level->PlaySound( "/mp5_shot", origin, dir );
-		
-		Mat4 inv = m_animChar.m_cachedMeshInst->matrix.Inverted();
-		Vec3 forcePos = inv.TransformPos( origin );
-		Vec3 forceDir = inv.TransformNormal( mtx.TransformNormal(V3(0,0,-1)) ).Normalized();
-		AnD.AddLocalForce( forcePos, forceDir * 0.2f, 1.0f );
-	}
-	m_shootLT->color = V3(0.9f,0.7f,0.5f)*0.5f * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
-	
-	m_shootPS.Tick( deltaTime );
-#endif
 }
 
 void TSCharacter::_HandleGroundBody( Vec3& pos, SGRX_IPhyRigidBody* body, float dt )
@@ -680,7 +608,7 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 		m_groundBody = NULL;
 	}
 	
-	m_animChar.SetBool( "jump", false );
+	SetACVar( "jump", false );
 	if( !m_jumpTimeout && m_canJumpTimeout && jump )
 	{
 		lvel.z = 2.5f; // 4;
@@ -694,7 +622,7 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 		fsev->Start();
 		m_level->GetSystem<AIDBSystem>()->AddSound( m_obj->GetWorldPosition(), 4, 0.2f, AIS_Footstep );
 		
-		m_animChar.SetBool( "jump", true );
+		SetACVar( "jump", true );
 	}
 	
 	if( !m_isOnGround && ground )
@@ -795,29 +723,22 @@ Vec3 TSCharacter::GetMoveRefPos() const
 
 void TSCharacter::PlayPickupAnim( Vec3 tgt )
 {
-	m_animChar.SetFloat( "pickup_height",
+	SetACVar( "pickup_height",
 		tgt.z - ( GetWorldPosition().z + 1 ) );
-	m_animChar.SetBool( "pickup", true );
+	SetACVar( "pickup", true );
 	m_pickupTrigger = true;
-}
-
-void TSCharacter::SetSkin( StringView name )
-{
-	m_animChar.SetSkin( name );
-}
-
-void TSCharacter::sgsSetACVar( sgsString name, float val )
-{
-	m_animChar.SetFloat( name.c_str(), val );
 }
 
 void TSCharacter::Reset()
 {
 	m_health = 100;
-	m_animChar.DisablePhysics();
+	if( CharacterResource* cre = m_obj->FindFirstResourceOfType<CharacterResource>() )
+	{
+		cre->DisablePhysics();
+		cre->GetMeshInst()->layers = 0xffffffff;
+	}
 //	m_anLayers[3].factor = 0;
 	m_bodyHandle->SetEnabled( true );
-	m_animChar.m_cachedMeshInst->layers = 0xffffffff;
 }
 
 void TSCharacter::MeshInstUser_OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
@@ -825,11 +746,6 @@ void TSCharacter::MeshInstUser_OnEvent( SGRX_MeshInstance* MI, uint32_t evid, vo
 	if( evid == MIEVT_BulletHit )
 	{
 		SGRX_CAST( MI_BulletHit_Data*, bhinfo, data );
-		Mat4 inv = Mat4::Identity;
-		m_animChar.m_cachedMeshInst->matrix.InvertTo( inv );
-		Vec3 pos = inv.TransformPos( bhinfo->pos );
-		Vec3 vel = inv.TransformNormal( bhinfo->vel ).Normalized();
-		m_animChar.m_anDeformer.AddModelForce( pos, vel * 0.4f, 0.3f );
 		Hit( bhinfo->vel.Length() * ( m_acceptsCriticalDamage ?
 			bhinfo->critDmg : bhinfo->dmg ) * 0.15f );
 	}
@@ -839,10 +755,10 @@ void TSCharacter::OnDeath()
 {
 	m_bodyHandle->SetEnabled( false );
 //	m_animChar.EnablePhysics();
-	m_animChar.m_anDeformer.forces.clear();
 //	m_anLayers[3].factor = 1;
 	m_obj->SetInfoMask( 0 );
-	m_animChar.m_cachedMeshInst->layers = 0;
+	if( CharacterResource* cre = m_obj->FindFirstResourceOfType<CharacterResource>() )
+		cre->GetMeshInst()->layers = 0;
 	
 	SendMessage( "OnDeath" );
 	// event
@@ -883,17 +799,6 @@ GOBehavior* TSCharacter::FindWeapon() const
 			return bhvr;
 	}
 	return NULL;
-}
-
-Vec3 TSCharacter::sgsGetAttachmentPos( StringView atch, Vec3 off )
-{
-	return m_animChar.GetAttachmentPos( m_animChar.FindAttachment( atch ), off );
-}
-
-Mat4 TSCharacter::sgsGetAttachmentMatrix( StringView atch )
-{
-	return m_animChar.GetAttachmentMatrix(
-		m_animChar.FindAttachment( atch ) );
 }
 
 
@@ -1346,10 +1251,10 @@ struct SceneRaycastCallback_NotChar : SceneRaycastCallback_Closest
 {
 	virtual void AddResult( SceneRaycastInfo* info )
 	{
-		if( info->meshinst != chr->m_animChar.m_cachedMeshInst )
+		if( info->meshinst != cre->GetMeshInst() )
 			SceneRaycastCallback_Closest::AddResult( info );
 	}
-	TSCharacter* chr;
+	CharacterResource* cre;
 };
 
 void TPSPlayerController::UpdateMoveAim( bool tick )
@@ -1392,7 +1297,7 @@ void TPSPlayerController::UpdateMoveAim( bool tick )
 			
 			SceneRaycastCallback_NotChar ncrc;
 			{
-				ncrc.chr = chr;
+				ncrc.cre = m_obj->FindFirstResourceOfType<CharacterResource>();
 			}
 			scene->RaycastAll( start, end, &ncrc, 0xffffffff );
 			if( ncrc.m_hit )
@@ -1480,10 +1385,11 @@ struct EPEnemyViewProc : GameObjectProcessor
 		else if( gcv_notarget.value == false )
 		{
 			TSCharacter* chr = obj->FindFirstBehaviorOfType<TSCharacter>();
-			if( !chr )
+			CharacterResource* cre = obj->FindFirstResourceOfType<CharacterResource>();
+			if( !chr || !cre )
 				return false;
 			if( !enemy->CanSeePoint( enemypos ) &&
-				!enemy->CanSeePoint( chr->sgsGetAttachmentPos( "head", V3(0) ) ) )
+				!enemy->CanSeePoint( cre->GetAttachmentPos( "head", V3(0) ) ) )
 				return false;
 			
 			AIZoneInfo zi = aidb->GetZoneInfoByPos( chr->GetQueryPosition_FT() );

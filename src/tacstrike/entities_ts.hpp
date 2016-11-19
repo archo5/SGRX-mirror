@@ -93,7 +93,7 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	TSCharacter( GameObject* obj );
 	~TSCharacter();
 	virtual void OnTransformUpdate();
-	SGS_METHOD void InitializeMesh( const StringView& path );
+	SGS_METHOD void InitializeMesh();
 	void ProcessAnims( float deltaTime );
 	void FixedUpdate();
 	void Update();
@@ -108,13 +108,33 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	Vec3 GetMoveRefPos() const;
 	SGS_PROPERTY_FUNC( READ GetMoveRefPos ) SGS_ALIAS( Vec3 moveRefPos );
 	
-	SGS_METHOD bool IsPlayingAnim() const { return m_animChar.IsPlayingAnim(); }
-	SGS_METHOD void PlayAnim( StringView name, bool loop ){ m_animChar.PlayAnim( name, loop ); }
-	SGS_METHOD void StopAnim(){ m_animChar.StopAnim(); }
+	SGS_METHOD void SetACVar( StringView name, float val )
+	{
+		if( CharacterResource* cre = m_obj->FindFirstResourceOfType<CharacterResource>() )
+			cre->SetVar( name, val );
+	}
+	SGS_METHOD bool CheckMarker( StringView name )
+	{
+		CharacterResource* cre = m_obj->FindFirstResourceOfType<CharacterResource>();
+		return cre ? cre->CheckMarker( name ) : false;
+	}
+	SGS_METHOD Mat4 GetAttachmentMatrix( StringView name )
+	{
+		CharacterResource* cre = m_obj->FindFirstResourceOfType<CharacterResource>();
+		return cre ? cre->GetAttachmentMatrix( name ) : Mat4::Identity;
+	}
+	SGS_METHOD void PlayAnim( StringView name, bool loop )
+	{
+		if( CharacterResource* cre = m_obj->FindFirstResourceOfType<CharacterResource>() )
+			cre->PlayAnim( name, loop );
+	}
+	SGS_METHOD void StopAnim()
+	{
+		if( CharacterResource* cre = m_obj->FindFirstResourceOfType<CharacterResource>() )
+			cre->StopAnim();
+	}
 	// - specific animation triggers
 	SGS_METHOD void PlayPickupAnim( Vec3 tgt );
-	SGS_METHOD void SetSkin( StringView name );
-	SGS_METHOD_NAMED( SetACVar ) void sgsSetACVar( sgsString name, float val );
 	
 	SGS_METHOD bool IsAlive(){ return m_health > 0; }
 	SGS_METHOD void Reset();
@@ -137,9 +157,6 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	
 	PhyRigidBodyHandle m_bodyHandle;
 	PhyShapeHandle m_shapeHandle;
-	LightHandle m_shadowInst;
-	
-	AnimCharInst m_animChar;
 	
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME health ) float m_health;
 	float m_armor;
@@ -181,9 +198,6 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	void SetFootPosition( Vec3 p ){ m_obj->SetWorldPosition( p + V3(0,0,1.5f) ); }
 	SGS_PROPERTY_FUNC( WRITE SetFootPosition ) SGS_ALIAS( Vec3 footPosition );
 	bool m_skipTransformUpdate;
-	
-	SGS_METHOD_NAMED( GetAttachmentPos ) Vec3 sgsGetAttachmentPos( StringView atch, Vec3 off );
-	SGS_METHOD_NAMED( GetAttachmentMatrix ) Mat4 sgsGetAttachmentMatrix( StringView atch );
 };
 
 

@@ -2510,6 +2510,272 @@ static sgs_ObjInterface MeshResource__sgs_interface =
 _sgsInterface MeshResource::_sgs_interface(MeshResource__sgs_interface, MeshResource__sgs_ifn, &GOResource::_sgs_interface);
 
 
+static int _sgs_method__CharacterResource__OnDestroy( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, OnDestroy ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnDestroy(  ); return 0;
+}
+
+static int _sgs_method__CharacterResource__PrePhysicsFixedUpdate( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, PrePhysicsFixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PrePhysicsFixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__CharacterResource__FixedUpdate( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, FixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->FixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__CharacterResource__Update( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, Update ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Update(  ); return 0;
+}
+
+static int _sgs_method__CharacterResource__PreRender( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, PreRender ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PreRender(  ); return 0;
+}
+
+static int _sgs_method__CharacterResource__OnTransformUpdate( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, OnTransformUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnTransformUpdate(  ); return 0;
+}
+
+static int _sgs_method__CharacterResource__GetWorldMatrix( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, GetWorldMatrix ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetWorldMatrix(  )); return 1;
+}
+
+static int _sgs_method__CharacterResource__IsPlayingAnim( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, IsPlayingAnim ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->IsPlayingAnim(  )); return 1;
+}
+
+static int _sgs_method__CharacterResource__PlayAnim( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, PlayAnim ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PlayAnim( sgs_GetVar<StringView>()(C,0), sgs_GetVar<bool>()(C,1) ); return 0;
+}
+
+static int _sgs_method__CharacterResource__StopAnim( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, StopAnim ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->StopAnim(  ); return 0;
+}
+
+static int _sgs_method__CharacterResource__GetAnimCharPath( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, GetAnimCharPath ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetAnimCharPath(  )); return 1;
+}
+
+static int _sgs_method__CharacterResource__SetAnimChar( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, SetAnimChar ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->SetAnimChar( sgs_GetVar<StringView>()(C,0) ); return 0;
+}
+
+static int _sgs_method__CharacterResource__GetSkin( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, GetSkin ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetSkin(  )); return 1;
+}
+
+static int _sgs_method__CharacterResource__SetSkin( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, SetSkin ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->SetSkin( sgs_GetVar<StringView>()(C,0) ); return 0;
+}
+
+static int _sgs_method__CharacterResource__SetVar( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, SetVar ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->SetVar( sgs_GetVar<StringView>()(C,0), sgs_GetVar<float>()(C,1) ); return 0;
+}
+
+static int _sgs_method__CharacterResource__GetAttachmentPos( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, GetAttachmentPos ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetAttachmentPos( sgs_GetVar<StringView>()(C,0), sgs_GetVar<Vec3>()(C,1) )); return 1;
+}
+
+static int _sgs_method__CharacterResource__GetLocalAttachmentPos( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, GetLocalAttachmentPos ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetLocalAttachmentPos( sgs_GetVar<StringView>()(C,0), sgs_GetVar<Vec3>()(C,1) )); return 1;
+}
+
+static int _sgs_method__CharacterResource__GetAttachmentMatrix( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, GetAttachmentMatrix ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetAttachmentMatrix( sgs_GetVar<StringView>()(C,0) )); return 1;
+}
+
+static int _sgs_method__CharacterResource__CheckMarker( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, CheckMarker ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->CheckMarker( sgs_GetVar<StringView>()(C,0) )); return 1;
+}
+
+static int _sgs_method__CharacterResource__EnablePhysics( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, EnablePhysics ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->EnablePhysics(  ); return 0;
+}
+
+static int _sgs_method__CharacterResource__DisablePhysics( SGS_CTX )
+{
+	CharacterResource* data; if( !SGS_PARSE_METHOD( C, CharacterResource::_sgs_interface, data, CharacterResource, DisablePhysics ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->DisablePhysics(  ); return 0;
+}
+
+int CharacterResource::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<CharacterResource*>( obj->data )->C = C;
+	static_cast<CharacterResource*>( obj->data )->~CharacterResource();
+	return SGS_SUCCESS;
+}
+
+int CharacterResource::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<CharacterResource*>( obj->data )->C, C );
+	return SGS_SUCCESS;
+}
+
+int CharacterResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<CharacterResource*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<CharacterResource*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<CharacterResource*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<CharacterResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
+		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<CharacterResource*>( obj->data )->m_rsrcType ); return SGS_SUCCESS; }
+		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<CharacterResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
+		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<CharacterResource*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<CharacterResource*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<CharacterResource*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<CharacterResource*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<CharacterResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<CharacterResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
+		SGS_CASE( "charPath" ){ sgs_PushVar( C, static_cast<CharacterResource*>( obj->data )->GetAnimCharPath() ); return SGS_SUCCESS; }
+		SGS_CASE( "skin" ){ sgs_PushVar( C, static_cast<CharacterResource*>( obj->data )->GetSkin() ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<CharacterResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int CharacterResource::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<CharacterResource*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "_data" ){ static_cast<CharacterResource*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ static_cast<CharacterResource*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ static_cast<CharacterResource*>( obj->data )->SetMatrixMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "charPath" ){ static_cast<CharacterResource*>( obj->data )->SetAnimChar( sgs_GetVar<StringView>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "skin" ){ static_cast<CharacterResource*>( obj->data )->SetSkin( sgs_GetVar<StringView>()( C, 1 ) ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<CharacterResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int CharacterResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<CharacterResource*>( obj->data )->C, C );
+	char bfr[ 49 ];
+	sprintf( bfr, "CharacterResource (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<CharacterResource*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<CharacterResource*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<CharacterResource*>( obj->data )->_get_object(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<CharacterResource*>( obj->data )->m_rsrcType, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<CharacterResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<CharacterResource*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<CharacterResource*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<CharacterResource*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<CharacterResource*>( obj->data )->GetLocalScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<CharacterResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<CharacterResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ncharPath = " ); sgs_DumpData( C, static_cast<CharacterResource*>( obj->data )->GetAnimCharPath(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nskin = " ); sgs_DumpData( C, static_cast<CharacterResource*>( obj->data )->GetSkin(), depth ).push( C ); }
+		sgs_StringConcat( C, 26 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst CharacterResource__sgs_funcs[] =
+{
+	{ "OnDestroy", _sgs_method__CharacterResource__OnDestroy },
+	{ "PrePhysicsFixedUpdate", _sgs_method__CharacterResource__PrePhysicsFixedUpdate },
+	{ "FixedUpdate", _sgs_method__CharacterResource__FixedUpdate },
+	{ "Update", _sgs_method__CharacterResource__Update },
+	{ "PreRender", _sgs_method__CharacterResource__PreRender },
+	{ "OnTransformUpdate", _sgs_method__CharacterResource__OnTransformUpdate },
+	{ "GetWorldMatrix", _sgs_method__CharacterResource__GetWorldMatrix },
+	{ "IsPlayingAnim", _sgs_method__CharacterResource__IsPlayingAnim },
+	{ "PlayAnim", _sgs_method__CharacterResource__PlayAnim },
+	{ "StopAnim", _sgs_method__CharacterResource__StopAnim },
+	{ "GetAnimCharPath", _sgs_method__CharacterResource__GetAnimCharPath },
+	{ "SetAnimChar", _sgs_method__CharacterResource__SetAnimChar },
+	{ "GetSkin", _sgs_method__CharacterResource__GetSkin },
+	{ "SetSkin", _sgs_method__CharacterResource__SetSkin },
+	{ "SetVar", _sgs_method__CharacterResource__SetVar },
+	{ "GetAttachmentPos", _sgs_method__CharacterResource__GetAttachmentPos },
+	{ "GetLocalAttachmentPos", _sgs_method__CharacterResource__GetLocalAttachmentPos },
+	{ "GetAttachmentMatrix", _sgs_method__CharacterResource__GetAttachmentMatrix },
+	{ "CheckMarker", _sgs_method__CharacterResource__CheckMarker },
+	{ "EnablePhysics", _sgs_method__CharacterResource__EnablePhysics },
+	{ "DisablePhysics", _sgs_method__CharacterResource__DisablePhysics },
+	{ NULL, NULL },
+};
+
+static int CharacterResource__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		CharacterResource__sgs_funcs,
+		-1, "CharacterResource." );
+	return 1;
+}
+
+static sgs_ObjInterface CharacterResource__sgs_interface =
+{
+	"CharacterResource",
+	CharacterResource::_sgs_destruct, CharacterResource::_sgs_gcmark, CharacterResource::_sgs_getindex, CharacterResource::_sgs_setindex, NULL, NULL, CharacterResource::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface CharacterResource::_sgs_interface(CharacterResource__sgs_interface, CharacterResource__sgs_ifn, &GOResource::_sgs_interface);
+
+
 static int _sgs_method__LightResource__OnDestroy( SGS_CTX )
 {
 	LightResource* data; if( !SGS_PARSE_METHOD( C, LightResource::_sgs_interface, data, LightResource, OnDestroy ) ) return 0;

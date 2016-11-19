@@ -22,6 +22,7 @@
 #define GO_RSRC_REFPLANE 7
 #define GO_RSRC_CAMERA   8
 #define GO_RSRC_FLARE    9
+#define GO_RSRC_CHAR     10
 
 
 
@@ -75,6 +76,47 @@ EXP_STRUCT MeshResource : GOResource, SGRX_MeshInstUserData
 	GFW_EXPORT SGS_METHOD void SetShaderConst( int v, Vec4 var );
 	
 	MeshInstHandle m_meshInst;
+};
+
+
+EXP_STRUCT CharacterResource : GOResource
+{
+	SGS_OBJECT_INHERIT( GOResource );
+	ENT_SGS_IMPLEMENT;
+	IMPLEMENT_RESOURCE( CharacterResource, GO_RSRC_CHAR, "Character" );
+	
+	GFW_EXPORT CharacterResource( GameObject* obj );
+	GFW_EXPORT ~CharacterResource();
+	GFW_EXPORT virtual void FixedUpdate();
+	GFW_EXPORT virtual void Update();
+	GFW_EXPORT virtual void OnTransformUpdate();
+	GFW_EXPORT void _UpdateMatrix();
+	GFW_EXPORT void _UpdateLighting();
+	
+	SGRX_MeshInstance* GetMeshInst() const { return m_animChar.m_cachedMeshInst; }
+	
+	SGS_METHOD bool IsPlayingAnim() const { return m_animChar.IsPlayingAnim(); }
+	SGS_METHOD void PlayAnim( StringView name, bool loop ){ m_animChar.PlayAnim( name, loop ); }
+	SGS_METHOD void StopAnim(){ m_animChar.StopAnim(); }
+	SGS_METHOD StringView GetAnimCharPath() const { return m_animChar.animChar ? m_animChar.animChar->m_key : SV(); }
+	SGS_METHOD void SetAnimChar( StringView path ){ m_animChar.SetAnimChar( path ); }
+	SGS_METHOD StringView GetSkin() const { return m_animChar.skinName; }
+	SGS_METHOD void SetSkin( StringView name ){ m_animChar.SetSkin( name ); }
+	SGS_METHOD void SetVar( StringView name, float val ){ m_animChar.SetFloat( name, val ); }
+	SGS_METHOD Vec3 GetAttachmentPos( StringView atch, Vec3 off SGS_CPPBC_IGNORE( = V3(0) ) )
+	{ return m_animChar.GetAttachmentPos( m_animChar.FindAttachment( atch ), off ); }
+	SGS_METHOD Vec3 GetLocalAttachmentPos( StringView atch, Vec3 off SGS_CPPBC_IGNORE( = V3(0) ) )
+	{ return m_animChar.GetLocalAttachmentPos( m_animChar.FindAttachment( atch ), off ); }
+	SGS_METHOD Mat4 GetAttachmentMatrix( StringView atch )
+	{ return m_animChar.GetAttachmentMatrix( m_animChar.FindAttachment( atch ) ); }
+	SGS_METHOD bool CheckMarker( StringView name ){ return m_animChar.CheckMarker( name ); }
+	SGS_METHOD void EnablePhysics(){ m_animChar.EnablePhysics(); }
+	SGS_METHOD void DisablePhysics(){ m_animChar.DisablePhysics(); }
+	
+	SGS_PROPERTY_FUNC( READ GetAnimCharPath WRITE SetAnimChar ) SGS_ALIAS( StringView charPath );
+	SGS_PROPERTY_FUNC( READ GetSkin WRITE SetSkin ) SGS_ALIAS( StringView skin );
+	
+	AnimCharInst m_animChar;
 };
 
 

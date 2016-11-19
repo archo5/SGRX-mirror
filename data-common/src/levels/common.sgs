@@ -108,6 +108,13 @@ function MeshResource.EditorGUI( ui )
 	ui.EditBool( "Has bullet interaction?", this, "hasBulletInteraction" );
 }
 
+function CharacterResource.EditorGUI( ui )
+{
+	this!GOResource.EditorGUI( ui );
+	ui.PickChar( "Character", this, "charPath", "Select character" );
+	ui.EditString( "Skin", this, "skin", 256 );
+}
+
 LightResource.ED_Icon = "editor/icons/light.png";
 function LightResource.EditorGUI( ui )
 {

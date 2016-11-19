@@ -2350,6 +2350,8 @@ bool MapEditor::OnInitialize()
 	g_NUISoundPicker = new IMGUISoundPicker();
 	g_NUIShaderPicker = new IMGUIShaderPicker();
 	
+	g_BaseGame->InitSoundSystem();
+	g_BaseGame->ParseConfigFile( true );
 	g_Level = g_BaseGame->CreateLevel();
 	g_Level->m_editorMode = true;
 	
