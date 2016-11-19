@@ -620,7 +620,8 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 		SGRX_Sound3DAttribs s3dattr = { pos, lvel, V3(0), V3(0) };
 		fsev->Set3DAttribs( s3dattr );
 		fsev->Start();
-		m_level->GetSystem<AIDBSystem>()->AddSound( m_obj->GetWorldPosition(), 4, 0.2f, AIS_Footstep );
+		if( AIDBSystem* sys = m_level->GetSystem<AIDBSystem>() )
+			sys->AddSound( m_obj->GetWorldPosition(), 4, 0.2f, AIS_Footstep );
 		
 		SetACVar( "jump", true );
 	}
