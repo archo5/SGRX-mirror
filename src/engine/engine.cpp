@@ -597,8 +597,8 @@ ActionInput Game_GetInputFromNameID( StringView name )
 	if( name == "ctrl:B" ) return ACTINPUT_MAKE_GPADBTN( SDL_CONTROLLER_BUTTON_B );
 	if( name == "ctrl:X" ) return ACTINPUT_MAKE_GPADBTN( SDL_CONTROLLER_BUTTON_X );
 	if( name == "ctrl:Y" ) return ACTINPUT_MAKE_GPADBTN( SDL_CONTROLLER_BUTTON_Y );
-	if( name == "ctrl:LS" ) return ACTINPUT_MAKE_GPADBTN( SDL_CONTROLLER_BUTTON_LEFTSHOULDER );
-	if( name == "ctrl:RS" ) return ACTINPUT_MAKE_GPADBTN( SDL_CONTROLLER_BUTTON_RIGHTSHOULDER );
+	if( name == "ctrl:LB" ) return ACTINPUT_MAKE_GPADBTN( SDL_CONTROLLER_BUTTON_LEFTSHOULDER );
+	if( name == "ctrl:RB" ) return ACTINPUT_MAKE_GPADBTN( SDL_CONTROLLER_BUTTON_RIGHTSHOULDER );
 	
 	if( name.starts_with( "key:" ) )
 	{
