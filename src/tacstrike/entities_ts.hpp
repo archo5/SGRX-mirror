@@ -155,6 +155,10 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	SGS_METHOD Vec3 GetQueryPosition() const { return m_obj->GetWorldPosition() + V3(0,0,0.5f); }
 	SGS_METHOD Vec3 GetAimDir() const { return m_interpAimDir; }
 	
+	FINLINE Vec3 GetLinearVelocity() const { return m_bodyHandle->GetLinearVelocity(); }
+	FINLINE void SetLinearVelocity( Vec3 v ){ m_bodyHandle->SetLinearVelocity( v ); }
+	SGS_PROPERTY_FUNC( READ GetLinearVelocity WRITE SetLinearVelocity ) SGS_ALIAS( Vec3 linearVelocity );
+	
 	PhyRigidBodyHandle m_bodyHandle;
 	PhyShapeHandle m_shapeHandle;
 	

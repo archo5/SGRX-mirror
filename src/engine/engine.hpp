@@ -359,14 +359,16 @@ ENGINE_EXPORT void Game_BindInputToAction( ActionInput iid, StringView name );
 ENGINE_EXPORT void Game_UnbindInput( ActionInput iid );
 ENGINE_EXPORT ActionInput Game_GetInputFromNameID( StringView name );
 ENGINE_EXPORT StringView Game_GetInputName( ActionInput iid );
-ENGINE_EXPORT Vec2 Game_GetRealCursorPos();
 ENGINE_EXPORT Vec2 Game_GetCursorPos();
+ENGINE_EXPORT Vec2 Game_GetPrevCursorPos();
+inline Vec2 Game_GetCursorDelta(){ return Game_GetCursorPos() - Game_GetPrevCursorPos(); }
 ENGINE_EXPORT Vec2 Game_GetScreenSize();
 ENGINE_EXPORT Vec2 Game_GetCursorPosNormalized();
 ENGINE_EXPORT void Game_SetCursorPos( int x, int y );
 ENGINE_EXPORT void Game_PostSetCursorPos( int x, int y );
 ENGINE_EXPORT bool Game_WasPSCP();
 ENGINE_EXPORT void Game_ShowCursor( bool show );
+ENGINE_EXPORT void Game_SetCursorDeltaMode( bool dmode );
 
 ENGINE_EXPORT void Game_End();
 

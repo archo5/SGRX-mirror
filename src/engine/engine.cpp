@@ -108,11 +108,13 @@ static uint32_t g_GameTime = 0;
 static ActionMap* g_ActionMap;
 static CObjMap* g_CObjs;
 static Vec2 g_CursorPos = {0,0};
+static Vec2 g_PrevCursorPos = {0,0};
 static Vec2 g_CursorScale = {0,0};
 static int g_PCPX = 0;
 static int g_PCPY = 0;
 static bool g_PCPE = false;
 static int g_PCPLFR = 0;
+static bool g_CPDeltaMode = false;
 static EventLinksByID g_EventLinksByID;
 static EventLinksByHandler g_EventLinksByHandler;
 static Array< FileSysHandle > g_FileSystems;
@@ -658,6 +660,11 @@ Vec2 Game_GetCursorPos()
 	return g_CursorPos;
 }
 
+Vec2 Game_GetPrevCursorPos()
+{
+	return g_PrevCursorPos;
+}
+
 Vec2 Game_GetScreenSize()
 {
 	return V2( GR_GetWidth(), GR_GetHeight() );
@@ -693,6 +700,11 @@ bool Game_WasPSCP()
 void Game_ShowCursor( bool show )
 {
 	SDL_ShowCursor( show ? SDL_ENABLE : SDL_DISABLE );
+}
+
+void Game_SetCursorDeltaMode( bool dmode )
+{
+	g_CPDeltaMode = dmode;
 }
 
 
@@ -971,9 +983,9 @@ BasicFileSystem::BasicFileSystem( const StringView& root ) : m_fileRoot(root.str
 	{
 		ConfigReader cr( text );
 		StringView key, val;
-		val = val.after( ":" );
 		while( cr.Read( key, val ) )
 		{
+			val = val.after( ":" );
 			String path = "assets/";
 			path.append( key );
 			RCStringPair rcsp = { val, path };
@@ -1728,6 +1740,9 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	while( g_Running )
 	{
 		SGRX_INT_UnpreserveResources();
+		g_PrevCursorPos = g_CPDeltaMode ?
+			V2( GR_GetWidth() / 2, GR_GetHeight() / 2 ) :
+			g_CursorPos;
 		g_ActionMap->Advance();
 		SDL_JoystickUpdate();
 		while( SDL_PollEvent( &event ) )
@@ -1767,6 +1782,8 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 		}
 		else if( g_PCPLFR > 0 )
 			g_PCPLFR--;
+		if( g_CPDeltaMode )
+			Game_PostSetCursorPos( GR_GetWidth() / 2, GR_GetHeight() / 2 );
 		
 		uint32_t curtime = GetTimeMsec();
 		uint32_t dt = curtime - prevtime;

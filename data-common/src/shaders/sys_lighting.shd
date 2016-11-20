@@ -129,6 +129,7 @@ float3 WorldToViewPos( float3 p ){ return mul( mView, float4( p, 1 ) ).xyz; }
 float3 WorldToViewDir( float3 d ){ return mul( mView, float4( d, 0 ) ).xyz; }
 float3 ModelToViewPos( float3 p ){ return mul( mWorldView, float4( p, 1 ) ).xyz; }
 float3 ViewToWorldDir( float3 d ){ return mul( mInvView, float4( d, 0 ) ).xyz; }
+float3 ViewToWorldPos( float3 p ){ return mul( mInvView, float4( p, 1 ) ).xyz; }
 float4 ViewToProjPos( float3 p ){ return mul( mProj, float4( p, 1 ) ); }
 
 float3x3 CreateTBNMatrix( float3 normal, float4 tangent )

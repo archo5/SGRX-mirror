@@ -150,6 +150,16 @@ static int sgsGame_ShowCursor( SGS_CTX )
 	return 0;
 }
 
+static int sgsGame_SetCursorDeltaMode( SGS_CTX )
+{
+	SGSFN( "Game_SetCursorDeltaMode" );
+	sgs_Bool dmode = 0;
+	if( !sgs_LoadArgs( C, "b", &dmode ) )
+		return 0;
+	Game_SetCursorDeltaMode( dmode );
+	return 0;
+}
+
 static int sgsGame_End( SGS_CTX )
 {
 	SGSFN( "Game_End" );
@@ -230,10 +240,18 @@ static int Input_GetCursorPos( SGS_CTX )
 	return 1;
 }
 
+static int Input_GetPrevCursorPos( SGS_CTX )
+{
+	SGSFN( "Input_GetPrevCursorPos" );
+	sgs_PushVar( C, Game_GetPrevCursorPos() );
+	return 1;
+}
+
 static sgs_RegFuncConst g_engine_rfc[] =
 {
 	{ "Game_GetScreenSize", sgsGame_GetScreenSize },
 	{ "Game_ShowCursor", sgsGame_ShowCursor },
+	{ "Game_SetCursorDeltaMode", sgsGame_SetCursorDeltaMode },
 	{ "Game_End", sgsGame_End },
 	{ "Input_GetValue", Input_GetValue },
 	{ "Input_GetState", Input_GetState },
@@ -241,6 +259,7 @@ static sgs_RegFuncConst g_engine_rfc[] =
 	{ "Input_GetReleased", Input_GetReleased },
 	{ "Input_GetAxis", Input_GetAxis },
 	{ "Input_GetCursorPos", Input_GetCursorPos },
+	{ "Input_GetPrevCursorPos", Input_GetPrevCursorPos },
 	SGS_RC_END(),
 };
 

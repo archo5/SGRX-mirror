@@ -262,7 +262,8 @@ void TSCharacter::OnTransformUpdate()
 	if( m_skipTransformUpdate )
 		return;
 	Vec3 pos = m_obj->GetWorldPosition();
-	m_bodyHandle->SetPosition( pos );
+	float cheight = m_isCrouching ? 0.6f : 1.3f;
+	m_bodyHandle->SetPosition( pos + V3(0,0,cheight) );
 	m_ivPos.Set( pos );
 }
 
@@ -307,6 +308,7 @@ void TSCharacter::ProcessAnims( float deltaTime )
 	static const float hh2 = 0.4f;
 	static const float rr1 = 0.3f;
 	static const float rr2 = 0.8f;
+	bool hasCR = m_obj->FindFirstResourceOfType<CharacterResource>() != NULL;
 	Vec3 points[ 11 ] =
 	{
 		V3( 0, 0, -hh1 ),
@@ -319,7 +321,7 @@ void TSCharacter::ProcessAnims( float deltaTime )
 		V3( rr1, 0, -hh2 ),
 		V3( 0, -rr1, -hh2 ),
 		V3( 0, rr1, -hh2 ),
-		V3( totalShape2Offset.Normalized() * rr2, 0 ),
+		V3( totalShape2Offset.Normalized() * rr2 * !!hasCR, 0 ),
 	};
 	m_bodyHandle->SetShape( m_level->GetPhyWorld()->CreateConvexHullShape(
 		points, SGRX_ARRAY_SIZE( points ) ) );
