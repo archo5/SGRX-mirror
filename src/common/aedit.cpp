@@ -274,20 +274,33 @@ void EditTextureAsset( SGRX_TextureAsset& ta )
 		ImGui::OpenPopup( "output_type" );
 	ImGui::SameLine();
 	ImGui::Text( "Output type" );
+	bool fmtchg = false;
 	if( ImGui::BeginPopup( "output_type" ) )
 	{
 		if( ImGui::Selectable( SGRX_TextureOutputFormat_ToString( SGRX_TOF_PNG_RGBA32 ) ) )
 		{
 			ta.outputType = SGRX_TOF_PNG_RGBA32;
-			ImGui::TriggerChangeCheck();
+			fmtchg = true;
 		}
 		if( ImGui::Selectable( SGRX_TextureOutputFormat_ToString( SGRX_TOF_STX_RGBA32 ) ) )
 		{
 			ta.outputType = SGRX_TOF_STX_RGBA32;
-			ImGui::TriggerChangeCheck();
+			fmtchg = true;
+		}
+		if( ImGui::Selectable( SGRX_TextureOutputFormat_ToString( SGRX_TOF_STX_DXT1 ) ) )
+		{
+			ta.outputType = SGRX_TOF_STX_DXT1;
+			fmtchg = true;
+		}
+		if( ImGui::Selectable( SGRX_TextureOutputFormat_ToString( SGRX_TOF_STX_DXT5 ) ) )
+		{
+			ta.outputType = SGRX_TOF_STX_DXT5;
+			fmtchg = true;
 		}
 		ImGui::EndPopup();
 	}
+	if( fmtchg )
+		ImGui::TriggerChangeCheck();
 	
 	IMGUIEditBool( "Is SRGB?", ta.isSRGB );
 	IMGUIEditBool( "Generate mipmaps", ta.mips );

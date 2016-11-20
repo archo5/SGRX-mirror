@@ -11,6 +11,8 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#define STB_DXT_IMPLEMENTATION
+#include <stb_dxt.h>
 #include <libpng/png.h>
 extern "C" {
 #include <dds.c>
@@ -663,10 +665,14 @@ static const char* texoutfmt_string_table[] =
 {
 	"PNG/RGBA32",
 	"STX/RGBA32",
+	"STX/DXT1",
+	"STX/DXT5",
 };
 static const char* texoutfmt_ext_string_table[] =
 {
 	"png",
+	"stx",
+	"stx",
 	"stx",
 };
 
@@ -1754,19 +1760,89 @@ SGRX_IFP32Handle SGRX_LoadImage( const StringView& path )
 	}
 }
 
-void SGRX_ImageF32ToRGBA8( SGRX_ImageFP32* image, ByteArray& outdata, int side = 0 )
+inline int modup( int x, int d ){ int o = x % d; return o ? o : d; }
+static void Img_ReadBlock( SGRX_ImageFP32* image, int bx, int by, int z, int side, uint8_t block[ 64 ] )
+{
+	const int W = image->GetWidth();
+	const int H = image->GetHeight();
+	const int xend = modup( W - bx * 4, 4 );
+	const int yend = modup( H - by * 4, 4 );
+	const size_t sideOff = side * image->SideSize();
+	const size_t inBaseOff = sideOff + bx * 4 + by * 4 * W + z * W * H;
+	
+	int blockLineOff = 0;
+	const int blockLineDataEnd = yend * 4 * 4;
+	const int blockLineOutEnd = 4 * 4 * 4;
+	size_t inLineOff = inBaseOff;
+	for( ; blockLineOff < blockLineDataEnd; blockLineOff += 4 * 4 )
+	{
+		int blockPxOff = blockLineOff;
+		const int blockPxDataEnd = blockPxOff + xend * 4;
+		const int blockPxOutEnd = blockPxOff + 4 * 4;
+		size_t inPxOff = inLineOff;
+		for( ; blockPxOff < blockPxDataEnd; blockPxOff += 4 )
+		{
+			const Vec4& color = (*image)[ inPxOff++ ];
+			block[ blockPxOff + 0 ] = clamp( color.x, 0, 1 ) * 255;
+			block[ blockPxOff + 1 ] = clamp( color.y, 0, 1 ) * 255;
+			block[ blockPxOff + 2 ] = clamp( color.z, 0, 1 ) * 255;
+			block[ blockPxOff + 3 ] = clamp( color.w, 0, 1 ) * 255;
+		}
+		for( ; blockPxOff < blockPxOutEnd; blockPxOff += 4 )
+			memcpy( &block[ blockPxOff ], &block[ blockPxOff - 4 ], 4 );
+		
+		inLineOff += W;
+	}
+	for( ; blockLineOff < blockLineOutEnd; blockLineOff += 4 * 4 )
+		memcpy( &block[ blockLineOff ], &block[ blockLineOff - 4 * 4 ], 4 * 4 );
+}
+
+void SGRX_ImageF32ToRGBA8( SGRX_ImageFP32* image, ByteArray& outdata, uint16_t fmt, int side = 0 )
 {
 	size_t off = outdata.size(), pxcount = image->SideSize();
-	outdata.resize( off + pxcount * 4 );
-	uint8_t* data = &outdata[ off ];
-	for( size_t i = 0; i < pxcount; ++i )
+	if( IS_FLAG_SET( fmt, TEXFF_BLOCKFMT ) )
 	{
-		const Vec4& color = (*image)[ i + side * pxcount ];
-		data[ 0 ] = clamp( color.x, 0, 1 ) * 255;
-		data[ 1 ] = clamp( color.y, 0, 1 ) * 255;
-		data[ 2 ] = clamp( color.z, 0, 1 ) * 255;
-		data[ 3 ] = clamp( color.w, 0, 1 ) * 255;
-		data += 4;
+		size_t blocksize = 0;
+		switch( fmt )
+		{
+		case TEXFMT_DXT1: blocksize = 8; break;
+		case TEXFMT_DXT3: blocksize = 16; break;
+		case TEXFMT_DXT5: blocksize = 16; break;
+		}
+		int blocknumx = divideup( image->GetWidth(), 4 );
+		int blocknumy = divideup( image->GetHeight(), 4 );
+		size_t blockcount = blocknumx * blocknumy * image->GetDepth();
+		outdata.resize( off + blockcount * blocksize );
+		size_t writeOff = off;
+		for( int z = 0; z < image->GetDepth(); ++z )
+		{
+			for( int by = 0; by < blocknumy; ++by )
+			{
+				for( int bx = 0; bx < blocknumx; ++bx )
+				{
+					uint8_t block[ 64 ];
+					uint8_t dxtblock[ 16 ];
+					Img_ReadBlock( image, bx, by, z, side, block );
+					stb_compress_dxt_block( dxtblock, block, fmt == TEXFMT_DXT5, STB_DXT_NORMAL );
+					memcpy( &outdata[ writeOff ], dxtblock, blocksize );
+					writeOff += blocksize;
+				}
+			}
+		}
+	}
+	else
+	{
+		outdata.resize( off + pxcount * 4 );
+		uint8_t* data = &outdata[ off ];
+		for( size_t i = 0; i < pxcount; ++i )
+		{
+			const Vec4& color = (*image)[ i + side * pxcount ];
+			data[ 0 ] = clamp( color.x, 0, 1 ) * 255;
+			data[ 1 ] = clamp( color.y, 0, 1 ) * 255;
+			data[ 2 ] = clamp( color.z, 0, 1 ) * 255;
+			data[ 3 ] = clamp( color.w, 0, 1 ) * 255;
+			data += 4;
+		}
 	}
 }
 
@@ -1826,7 +1902,18 @@ fail:
 	return code;
 }
 
-static void PreprocessSTX( const SGRX_TextureAsset& TA, SGRX_ImageFP32* image,
+static uint16_t STXGetTextureFormat( const SGRX_TextureAsset& TA )
+{
+	switch( TA.outputType )
+	{
+	case SGRX_TOF_STX_RGBA32: return TEXFMT_RGBA8;
+	case SGRX_TOF_STX_DXT1: return TEXFMT_DXT1;
+	case SGRX_TOF_STX_DXT5: return TEXFMT_DXT5;
+	default: return TEXFMT_RGBA8;
+	}
+}
+
+static void STXPreprocess( const SGRX_TextureAsset& TA, SGRX_ImageFP32* image,
 	uint16_t& flags, Array< SGRX_IFP32Handle >& mips )
 {
 //	if( TA.isSRGB )
@@ -1854,13 +1941,15 @@ static void PreprocessSTX( const SGRX_TextureAsset& TA, SGRX_ImageFP32* image,
 	}
 }
 
-static void STXFinalize( ByteArray& filedata, SGRX_ImageFP32* image, uint16_t flags, const Array< SGRX_IFP32Handle >& mips )
+static void STXFinalize( const SGRX_TextureAsset& TA, SGRX_ImageFP32* image, uint16_t flags, const Array< SGRX_IFP32Handle >& mips, ByteArray& filedata )
 {
+	uint16_t fmt = STXGetTextureFormat( TA );
+	
 	ByteArray imagedata;
 	for( int s = 0; s < image->GetSides(); ++s )
 	{
 		for( size_t i = 0; i < mips.size(); ++i )
-			SGRX_ImageF32ToRGBA8( mips[ i ], imagedata, s );
+			SGRX_ImageF32ToRGBA8( mips[ i ], imagedata, fmt, s );
 	}
 	filedata.append( "STX\0", 4 );
 	int type = TEXTYPE_2D;
@@ -1870,7 +1959,7 @@ static void STXFinalize( ByteArray& filedata, SGRX_ImageFP32* image, uint16_t fl
 		type = TEXTYPE_VOLUME;
 	TextureInfo info = { type, mips.size(),
 		image->GetWidth(), image->GetHeight(),
-		image->GetDepth(), TEXFMT_RGBA8, flags };
+		image->GetDepth(), fmt, flags };
 	filedata.append( &info, sizeof(info) );
 	uint32_t datasize = imagedata.size();
 	filedata.append( &datasize, sizeof(datasize) );
@@ -1890,7 +1979,7 @@ bool SGRX_SaveImage( const StringView& path, SGRX_ImageFP32* image, const SGRX_T
 			printf( "ERROR: PNG does not support cubemaps\n" );
 			return false;
 		}
-		SGRX_ImageF32ToRGBA8( image, imagedata );
+		SGRX_ImageF32ToRGBA8( image, imagedata, TEXFMT_RGBA8 );
 		if( dumpimg( filedata, imagedata.data(), image->GetWidth(), image->GetHeight() ) )
 		{
 			printf( "ERROR: failed to encode PNG\n" );
@@ -1898,11 +1987,13 @@ bool SGRX_SaveImage( const StringView& path, SGRX_ImageFP32* image, const SGRX_T
 		}
 		break;
 	case SGRX_TOF_STX_RGBA32:
+	case SGRX_TOF_STX_DXT1:
+	case SGRX_TOF_STX_DXT5:
 		{
 			uint16_t flags = 0;
 			Array< SGRX_IFP32Handle > mips;
-			PreprocessSTX( TA, image, flags, mips );
-			STXFinalize( filedata, image, flags, mips );
+			STXPreprocess( TA, image, flags, mips );
+			STXFinalize( TA, image, flags, mips, filedata );
 		}
 		break;
 	default:
@@ -1951,7 +2042,7 @@ TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset
 		return NULL;
 	uint16_t flags = 0;
 	Array< SGRX_IFP32Handle > mips;
-	PreprocessSTX( *TA, image, flags, mips );
+	STXPreprocess( *TA, image, flags, mips );
 	/*
 	TextureHandle tex = GR_CreateTexture( image->GetWidth(), image->GetHeight(),
 		TEXFMT_RGBA8, flags, mips.size(), NULL );
@@ -1959,12 +2050,12 @@ TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset
 	for( size_t i = 0; i < mips.size(); ++i )
 	{
 		imagedata.clear();
-		SGRX_ImageF32ToRGBA8( mips[ i ], imagedata );
+		SGRX_ImageF32ToRGBA8( mips[ i ], imagedata, TEXFMT_RGBA8 );
 		tex.UploadRGBA8Part( imagedata.data(), i );
 	}
 	return tex;*/
 	ByteArray filedata;
-	STXFinalize( filedata, image, flags, mips );
+	STXFinalize( *TA, image, flags, mips, filedata );
 	return GR_CreateTextureFromBytes( filedata );
 }
 
