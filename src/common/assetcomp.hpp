@@ -173,6 +173,7 @@ enum SGRX_ImgFltRearrange_Mode
 {
 	SGRX_IFR_SlicesToVolume,
 	SGRX_IFR_TurnCubemapYZ,
+	SGRX_IFR_BlenderCubemap,
 	
 	SGRX_IFR__COUNT,
 };

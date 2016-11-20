@@ -49,7 +49,7 @@ void main( float2 itex : TEXCOORD0
 	if( distance >= 1 )
 	{
 		float3 sbcoord = normalize( mul( mInvView, float4( fpos, 1, 0 ) ).xyz );
-		float3 skycolor = TEXSAMPLE_CUBE_LOD( texSKY, sbcoord, 0 ).rgb * fogColorSCALE;
+		float3 skycolor = pow( TEXSAMPLE_CUBE( texSKY, sbcoord ).rgb, 2 ) * fogColorSCALE;
 		fogColor = lerp( fogColor, skycolor, 1 /* TODO */ );
 		fogfactor = 1;
 	}

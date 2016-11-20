@@ -239,6 +239,7 @@ static const char* imgfltrearrange_string_table[] =
 {
 	"SlicesToVolume",
 	"TurnCubemapYZ",
+	"BlenderCubemap",
 };
 
 const char* SGRX_ImgFltRearrange_ToString( SGRX_ImgFltRearrange_Mode ifrm )
@@ -349,6 +350,55 @@ SGRX_IFP32Handle SGRX_ImageFilter_Rearrange::Process( SGRX_ImageFP32* image, SGR
 					for( int y = 0; y < width; ++y )
 						for( int x = 0; x < width; ++x )
 							out->Pixel( x, y, 0, dstslice ) = image->Pixel( x, y, 0, srcslice );
+					break;
+				}
+			}
+		}
+	}
+	else if( mode == SGRX_IFR_BlenderCubemap )
+	{
+		if( image->GetSides() == 1 &&
+			image->GetWidth() * 2 == image->GetHeight() * 3 &&
+			image->GetDepth() <= 1 )
+		{
+			int width = image->GetWidth() / 3;
+			out = image->CreateUninitializedCopy();
+			out->Resize( width, width, 1, 6 );
+			static int sliceremap[6][2] =
+			{
+				{2,0}, {0,0},
+				{1,0}, {2,1},
+				{1,1}, {0,1},
+			};
+			for( int dstslice = 0; dstslice < 6; ++dstslice )
+			{
+				int sxo = sliceremap[ dstslice ][0] * width;
+				int syo = sliceremap[ dstslice ][1] * width;
+				switch( dstslice )
+				{
+				case 0: // +X -- rotate by 90 degrees (dir.1)
+					for( int y = 0; y < width; ++y )
+						for( int x = 0; x < width; ++x )
+							out->Pixel( x, y, 0, dstslice ) =
+								image->Pixel( sxo + width - 1 - y, syo + x, 0, 0 );
+					break;
+				case 1: // -X -- rotate by 90 degrees (dir.2)
+					for( int y = 0; y < width; ++y )
+						for( int x = 0; x < width; ++x )
+							out->Pixel( x, y, 0, dstslice ) =
+								image->Pixel( sxo + y, syo + width - 1 - x, 0, 0 );
+					break;
+				case 2: case 5: // +Y, -Z -- rotate by 180 degrees (flip on both axes)
+					for( int y = 0; y < width; ++y )
+						for( int x = 0; x < width; ++x )
+							out->Pixel( x, y, 0, dstslice ) =
+								image->Pixel( sxo + width - 1 - x, syo + width - 1 - y, 0, 0 );
+					break;
+				default:
+					for( int y = 0; y < width; ++y )
+						for( int x = 0; x < width; ++x )
+							out->Pixel( x, y, 0, dstslice ) =
+								image->Pixel( sxo + x, syo + y, 0, 0 );
 					break;
 				}
 			}

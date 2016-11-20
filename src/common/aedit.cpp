@@ -182,7 +182,7 @@ bool PickCategoryName( const char* label, String& name )
 
 void EditFilter( size_t i, SGRX_ImageFilter* IF )
 {
-	static const char* rearrange_modes[] = { "Slices to volume", "Turn cubemap Y->Z" };
+	static const char* rearrange_modes[] = { "Slices to volume", "Turn cubemap Y->Z", "Blender cubemap" };
 	static const char* sharpen_modes[] = { "0-1", "1-1", "1-2" };
 	
 	switch( IF->GetType() )
