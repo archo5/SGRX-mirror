@@ -204,7 +204,7 @@ function RigidBodyResource.EditorGUI( ui )
 	ui.EditFloat( "Height [cap]", this, "shapeHeight", 0.01, 1000 );
 	ui.EditVec3( "Extents [cyl/box/aabb]", this, "shapeExtents", -1000, 1000 );
 	ui.EditVec3( "Min. extents [aabb]", this, "shapeMinExtents", -1000, 1000 );
-	ui.PickMesh( "Mesh", this, "shapeMesh", "Select shape mesh" );
+	ui.PickMesh( "Mesh", this, "shapeMeshPath", "Select shape mesh" );
 	this!GOResource.EditorGUI( ui );
 	ui.EditVec3( "Linear velocity", this, "linearVelocity", -10000, 10000 );
 	ui.EditVec3( "Angular velocity", this, "angularVelocity", -10000, 10000 );

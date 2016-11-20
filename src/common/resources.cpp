@@ -487,7 +487,8 @@ void RigidBodyResource::OnTransformUpdate()
 	}
 	m_body->SetPosition( pos );
 	m_body->SetRotation( rot );
-	m_shape->SetScale( xf.GetScale() );
+	if( m_shape )
+		m_shape->SetScale( xf.GetScale() );
 }
 
 Mat4 RigidBodyResource::GetWorldMatrix() const
@@ -499,7 +500,7 @@ Mat4 RigidBodyResource::GetWorldMatrix() const
 		currPos = TLERP( m_prevPos, currPos, m_level->GetBlendFactor() );
 		currRot = TLERP( m_prevRot, currRot, m_level->GetBlendFactor() );
 	}
-	return Mat4::CreateSRT( m_shape->GetScale(), currRot, currPos );
+	return Mat4::CreateSRT( m_shape ? m_shape->GetScale() : V3(1), currRot, currPos );
 }
 
 void RigidBodyResource::PrePhysicsFixedUpdate()

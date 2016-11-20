@@ -169,7 +169,7 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 	virtual PhyShapeHandle GetShape() const { return m_shape; }
 	virtual void SetShape( PhyShapeHandle s )
 	{
-		m_body->setCollisionShape( ((BulletPhyShape*)s.item)->m_colShape );
+		m_body->setCollisionShape( s ? ((BulletPhyShape*)s.item)->m_colShape : NULL );
 		m_shape = s;
 	}
 	

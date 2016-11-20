@@ -3550,6 +3550,7 @@ int RigidBodyResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "shapeExtents" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->shapeExtents ); return SGS_SUCCESS; }
 		SGS_CASE( "shapeMinExtents" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->shapeMinExtents ); return SGS_SUCCESS; }
 		SGS_CASE( "shapeMesh" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->shapeMesh ); return SGS_SUCCESS; }
+		SGS_CASE( "shapeMeshPath" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->GetShapeMeshPath() ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<RigidBodyResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -3580,6 +3581,7 @@ int RigidBodyResource::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "shapeExtents" ){ static_cast<RigidBodyResource*>( obj->data )->SetShapeExtents( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "shapeMinExtents" ){ static_cast<RigidBodyResource*>( obj->data )->SetShapeMinExtents( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "shapeMesh" ){ static_cast<RigidBodyResource*>( obj->data )->SetShapeMesh( sgs_GetVar<MeshHandle>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "shapeMeshPath" ){ static_cast<RigidBodyResource*>( obj->data )->SetShapeMeshPath( sgs_GetVar<StringView>()( C, 1 ) ); return SGS_SUCCESS; }
 		if( sgs_SetIndex( C, static_cast<RigidBodyResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -3622,7 +3624,8 @@ int RigidBodyResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nshapeExtents = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->shapeExtents, depth ).push( C ); }
 		{ sgs_PushString( C, "\nshapeMinExtents = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->shapeMinExtents, depth ).push( C ); }
 		{ sgs_PushString( C, "\nshapeMesh = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->shapeMesh, depth ).push( C ); }
-		sgs_StringConcat( C, 60 );
+		{ sgs_PushString( C, "\nshapeMeshPath = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->GetShapeMeshPath(), depth ).push( C ); }
+		sgs_StringConcat( C, 62 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );

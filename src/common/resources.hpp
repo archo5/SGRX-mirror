@@ -309,6 +309,8 @@ EXP_STRUCT RigidBodyResource : GOResource
 		if( shapeType == ShapeType_AABB ){ _UpdateShape(); } }
 	void SetShapeMesh( MeshHandle mesh ){ if( mesh == shapeMesh ) return; shapeMesh = mesh;
 		if( shapeType == ShapeType_Mesh ){ _UpdateShape(); } }
+	StringView GetShapeMeshPath() const { return shapeMesh ? SV(shapeMesh->m_key) : SV(); }
+	void SetShapeMeshPath( StringView path ){ SetShapeMesh( GR_GetMesh( path ) ); }
 	
 	SGS_PROPERTY_FUNC( READ GetLinearVelocity WRITE SetLinearVelocity ) SGS_ALIAS( Vec3 linearVelocity );
 	SGS_PROPERTY_FUNC( READ GetAngularVelocity WRITE SetAngularVelocity ) SGS_ALIAS( Vec3 angularVelocity );
@@ -330,6 +332,7 @@ EXP_STRUCT RigidBodyResource : GOResource
 	SGS_PROPERTY_FUNC( READ WRITE SetShapeExtents ) Vec3 shapeExtents;
 	SGS_PROPERTY_FUNC( READ WRITE SetShapeMinExtents ) Vec3 shapeMinExtents;
 	SGS_PROPERTY_FUNC( READ WRITE SetShapeMesh ) MeshHandle shapeMesh;
+	SGS_PROPERTY_FUNC( READ GetShapeMeshPath WRITE SetShapeMeshPath ) SGS_ALIAS( StringView shapeMeshPath );
 	
 	SGS_METHOD void WakeUp(){ m_body->WakeUp(); }
 	
