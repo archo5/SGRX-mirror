@@ -63,6 +63,54 @@ TextureHandle OnCreateSysTexture( const StringView& key )
 		return GR_CreateTexture3D( 2, 2, 2, TEXFMT_RGBA8,
 			TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y | TEXFLAGS_CLAMP_Z, 1, data );
 	}
+	if( key.starts_with( "sys:rgba:" ) )
+	{
+		StringView it = key.after( "sys:rgba:" );
+		int r = TCLAMP( (int) it.until( ":" ).parse_int(), 0, 255 );
+		it = it.after( ":" );
+		int g = TCLAMP( (int) it.until( ":" ).parse_int(), 0, 255 );
+		it = it.after( ":" );
+		int b = TCLAMP( (int) it.until( ":" ).parse_int(), 0, 255 );
+		it = it.after( ":" );
+		int a = it.size() ? TCLAMP( (int) it.parse_int(), 0, 255 ) : 255;
+		
+		uint32_t data[1] = { COLOR_RGBA( r, g, b, a ) };
+		return GR_CreateTexture( 1, 1, TEXFMT_RGBA8, TEXFLAGS_LERP, 1, data );
+	}
+	if( key.starts_with( "sys:rgbaf:" ) )
+	{
+		StringView it = key.after( "sys:rgbaf:" );
+		float r = it.until( ":" ).parse_float();
+		it = it.after( ":" );
+		float g = it.until( ":" ).parse_float();
+		it = it.after( ":" );
+		float b = it.until( ":" ).parse_float();
+		it = it.after( ":" );
+		float a = it.size() ? it.parse_float() : 1;
+		
+		uint32_t data[1] = { Vec4ToCol32( V4( r, g, b, a ) ) };
+		return GR_CreateTexture( 1, 1, TEXFMT_RGBA8, TEXFLAGS_LERP, 1, data );
+	}
+	if( key.starts_with( "sys:gray:" ) )
+	{
+		StringView it = key.after( "sys:gray:" );
+		int g = TCLAMP( (int) it.until( ":" ).parse_int(), 0, 255 );
+		it = it.after( ":" );
+		int a = it.size() ? TCLAMP( (int) it.parse_int(), 0, 255 ) : 255;
+		
+		uint32_t data[1] = { COLOR_RGBA( g, g, g, a ) };
+		return GR_CreateTexture( 1, 1, TEXFMT_RGBA8, TEXFLAGS_LERP, 1, data );
+	}
+	if( key.starts_with( "sys:grayf:" ) )
+	{
+		StringView it = key.after( "sys:grayf:" );
+		float g = it.until( ":" ).parse_float();
+		it = it.after( ":" );
+		float a = it.size() ? it.parse_float() : 1;
+		
+		uint32_t data[1] = { Vec4ToCol32( V4( g, g, g, a ) ) };
+		return GR_CreateTexture( 1, 1, TEXFMT_RGBA8, TEXFLAGS_LERP, 1, data );
+	}
 	
 	return NULL;
 }
