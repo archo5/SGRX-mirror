@@ -434,6 +434,7 @@ void OnLoadMtlShaders( const RenderPass& pass,
 	}
 	
 	// misc. parameters
+	name.append( ":MOD_BLENDCOLOR 0" );
 	name.append( ":" );
 	name.append( defines ); // scene defines
 	
