@@ -332,6 +332,12 @@ inline void ApplyDeadzone( Vec2& v, float lmin = 0.15f, float lmax = 0.9f )
 	v = v.Normalized() * TREVLERP<float>( lmin, lmax, len );
 }
 
+enum SGRX_CurrentInputMethod
+{
+	SGRX_CIM_KeyboardMouse = 0,
+	SGRX_CIM_Controller = 1,
+};
+
 struct IGame;
 typedef Handle< IGame > GameHandle;
 ENGINE_EXPORT GameHandle Game_Get();
@@ -362,6 +368,7 @@ ENGINE_EXPORT StringView Game_GetInputName( ActionInput iid );
 ENGINE_EXPORT Vec2 Game_GetCursorPos();
 ENGINE_EXPORT Vec2 Game_GetPrevCursorPos();
 inline Vec2 Game_GetCursorDelta(){ return Game_GetCursorPos() - Game_GetPrevCursorPos(); }
+ENGINE_EXPORT SGRX_CurrentInputMethod Input_GetCurrentMethod();
 ENGINE_EXPORT Vec2 Game_GetScreenSize();
 ENGINE_EXPORT Vec2 Game_GetCursorPosNormalized();
 ENGINE_EXPORT void Game_SetCursorPos( int x, int y );

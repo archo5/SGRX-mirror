@@ -134,6 +134,31 @@ static pfnRndCreateRenderer g_RfnCreateRenderer = NULL;
 IRenderer* g_Renderer = NULL;
 static JoystickHashTable* g_Joysticks = NULL;
 
+// current input method info
+#define CURRENT_INPUT_METHOD_SWITCH_TIME 0.2f
+struct CurrentInputMethod
+{
+	bool isController;
+	bool nextIsController;
+	float timeSinceLastChange;
+	void LastPress( bool ctrl )
+	{
+		if( nextIsController != ctrl )
+		{
+			nextIsController = ctrl;
+			timeSinceLastChange = 0;
+		}
+	}
+	void OnFrame( float dt )
+	{
+		if( timeSinceLastChange > CURRENT_INPUT_METHOD_SWITCH_TIME )
+			isController = nextIsController;
+		else
+			timeSinceLastChange += dt;
+	}
+}
+g_CurrentInputMethod;
+
 
 CVarInt gcv_r_display( "r_display" );
 CVarInt gcv_r_gpu( "r_gpu" );
@@ -665,6 +690,13 @@ Vec2 Game_GetPrevCursorPos()
 	return g_PrevCursorPos;
 }
 
+SGRX_CurrentInputMethod Input_GetCurrentMethod()
+{
+	return g_CurrentInputMethod.isController
+		? SGRX_CIM_Controller
+		: SGRX_CIM_KeyboardMouse;
+}
+
 Vec2 Game_GetScreenSize()
 {
 	return V2( GR_GetWidth(), GR_GetHeight() );
@@ -736,27 +768,33 @@ void Game_OnEvent( const Event& e )
 	
 	if( e.type == SDL_CONTROLLERDEVICEADDED )
 	{
+		g_CurrentInputMethod.LastPress( true );
 		g_Joysticks->set( e.cdevice.which, new SGRX_Joystick( e.cdevice.which ) );
 	}
 	else if( e.type == SDL_CONTROLLERDEVICEREMOVED )
 	{
+		if( g_Joysticks->size() == 0 )
+			g_CurrentInputMethod.LastPress( false );
 		g_Joysticks->unset( e.cdevice.which );
 	}
 	
 	if( e.type == SDL_MOUSEMOTION )
 	{
+		g_CurrentInputMethod.LastPress( false );
 		g_CursorPos.x = e.motion.x;
 		g_CursorPos.y = e.motion.y;
 	}
 	
 	if( e.type == SDL_CONTROLLERBUTTONDOWN || e.type == SDL_CONTROLLERBUTTONUP )
 	{
+		g_CurrentInputMethod.LastPress( true );
 		InputAction* iact = g_ActionMap->Get( ACTINPUT_MAKE_GPADBTN( e.cbutton.button ) );
 		if( iact )
 			iact->_SetState( e.cbutton.state );
 	}
 	else if( e.type == SDL_CONTROLLERAXISMOTION )
 	{
+		g_CurrentInputMethod.LastPress( true );
 		InputAction* iact = g_ActionMap->Get( ACTINPUT_MAKE_GPADAXIS( e.caxis.axis ) );
 		if( iact )
 			iact->_SetState( e.caxis.value / 32767.0f );
@@ -764,6 +802,7 @@ void Game_OnEvent( const Event& e )
 	
 	if( e.type == SDL_KEYDOWN || e.type == SDL_KEYUP )
 	{
+		g_CurrentInputMethod.LastPress( false );
 		InputAction* iact = g_ActionMap->Get( ACTINPUT_MAKE_KEY( e.key.keysym.sym ) );
 		if( iact )
 			iact->_SetState( e.key.state );
@@ -771,6 +810,7 @@ void Game_OnEvent( const Event& e )
 	
 	if( e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP )
 	{
+		g_CurrentInputMethod.LastPress( false );
 		int btn = -1;
 		if( e.button.button == SDL_BUTTON_LEFT ) btn = SGRX_MB_LEFT;
 		if( e.button.button == SDL_BUTTON_RIGHT ) btn = SGRX_MB_RIGHT;
@@ -804,6 +844,7 @@ void Game_Process( float dt )
 		return;
 	}
 	
+	g_CurrentInputMethod.OnFrame( dt );
 	g_Game->OnTick( dt, g_GameTime );
 	
 	GR2D_GetBatchRenderer().Flush();

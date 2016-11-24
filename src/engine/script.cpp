@@ -247,6 +247,13 @@ static int Input_GetPrevCursorPos( SGS_CTX )
 	return 1;
 }
 
+static int sgsInput_GetCurrentMethod( SGS_CTX )
+{
+	SGSFN( "Input_GetCurrentMethod" );
+	sgs_PushInt( C, Input_GetCurrentMethod() );
+	return 1;
+}
+
 static sgs_RegFuncConst g_engine_rfc[] =
 {
 	{ "Game_GetScreenSize", sgsGame_GetScreenSize },
@@ -260,7 +267,15 @@ static sgs_RegFuncConst g_engine_rfc[] =
 	{ "Input_GetAxis", Input_GetAxis },
 	{ "Input_GetCursorPos", Input_GetCursorPos },
 	{ "Input_GetPrevCursorPos", Input_GetPrevCursorPos },
+	{ "Input_GetCurrentMethod", sgsInput_GetCurrentMethod },
 	SGS_RC_END(),
+};
+
+static sgs_RegIntConst g_engine_ric[] =
+{
+	{ "CIM_KeyboardMouse", SGRX_CIM_KeyboardMouse },
+	{ "CIM_Controller", SGRX_CIM_Controller },
+	{ NULL, 0 },
 };
 
 
@@ -444,6 +459,7 @@ void ScriptContext::Reset()
 void ScriptContext::RegisterEngineCoreAPI()
 {
 	sgs_RegFuncConsts( C, g_engine_rfc, -1 );
+	sgs_RegIntConsts( C, g_engine_ric, -1 );
 }
 
 void ScriptContext::RegisterBatchRenderer()

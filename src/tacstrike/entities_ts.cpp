@@ -948,11 +948,15 @@ void TSAimHelperV2::Tick( Vec2 joyaxis, GameObject* owner, bool colchk )
 	m_aimFactor = TCLAMP( m_aimFactor, 0.0f, 1.0f );
 	
 	ApplyDeadzone( joyaxis );
-	m_relocking = joyaxis.Length() > m_prevJoyAxis.Length() + 0.001f;
+	m_relocking = joyaxis.Length() > m_prevJoyAxis.Length() + 0.001f
+		|| Game_GetCursorDelta() != V2(0);
 	if( m_relocking )
 	{
 		// reconfiguring lock-on
-		m_scalableScreenPos = joyaxis;
+		if( Input_GetCurrentMethod() == SGRX_CIM_Controller )
+			m_scalableScreenPos = joyaxis;
+		else
+			m_scalableScreenPos = Game_GetCursorPosNormalized() * 2 - V2(1);
 		m_colchk = colchk;
 		DoQuery();
 	}
@@ -966,7 +970,7 @@ void TSAimHelperV2::RemoveLockOn()
 
 bool TSAimHelperV2::DoQuery()
 {
-	m_ctDist = FLT_MAX;
+	m_ctDist = Input_GetCurrentMethod() == SGRX_CIM_Controller ? FLT_MAX : 0.2f;
 	m_aimTarget = NULL;
 	return m_level->QuerySphere( this, IEST_Target, m_ownerObj->GetWorldInfoTarget(), 8.0f );
 }
@@ -1099,7 +1103,7 @@ void TSPlayerController::Update()
 			md = -md;
 		i_turn = V3( md.x, md.y, 8 );
 	}
-	if( m_aimHelper.m_relocking )
+	if( m_aimHelper.m_relocking && Input_GetCurrentMethod() == SGRX_CIM_Controller )
 	{
 		Vec3 n = V3( Game_GetActionState( "aim_x" ).value,
 			Game_GetActionState( "aim_y" ).value, 0 );
@@ -1139,6 +1143,10 @@ void TSPlayerController::CalcUIAimInfo()
 void TSPlayerController::ShotFired()
 {
 	m_shootTimeout = 0;
+	
+	// only remove lock-on with controller
+	if( Input_GetCurrentMethod() != SGRX_CIM_Controller )
+		return;
 	
 	Vec3 pos = m_obj->GetWorldInfoTarget();
 	Vec3 aimpt = m_aimHelper.GetAimPoint();
