@@ -133,7 +133,7 @@ SGRX_AssetImageFilterType SGRX_AssetImgFilterType_FromString( const StringView& 
 
 struct SGRX_ImageFilter : SGRX_RefCounted
 {
-	SGRX_ImageFilter() : blend(1), cclamp(true), colors(0xff){}
+	SGRX_ImageFilter() : blend(1), cclamp(true), colors(0xf){}
 	virtual SGRX_ImageFilter* Clone() const = 0;
 	virtual SGRX_AssetImageFilterType GetType() const = 0;
 	virtual const char* GetName() const = 0;

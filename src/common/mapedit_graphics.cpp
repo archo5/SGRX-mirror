@@ -148,10 +148,7 @@ void EdLevelGraphicsCont::LMap::ExportRGBA8( uint32_t* outcol, uint32_t* outnrm 
 	if( W * H )
 	{
 		LightmapF32ToRGBA( outcol, lmdata.data(), W, H );
-		if( nmdata.size() )
-			LMNormalF32ToRGBA( outnrm, nmdata.data(), W, H );
-		else
-			TMEMSET( outnrm, W * H, COLOR_RGBA(127,127,127,0) );
+		LMNormalF32ToRGBA( outnrm, nmdata.data(), W, H );
 	}
 }
 
@@ -394,6 +391,7 @@ void EdLevelGraphicsCont::ClearLightmap( SGRX_GUID lmguid )
 	LM->width = 0;
 	LM->height = 0;
 	LM->lmdata.clear();
+	LM->nmdata.clear();
 	LM->texture = GR_GetTexture( "textures/deflm.png" );
 	LM->nmtexture = GR_GetTexture( "textures/defnm.png" );
 	ApplyLightmap( lmguid );

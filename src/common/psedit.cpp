@@ -522,3 +522,8 @@ extern "C" EXPORT IGame* CreateGame()
 	return new PSEditor;
 }
 
+extern "C" EXPORT void SetBaseGame( void* game )
+{
+	// g_Game->SetBaseGame( game );
+}
+
