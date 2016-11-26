@@ -616,6 +616,7 @@ enum SGRX_TextureFormat
 	TEXFMT_DXT1 = TEXFF_BLOCKFMT | 1,
 	TEXFMT_DXT3 = TEXFF_BLOCKFMT | 3,
 	TEXFMT_DXT5 = TEXFF_BLOCKFMT | 5,
+	TEXFMT_3DC = TEXFF_BLOCKFMT | 11,
 	
 	TEXFMT_RT_COLOR_HDR16 = TEXFF_RTCOLFMT | 1,
 	TEXFMT_RT_COLOR_LDR8 = TEXFF_RTCOLFMT | 2,
@@ -634,6 +635,18 @@ struct TextureInfo /* 12 bytes */
 	uint16_t depth;
 	uint16_t format; /* SGRX_TextureFormat */
 	uint16_t flags; /* TEXFLAGS */
+	
+	ENGINE_EXPORT size_t GetBytesPerUnit() const;
+	ENGINE_EXPORT size_t GetUnitCountX() const;
+	ENGINE_EXPORT size_t GetUnitCountY() const;
+	ENGINE_EXPORT size_t GetUnitCountZ() const;
+	ENGINE_EXPORT size_t GetSideSize() const;
+	ENGINE_EXPORT size_t GetMipSize() const;
+	ENGINE_EXPORT void GetCopyDims( size_t* outcopyrowsize, size_t* outcopyrowcount, size_t* outcopyslicecount = NULL ) const;
+	ENGINE_EXPORT bool GetMipInfo( int mip, TextureInfo* outinfo ) const;
+	
+	ENGINE_EXPORT size_t GetMipDataOffset( int side, int mip ) const;
+	ENGINE_EXPORT size_t GetMipDataSize( int mip ) const;
 	
 	void Log( SGRX_Log& to ) const
 	{

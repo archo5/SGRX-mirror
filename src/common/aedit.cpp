@@ -277,25 +277,21 @@ void EditTextureAsset( SGRX_TextureAsset& ta )
 	bool fmtchg = false;
 	if( ImGui::BeginPopup( "output_type" ) )
 	{
-		if( ImGui::Selectable( SGRX_TextureOutputFormat_ToString( SGRX_TOF_PNG_RGBA32 ) ) )
+		SGRX_TextureOutputFormat formats[] =
 		{
-			ta.outputType = SGRX_TOF_PNG_RGBA32;
-			fmtchg = true;
-		}
-		if( ImGui::Selectable( SGRX_TextureOutputFormat_ToString( SGRX_TOF_STX_RGBA32 ) ) )
+			SGRX_TOF_PNG_RGBA32,
+			SGRX_TOF_STX_RGBA32,
+			SGRX_TOF_STX_DXT1,
+			SGRX_TOF_STX_DXT5,
+			SGRX_TOF_STX_3DC,
+		};
+		for( size_t i = 0; i < SGRX_ARRAY_SIZE(formats); ++i )
 		{
-			ta.outputType = SGRX_TOF_STX_RGBA32;
-			fmtchg = true;
-		}
-		if( ImGui::Selectable( SGRX_TextureOutputFormat_ToString( SGRX_TOF_STX_DXT1 ) ) )
-		{
-			ta.outputType = SGRX_TOF_STX_DXT1;
-			fmtchg = true;
-		}
-		if( ImGui::Selectable( SGRX_TextureOutputFormat_ToString( SGRX_TOF_STX_DXT5 ) ) )
-		{
-			ta.outputType = SGRX_TOF_STX_DXT5;
-			fmtchg = true;
+			if( ImGui::Selectable( SGRX_TextureOutputFormat_ToString( formats[i] ) ) )
+			{
+				ta.outputType = formats[i];
+				fmtchg = true;
+			}
 		}
 		ImGui::EndPopup();
 	}

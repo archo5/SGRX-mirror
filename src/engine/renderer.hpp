@@ -8,12 +8,6 @@
 /// TEXTURE
 ///
 
-ENGINE_EXPORT size_t TextureInfo_GetTextureSideSize( const TextureInfo* TI );
-ENGINE_EXPORT size_t TextureInfo_GetMipSize( const TextureInfo* TI );
-ENGINE_EXPORT void TextureInfo_GetCopyDims( const TextureInfo* TI, size_t* outcopyrowsize,
-	size_t* outcopyrowcount, size_t* outcopyslicecount = NULL );
-ENGINE_EXPORT bool TextureInfo_GetMipInfo( const TextureInfo* TI, int mip, TextureInfo* outinfo );
-
 struct TextureData
 {
 	TextureInfo info;
@@ -26,8 +20,6 @@ struct TextureData
 
 ENGINE_EXPORT bool TextureData_Load( TextureData* TD, IFileReader* fr, const StringView& filename = "<memory>", uint8_t lod = 0 );
 ENGINE_EXPORT void TextureData_Free( TextureData* TD );
-ENGINE_EXPORT size_t TextureData_GetMipDataOffset( TextureInfo* texinfo, int side, int mip );
-ENGINE_EXPORT size_t TextureData_GetMipDataSize( TextureInfo* texinfo, int mip );
 
 ENGINE_EXPORT const char* VDeclInfo_Parse( VDeclInfo* info, const char* text );
 ENGINE_EXPORT bool GetAABBFromVertexData( const VDeclInfo& info, const char* vdata, size_t vdsize, Vec3& outMin, Vec3& outMax );

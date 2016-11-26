@@ -181,7 +181,7 @@ bool TextureHandle::UploadRGBA8Part( void* data, int mip, int w, int h, int x, i
 	}
 	
 	TextureInfo mti;
-	if( !TextureInfo_GetMipInfo( &TI, mip, &mti ) )
+	if( !TI.GetMipInfo( mip, &mti ) )
 	{
 		LOG_ERROR << "Cannot UploadRGBA8Part - failed to get mip info (" << mip << ")";
 		return false;
@@ -209,7 +209,7 @@ bool TextureHandle::UploadRGBA8Part3D( void* data, int mip, int w, int h, int d,
 	}
 	
 	TextureInfo mti;
-	if( !TextureInfo_GetMipInfo( &TI, mip, &mti ) )
+	if( !TI.GetMipInfo( mip, &mti ) )
 	{
 		LOG_ERROR << "Cannot UploadRGBA8Part - failed to get mip info (" << mip << ")";
 		return false;

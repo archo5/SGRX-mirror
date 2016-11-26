@@ -15,92 +15,132 @@ extern "C" {
 
 
 
-size_t TextureInfo_GetTextureSideSize( const TextureInfo* TI )
+size_t TextureInfo::GetBytesPerUnit() const
 {
-	size_t width = TI->width, height = TI->height, depth = TI->depth;
-	int bpu = 0;
-	switch( TI->format )
+	switch( format )
 	{
 	/* bytes per pixel */
 	case TEXFMT_BGRA8:
 	case TEXFMT_BGRX8:
-	case TEXFMT_RGBA8: bpu = 4; break;
-	case TEXFMT_R5G6B5: bpu = 2; break;
+	case TEXFMT_RGBA8: return 4;
+	case TEXFMT_R5G6B5: return 2;
 	/* bytes per block */
-	case TEXFMT_DXT1: bpu = 8; break;
+	case TEXFMT_DXT1: return 8;
 	case TEXFMT_DXT3:
-	case TEXFMT_DXT5: bpu = 16; break;
-	}
-	if( TEXFORMAT_ISBLOCK4FORMAT( TI->format ) )
-	{
-		width = divideup( width, 4 );
-		height = divideup( height, 4 );
-		depth = divideup( depth, 4 );
-	}
-	switch( TI->type )
-	{
-	case TEXTYPE_2D: return width * height * bpu;
-	case TEXTYPE_CUBE: return width * width * bpu;
-	case TEXTYPE_VOLUME: return width * height * depth * bpu;
+	case TEXFMT_DXT5:
+	case TEXFMT_3DC: return 16;
 	}
 	return 0;
 }
 
-size_t TextureInfo_GetMipSize( const TextureInfo* TI )
+size_t TextureInfo::GetUnitCountX() const
 {
-	return TextureInfo_GetTextureSideSize( TI ) * ( TI->type == TEXTYPE_CUBE ? 6 : 1 );
+	return TEXFORMAT_ISBLOCK4FORMAT( format ) ? divideup( width, 4 ) : width;
 }
 
-void TextureInfo_GetCopyDims( const TextureInfo* TI, size_t* outcopyrowsize,
-	size_t* outcopyrowcount, size_t* outcopyslicecount )
+size_t TextureInfo::GetUnitCountY() const
 {
-	size_t width = TI->width, height = TI->height, depth = TI->depth;
-	int bpu = 0;
-	switch( TI->format )
+	return TEXFORMAT_ISBLOCK4FORMAT( format ) ? divideup( height, 4 ) : height;
+}
+
+size_t TextureInfo::GetUnitCountZ() const
+{
+	return TEXFORMAT_ISBLOCK4FORMAT( format ) ? divideup( depth, 4 ) : depth;
+}
+
+size_t TextureInfo::GetSideSize() const
+{
+	size_t cx = GetUnitCountX();
+	size_t bpu = GetBytesPerUnit();
+	switch( type )
 	{
-	/* bytes per pixel */
-	case TEXFMT_BGRA8:
-	case TEXFMT_BGRX8:
-	case TEXFMT_RGBA8: bpu = 4; break;
-	case TEXFMT_R5G6B5: bpu = 2; break;
-	/* bytes per block */
-	case TEXFMT_DXT1: bpu = 8; break;
-	case TEXFMT_DXT3:
-	case TEXFMT_DXT5: bpu = 16; break;
+	case TEXTYPE_2D: return cx * GetUnitCountY() * bpu;
+	case TEXTYPE_CUBE: return cx * cx * bpu;
+	case TEXTYPE_VOLUME: return cx * GetUnitCountY() * GetUnitCountZ() * bpu;
 	}
-	if( TEXFORMAT_ISBLOCK4FORMAT( TI->format ) )
+	return 0;
+}
+
+size_t TextureInfo::GetMipSize() const
+{
+	return GetSideSize() * ( type == TEXTYPE_CUBE ? 6 : 1 );
+}
+
+void TextureInfo::GetCopyDims( size_t* outcopyrowsize,
+	size_t* outcopyrowcount, size_t* outcopyslicecount ) const
+{
+	size_t cx = GetUnitCountX();
+	size_t bpu = GetBytesPerUnit();
+	switch( type )
 	{
-		width = divideup( width, 4 );
-		height = divideup( height, 4 );
-		depth = divideup( depth, 4 );
-	}
-	switch( TI->type )
-	{
-	case TEXTYPE_2D: *outcopyrowsize = width * bpu; *outcopyrowcount = height; break;
-	case TEXTYPE_CUBE: *outcopyrowsize = width * bpu; *outcopyrowcount = width; break;
-	case TEXTYPE_VOLUME: *outcopyrowsize = width * bpu; *outcopyrowcount = height * depth; break;
-	default: *outcopyrowsize = 0; *outcopyrowcount = 0; break;
-	}
-	// if requested explicit slice count, give it and remove it from row count
-	if( outcopyslicecount )
-	{
-		*outcopyslicecount = TI->type == TEXTYPE_VOLUME ? depth : 1;
-		if( TI->type == TEXTYPE_VOLUME )
-			*outcopyrowcount = height;
+	case TEXTYPE_2D:
+		*outcopyrowsize = cx * bpu;
+		*outcopyrowcount = GetUnitCountY();
+		if( outcopyslicecount )
+			*outcopyslicecount = 1;
+		break;
+	case TEXTYPE_CUBE:
+		*outcopyrowsize = cx * bpu;
+		*outcopyrowcount = cx;
+		if( outcopyslicecount )
+			*outcopyslicecount = 1;
+		break;
+	case TEXTYPE_VOLUME:
+		*outcopyrowsize = cx * bpu;
+		if( outcopyslicecount )
+		{
+			// if requested explicit slice count, give it and remove it from row count
+			*outcopyrowcount = GetUnitCountY();
+			*outcopyslicecount = GetUnitCountZ();
+		}
+		else
+			*outcopyrowcount = GetUnitCountY() * GetUnitCountZ();
+		break;
+	default:
+		*outcopyrowsize = 0;
+		*outcopyrowcount = 0;
+		if( outcopyslicecount )
+			*outcopyslicecount = 0;
+		break;
 	}
 }
 
-bool TextureInfo_GetMipInfo( const TextureInfo* TI, int mip, TextureInfo* outinfo )
+bool TextureInfo::GetMipInfo( int mip, TextureInfo* outinfo ) const
 {
-	TextureInfo info = *TI;
-	if( mip >= TI->mipcount )
+	TextureInfo info = *this;
+	if( mip >= mipcount )
 		return false;
-	info.width /= powf( 2, mip ); if( info.width < 1 ) info.width = 1;
-	info.height /= powf( 2, mip ); if( info.height < 1 ) info.height = 1;
-	info.depth /= powf( 2, mip ); if( info.depth < 1 ) info.depth = 1;
+	info.width /= pow( 2, mip ); if( info.width < 1 ) info.width = 1;
+	info.height /= pow( 2, mip ); if( info.height < 1 ) info.height = 1;
+	info.depth /= pow( 2, mip ); if( info.depth < 1 ) info.depth = 1;
 	info.mipcount -= mip;
 	*outinfo = info;
 	return true;
+}
+
+size_t TextureInfo::GetMipDataOffset( int side, int mip ) const
+{
+	size_t off = 0;
+	int mipit = mip;
+	while( mipit --> 0 )
+		off += GetMipDataSize( mipit );
+	if( side && type == TEXTYPE_CUBE )
+	{
+		size_t fullsidesize = 0;
+		mipit = mipcount;
+		while( mipit --> 0 )
+			fullsidesize += GetMipDataSize( mipit );
+		off += fullsidesize * side;
+	}
+	return off;
+}
+
+size_t TextureInfo::GetMipDataSize( int mip ) const
+{
+	TextureInfo mipTI;
+	if( !GetMipInfo( mip, &mipTI ) )
+		return 0;
+	return mipTI.GetSideSize();
 }
 
 void TextureData::SkipMips( int n )
@@ -114,7 +154,7 @@ size_t TextureData::SkipMipInfo( int n )
 	size_t skip = 0;
 	while( n --> 0 && info.mipcount > 1 )
 	{
-		skip += TextureInfo_GetMipSize( &info );
+		skip += info.GetMipSize();
 		info.width /= 2; if( info.width < 1 ) info.width = 1;
 		info.height /= 2; if( info.height < 1 ) info.height = 1;
 		info.depth /= 2; if( info.depth < 1 ) info.depth = 1;
@@ -505,31 +545,6 @@ success:
 failure:
 	LOG << LOG_DATE << "  Failed to load texture '" << filename << "' - unsupported type";
 	return false;
-}
-
-size_t TextureData_GetMipDataOffset( TextureInfo* texinfo, int side, int mip )
-{
-	size_t off = 0;
-	int mipit = mip;
-	while( mipit --> 0 )
-		off += TextureData_GetMipDataSize( texinfo, mipit );
-	if( side && texinfo->type == TEXTYPE_CUBE )
-	{
-		size_t fullsidesize = 0;
-		mipit = texinfo->mipcount;
-		while( mipit --> 0 )
-			fullsidesize += TextureData_GetMipDataSize( texinfo, mipit );
-		off += fullsidesize * side;
-	}
-	return off;
-}
-
-size_t TextureData_GetMipDataSize( TextureInfo* texinfo, int mip )
-{
-	TextureInfo mipTI;
-	if( !TextureInfo_GetMipInfo( texinfo, mip, &mipTI ) )
-		return 0;
-	return TextureInfo_GetTextureSideSize( &mipTI );
 }
 
 

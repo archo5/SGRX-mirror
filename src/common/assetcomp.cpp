@@ -717,10 +717,12 @@ static const char* texoutfmt_string_table[] =
 	"STX/RGBA32",
 	"STX/DXT1",
 	"STX/DXT5",
+	"STX/3DC",
 };
 static const char* texoutfmt_ext_string_table[] =
 {
 	"png",
+	"stx",
 	"stx",
 	"stx",
 	"stx",
@@ -1858,6 +1860,7 @@ void SGRX_ImageF32ToRGBA8( SGRX_ImageFP32* image, ByteArray& outdata, uint16_t f
 		case TEXFMT_DXT1: blocksize = 8; break;
 		case TEXFMT_DXT3: blocksize = 16; break;
 		case TEXFMT_DXT5: blocksize = 16; break;
+		case TEXFMT_3DC: blocksize = 16; break;
 		}
 		int blocknumx = divideup( image->GetWidth(), 4 );
 		int blocknumy = divideup( image->GetHeight(), 4 );
@@ -1873,7 +1876,13 @@ void SGRX_ImageF32ToRGBA8( SGRX_ImageFP32* image, ByteArray& outdata, uint16_t f
 					uint8_t block[ 64 ];
 					uint8_t dxtblock[ 16 ];
 					Img_ReadBlock( image, bx, by, z, side, block );
-					stb_compress_dxt_block( dxtblock, block, fmt == TEXFMT_DXT5, STB_DXT_NORMAL );
+					if( fmt == TEXFMT_3DC )
+					{
+						stb__CompressAlphaBlock( dxtblock, block - 3, 0 );
+						stb__CompressAlphaBlock( dxtblock + 8, block - 2, 0 );
+					}
+					else
+						stb_compress_dxt_block( dxtblock, block, fmt == TEXFMT_DXT5, STB_DXT_NORMAL );
 					memcpy( &outdata[ writeOff ], dxtblock, blocksize );
 					writeOff += blocksize;
 				}
@@ -1959,6 +1968,7 @@ static uint16_t STXGetTextureFormat( const SGRX_TextureAsset& TA )
 	case SGRX_TOF_STX_RGBA32: return TEXFMT_RGBA8;
 	case SGRX_TOF_STX_DXT1: return TEXFMT_DXT1;
 	case SGRX_TOF_STX_DXT5: return TEXFMT_DXT5;
+	case SGRX_TOF_STX_3DC: return TEXFMT_3DC;
 	default: return TEXFMT_RGBA8;
 	}
 }
@@ -2039,6 +2049,7 @@ bool SGRX_SaveImage( const StringView& path, SGRX_ImageFP32* image, const SGRX_T
 	case SGRX_TOF_STX_RGBA32:
 	case SGRX_TOF_STX_DXT1:
 	case SGRX_TOF_STX_DXT5:
+	case SGRX_TOF_STX_3DC:
 		{
 			uint16_t flags = 0;
 			Array< SGRX_IFP32Handle > mips;

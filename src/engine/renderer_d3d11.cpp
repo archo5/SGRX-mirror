@@ -118,6 +118,7 @@ static DXGI_FORMAT texfmt2d3d( int fmt )
 	case TEXFMT_DXT1: return DXGI_FORMAT_BC1_UNORM;
 	case TEXFMT_DXT3: return DXGI_FORMAT_BC2_UNORM;
 	case TEXFMT_DXT5: return DXGI_FORMAT_BC3_UNORM;
+	case TEXFMT_3DC: return DXGI_FORMAT_BC5_UNORM;
 	}
 	return DXGI_FORMAT_UNKNOWN;
 }
@@ -1231,10 +1232,10 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, const void* d
 				{
 					size_t crs, crc;
 					
-					TextureInfo_GetMipInfo( texinfo, mip, &mipinfo );
-					TextureInfo_GetCopyDims( &mipinfo, &crs, &crc );
+					texinfo->GetMipInfo( mip, &mipinfo );
+					mipinfo.GetCopyDims( &crs, &crc );
 					
-					srd[ at ].pSysMem = (char*) data + TextureData_GetMipDataOffset( texinfo, side, mip );
+					srd[ at ].pSysMem = (char*) data + texinfo->GetMipDataOffset( side, mip );
 					srd[ at ].SysMemPitch = crs;
 					at++;
 				}
@@ -1305,10 +1306,10 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, const void* d
 			{
 				size_t crs, crc, csc;
 				
-				TextureInfo_GetMipInfo( texinfo, mip, &mipinfo );
-				TextureInfo_GetCopyDims( &mipinfo, &crs, &crc, &csc );
+				texinfo->GetMipInfo( mip, &mipinfo );
+				mipinfo.GetCopyDims( &crs, &crc, &csc );
 				
-				srd[ mip ].pSysMem = (char*) data + TextureData_GetMipDataOffset( texinfo, 0, mip );
+				srd[ mip ].pSysMem = (char*) data + texinfo->GetMipDataOffset( 0, mip );
 				srd[ mip ].SysMemPitch = crs;
 				// 'csc' was requested to obtain a good value for 'crc':
 				srd[ mip ].SysMemSlicePitch = crs * crc;

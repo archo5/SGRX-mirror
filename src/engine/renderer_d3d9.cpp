@@ -56,15 +56,15 @@ static void texdatacopy( D3DLOCKED_RECT* plr, TextureInfo* texinfo, const void* 
 	size_t i, off, copyrowsize = 0, copyrowcount = 0;
 	TextureInfo mipTI;
 	
-	off = TextureData_GetMipDataOffset( texinfo, side, mip );
-	ret = TextureInfo_GetMipInfo( texinfo, mip, &mipTI );
+	off = texinfo->GetMipDataOffset( side, mip );
+	ret = texinfo->GetMipInfo( mip, &mipTI );
 	ASSERT( ret );
 	
 //	printf( "read side=%d mip=%d at %d\n", side, mip, off );
 	
 	src = ((uint8_t*)data) + off;
 	dst = (uint8_t*)plr->pBits;
-	TextureInfo_GetCopyDims( &mipTI, &copyrowsize, &copyrowcount );
+	mipTI.GetCopyDims( &copyrowsize, &copyrowcount );
 	
 	for( i = 0; i < copyrowcount; ++i )
 	{
@@ -83,15 +83,15 @@ static void texdatacopy( D3DLOCKED_BOX* plb, TextureInfo* texinfo, const void* d
 	size_t i, j, off, copyrowsize = 0, copyrowcount = 0, copyslicecount = 0;
 	TextureInfo mipTI;
 	
-	off = TextureData_GetMipDataOffset( texinfo, 0, mip );
-	ret = TextureInfo_GetMipInfo( texinfo, mip, &mipTI );
+	off = texinfo->GetMipDataOffset( 0, mip );
+	ret = texinfo->GetMipInfo( mip, &mipTI );
 	ASSERT( ret );
 	
 //	printf( "read mip=%d at %d\n", mip, off );
 	
 	src = ((uint8_t*)data) + off;
 	dst = (uint8_t*)plb->pBits;
-	TextureInfo_GetCopyDims( &mipTI, &copyrowsize, &copyrowcount, &copyslicecount );
+	mipTI.GetCopyDims( &copyrowsize, &copyrowcount, &copyslicecount );
 	
 	for( j = 0; j < copyslicecount; ++j )
 	{
