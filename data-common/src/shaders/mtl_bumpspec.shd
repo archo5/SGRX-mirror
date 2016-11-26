@@ -3,7 +3,7 @@ void surf( inout SurfaceInfo surfInfo, VS2PS i )
 {
 	float4 diff = TEXSAMPLE_2D( Tex0, i.tex0.xy );
 	surfInfo.diffuseColor = DiffuseTexGamma( diff );
-	surfInfo.normal = TEXSAMPLE_2D( Tex1, i.tex0.xy ).rgb * 2 - 1;
+	surfInfo.normal = SampleNormal( Tex1, i.tex0.xy );
 	surfInfo.specularColor = TEXSAMPLE_2D( Tex2, i.tex0.xy ).rgb;
 }
 #include "sys_surface_shader"

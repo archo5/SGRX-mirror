@@ -1,5 +1,5 @@
 float4 diff = TEXSAMPLE_2D( Tex0, inTex0.xy ); // * gInstanceData[0]; // TODO
-float3 normal = TEXSAMPLE_2D( Tex1, inTex0.xy ).rgb * 2 - 1;
+float3 normal = SampleNormal( Tex1, inTex0.xy );
 outEmissiveLight = diff.rgb;
 outOpacity = diff.a;
 outDiffuseColor = float3(0,0,0);

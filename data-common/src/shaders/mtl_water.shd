@@ -5,9 +5,9 @@ void surf( inout SurfaceInfo surfInfo, VS2PS i )
 	float2 tx_b = i.tex0.xy + float2(-0.073,0.103)*timeVals.x;
 	
 	float3 normal = normalize( (
-		TEXSAMPLE_2D( Tex1, tx_a ).rgb +
-		TEXSAMPLE_2D( Tex1, tx_b ).rgb
-		) * 0.5 * 2 - 1 );
+		SampleNormal( Tex1, tx_a ) +
+		SampleNormal( Tex1, tx_b )
+		) * 0.5 );
 	float4 diff = (
 		TEXSAMPLE_2D( Tex0, tx_a - normal.xy * 0.1 ) +
 		TEXSAMPLE_2D( Tex0, tx_b * 0.5 - normal.xy * 0.05 ) +
