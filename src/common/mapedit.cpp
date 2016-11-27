@@ -1938,7 +1938,18 @@ LevelCache* EdMainFrame::CreateCache()
 	lcache->m_gobj.gameObjects.resize( g_Level->m_gameObjects.size() );
 	for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
 	{
-		EDGO_LCSave( g_Level->m_gameObjects[ i ], &lcache->m_gobj.gameObjects[ i ] );
+		GameObject* obj = g_Level->m_gameObjects[ i ];
+		EDGO_LCSave( obj, &lcache->m_gobj.gameObjects[ i ] );
+		if( obj->GetParent() )
+		{
+			LC_GOLink L =
+			{
+				obj->m_src_guid,
+				obj->GetParent()->m_src_guid,
+				"parent",
+			};
+			lcache->m_gobj.links.push_back( L );
+		}
 	}
 	// links
 	{

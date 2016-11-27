@@ -343,6 +343,10 @@ struct TexturePicker : IMGUIEntryPicker
 	{
 		m_entries.clear();
 		m_entries.push_back( "" );
+		m_entries.push_back( "sys:black2d" );
+		m_entries.push_back( "sys:blackt2d" );
+		m_entries.push_back( "sys:white2d" );
+		m_entries.push_back( "sys:normal2d" );
 		for( size_t i = 0; i < g_EdAS->assets.size(); ++i )
 		{
 			SGRX_Asset* A = g_EdAS->assets[ i ];

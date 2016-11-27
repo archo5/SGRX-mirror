@@ -2273,6 +2273,10 @@ static size_t _InsertVertex( ByteArray& out,
 
 static String SGRX_TexIDToPath( const SGRX_AssetScript* AS, const StringView& texid )
 {
+	// system texture
+	if( texid.starts_with( "sys:" ) )
+		return texid.str();
+	
 	StringView cat = texid.until( "/" );
 	StringView name = texid.after( "/" );
 	
@@ -2286,6 +2290,8 @@ static String SGRX_TexIDToPath( const SGRX_AssetScript* AS, const StringView& te
 			return A->GetUserPath();
 		}
 	}
+	if( texid != "" )
+		LOG_ERROR << "Could not map texture ID: " << texid;
 	return "";
 }
 
