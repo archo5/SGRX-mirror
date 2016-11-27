@@ -148,7 +148,7 @@ float4 DiffuseTexGamma( float4 col )
 
 float3 DecompressNormal( float2 nrm )
 {
-	return float3( nrm.x, nrm.y, 1 - nrm.x * nrm.x + nrm.y * nrm.y );
+	return float3( nrm.x, nrm.y, sqrt( 1 - nrm.x * nrm.x + nrm.y * nrm.y ) );
 }
 #define SampleNormal( name, tc ) \
 	DecompressNormal( TEXSAMPLE_2D( name, tc ).rg * 2 - 1 )
