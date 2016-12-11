@@ -102,7 +102,7 @@ def write_part( f, part ):
 		write_smallbuf( f, tex.replace("\\", "/") )
 #
 
-def write_mesh( f, meshdata, armdata, boneorder ):
+def write_mesh( f, meshdata, armdata, boneorder, optarmobj ):
 	is_skinned = armdata != None
 	bbmin = meshdata["bbmin"]
 	bbmax = meshdata["bbmax"]
@@ -152,6 +152,12 @@ def write_mesh( f, meshdata, armdata, boneorder ):
 	for part in parts:
 		write_part( f, part )
 	
+	def bmtx( b ):
+		m = b.matrix_local
+		if optarmobj:
+			m = optarmobj.matrix_world * m
+		return m
+	
 	if is_skinned:
 		f.write( struct.pack( "B", len(boneorder) ) )
 		for bonename in boneorder:
@@ -159,9 +165,9 @@ def write_mesh( f, meshdata, armdata, boneorder ):
 			print( "Bone found: " + bone.name )
 			write_smallbuf( f, bone.name )
 			pid = 255
-			m = bone.matrix_local
+			m = bmtx( bone )
 			if bone.parent is not None:
-				m = bone.parent.matrix_local.inverted() * m
+				m = bmtx( bone.parent ).inverted() * m
 				for bpid, pbone in enumerate(boneorder):
 					if bone.parent.name == pbone:
 						pid = bpid
@@ -912,9 +918,16 @@ def parse_textures():
 	print( "OK!" )
 	return textures
 
+def hier_selected( node ):
+	while node:
+		if node.select:
+			return True
+		node = node.parent
+	return False
+
 def write_ss3dmesh( ctx, props ):
-	filepath = props.filepath
-	print( "\n\\\\\n>>> SS3DMESH Exporter v0.5!\n//\n\n" )
+	filepath = bpy.path.ensure_ext( props.filepath, ".ssm" )
+	print( "\n\\\\\n>>> SS3DMESH Exporter v0.51!\n//\n\n" )
 	print( "Exporting..." )
 	
 	textures = parse_textures()
@@ -927,7 +940,7 @@ def write_ss3dmesh( ctx, props ):
 		if node.type != "MESH":
 			continue
 		
-		if props.export_selected and not node.select:
+		if props.export_selected and not hier_selected( node ):
 			continue
 		
 		cur_armobj = parse_armature( node )
@@ -951,8 +964,12 @@ def write_ss3dmesh( ctx, props ):
 		print( "OK!" )
 	
 	print( "Writing mesh... " )
-	with open( filepath, 'wb' ) as f:
-		write_mesh( f, meshdata, armdata, boneorder )
+	write_mesh(
+		open( filepath, 'wb' ),
+		meshdata,
+		armdata,
+		boneorder,
+		armobj if props.transform_armature else None )
 	
 	if props.export_anim:
 		if len(animations) == 0:
@@ -1009,7 +1026,7 @@ def write_sgrxanbd( ctx, props ):
 	
 	print( "\n\\\\\n>>> Done!\n//\n\n" )
 
-	return {'CANCELLED'}
+	return {'FINISHED'}
 
 # ExportHelper is a helper class, defines filename and
 # invoke() function which calls the file selector.
@@ -1041,6 +1058,7 @@ class ExportSS3DMESH( bpy.types.Operator, ExportHelper ):
 	export_selected = BoolProperty(name="Export selected mesh only", default=True)
 	apply_modifiers = EnumProperty(items=apply_mod_ui_items,
 		name="Apply modifiers", default="SKIPARM")
+	transform_armature = BoolProperty(name="Apply armature transform", default=True)
 	
 	def execute( self, ctx ):
 		return write_ss3dmesh( ctx, self )
