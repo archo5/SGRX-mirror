@@ -1509,7 +1509,7 @@ int util_strtonum( CCH** at, CCH* end, double* outf )
 }
 
 
-String String_Concat( const StringView& a, const StringView& b )
+String String_Concat( StringView a, StringView b )
 {
 	String out;
 	out.resize( a.size() + b.size() );
@@ -1518,7 +1518,17 @@ String String_Concat( const StringView& a, const StringView& b )
 	return out;
 }
 
-String String_Replace( const StringView& base, const StringView& sub, const StringView& rep )
+String String_Concat( StringView a, StringView b, StringView c )
+{
+	String out;
+	out.resize( a.size() + b.size() + c.size() );
+	memcpy( out.data(), a.data(), a.size() );
+	memcpy( out.data() + a.size(), b.data(), b.size() );
+	memcpy( out.data() + a.size() + b.size(), c.data(), c.size() );
+	return out;
+}
+
+String String_Replace( StringView base, StringView sub, StringView rep )
 {
 	String out;
 	size_t at, cur = 0;

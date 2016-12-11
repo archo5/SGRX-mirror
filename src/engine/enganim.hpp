@@ -256,9 +256,10 @@ struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 		AnimHandle anim;
 		int* trackIDs;
 		float at;
+		float prev_at;
 		float fade_at;
-		float prev_fade_at;
 		float fadetime;
+		bool fadeusespeed;
 		float speed;
 		uint8_t playMode;
 	};
@@ -268,7 +269,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 	ENGINE_EXPORT virtual void Prepare();
 	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
 	
-	ENGINE_EXPORT void Play( const AnimHandle& anim, uint8_t playMode = ANIM_PLAY_LOOP, float fadetime = 0.5f );
+	ENGINE_EXPORT void Play( const AnimHandle& anim, uint8_t playMode = ANIM_PLAY_LOOP, float fadetime = 0.5f, bool fadeusespeed = true );
 	ENGINE_EXPORT void Stop();
 	ENGINE_EXPORT bool CheckMarker( const StringView& name );
 	FINLINE void SetLastAnimSpeed( float s ){ if( m_currentAnims.size() ) m_currentAnims.last().speed = s; }
@@ -340,7 +341,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimDeformer : Animator
 
 
 ENGINE_EXPORT bool GR_ReadAnimBundle( const StringView& path, SGRX_AnimBundle& out );
-ENGINE_EXPORT bool GR_EnumAnimBundle( const StringView& path, Array< RCString >& out );
+ENGINE_EXPORT bool GR_EnumAnimBundle( const StringView& path, Array< RCString >& out, bool rawnames = false );
 ENGINE_EXPORT AnimHandle GR_GetAnim( const StringView& name );
 ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, Mat4* out, size_t outsz, bool applyinv = true, Mat4* base = NULL );
 ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, SGRX_MeshInstance* meshinst );

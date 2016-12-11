@@ -92,6 +92,7 @@ EXP_STRUCT CharacterResource : GOResource
 	GFW_EXPORT virtual void OnTransformUpdate();
 	GFW_EXPORT void _UpdateMatrix();
 	GFW_EXPORT void _UpdateLighting();
+	GFW_EXPORT void _UpdateChar();
 	
 	SGRX_MeshInstance* GetMeshInst() const { return m_animChar.m_cachedMeshInst; }
 	
@@ -99,9 +100,9 @@ EXP_STRUCT CharacterResource : GOResource
 	SGS_METHOD void PlayAnim( StringView name, bool loop ){ m_animChar.PlayAnim( name, loop ); }
 	SGS_METHOD void StopAnim(){ m_animChar.StopAnim(); }
 	SGS_METHOD StringView GetAnimCharPath() const { return m_animChar.animChar ? m_animChar.animChar->m_key : SV(); }
-	SGS_METHOD void SetAnimChar( StringView path ){ m_animChar.SetAnimChar( path ); }
+	SGS_METHOD void SetAnimChar( StringView path ){ m_animChar.SetAnimChar( path ); _UpdateChar(); }
 	SGS_METHOD StringView GetSkin() const { return m_animChar.skinName; }
-	SGS_METHOD void SetSkin( StringView name ){ m_animChar.SetSkin( name ); }
+	SGS_METHOD void SetSkin( StringView name ){ m_animChar.SetSkin( name ); _UpdateChar(); }
 	SGS_METHOD void SetVar( StringView name, float val ){ m_animChar.SetFloat( name, val ); }
 	SGS_METHOD Vec3 GetAttachmentPos( StringView atch, Vec3 off SGS_CPPBC_IGNORE( = V3(0) ) )
 	{ return m_animChar.GetAttachmentPos( m_animChar.FindAttachment( atch ), off ); }

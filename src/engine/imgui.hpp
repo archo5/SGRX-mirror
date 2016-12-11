@@ -250,11 +250,14 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIShaderPicker : IDirEntryHandler
 	Array< RCString > m_shaderList;
 };
 
-struct IF_GCC(ENGINE_EXPORT) IMGUIAnimPicker : IMGUIEntryPicker, IDirEntryHandler
+struct IF_GCC(ENGINE_EXPORT) IMGUIAnimPicker : IMGUIAssetPickerCore
 {
 	ENGINE_EXPORT IMGUIAnimPicker();
-	ENGINE_EXPORT void Reload();
-	ENGINE_EXPORT bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir );
+	ENGINE_EXPORT virtual void ReloadEntries();
+	ENGINE_EXPORT virtual void AppendEntry();
+	ENGINE_EXPORT virtual void InitEntryPreview( BaseEntry* e );
+	ENGINE_EXPORT virtual void _DrawItem( int i, int x0, int y0, int x1, int y1 );
+	ENGINE_EXPORT virtual bool EntryUI( size_t i, String& str );
 };
 
 struct IF_GCC(ENGINE_EXPORT) IMGUIEnumPicker

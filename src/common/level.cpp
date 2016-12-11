@@ -1629,6 +1629,7 @@ BaseEditor::BaseEditor( BaseGame* game, int type ) : m_editorGame( NULL ), m_ori
 	case ET_MapEditor: modname = "editor.dll"; break;
 	case ET_AssetEditor: modname = "aedit.dll"; break;
 	case ET_PSysEditor: modname = "psedit.dll"; break;
+	case ET_CharEditor: modname = "charedit.dll"; break;
 	}
 	m_lib = Sys_LoadLib( modname );
 	if( !m_lib )
@@ -1703,6 +1704,11 @@ int BaseGame::OnArgument( char* arg, int argcleft, char** argvleft )
 	if( streq( arg, "PSEDIT" ) )
 	{
 		m_needsEditor = ET_PSysEditor;
+		return 1;
+	}
+	if( streq( arg, "CHAREDIT" ) )
+	{
+		m_needsEditor = ET_CharEditor;
 		return 1;
 	}
 	if( strpeq( arg, "-map=" ) )

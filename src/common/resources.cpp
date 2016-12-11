@@ -149,6 +149,12 @@ void CharacterResource::_UpdateLighting()
 	m_level->LightMesh( GetMeshInst() );
 }
 
+void CharacterResource::_UpdateChar()
+{
+	m_animChar.FixedTick( 0 );
+	m_animChar.PreRender( 0 );
+}
+
 
 LightResource::LightResource( GameObject* obj ) : GOResource( obj ),
 	m_isStatic( false ),

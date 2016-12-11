@@ -1181,37 +1181,52 @@ bool IMGUIShaderPicker::Property( const char* label, String& str )
 
 IMGUIAnimPicker::IMGUIAnimPicker()
 {
+	m_layoutType = Layout_List;
 	Reload();
 }
 
-void IMGUIAnimPicker::Reload()
+void IMGUIAnimPicker::ReloadEntries()
 {
-	LOG_FUNCTION_ARG("IMGUIAnimPicker");
-	
-	LOG << "Reloading anims";
-	m_entries.clear();
-	m_entries.push_back( "" );
-	FS_IterateDirectory( "meshes", this );
-	_Search( m_searchString );
+	String text;
+	if( FS_LoadTextFile( SGRXPATH_CACHE "/assets/mapping.txt", text ) )
+	{
+		ConfigReader cr( text );
+		StringView key, val;
+		while( cr.Read( key, val ) )
+		{
+			StringView ty = val.until( ":" );
+			if( ty != "A" )
+				continue;
+			Array< RCString > anims;
+			GR_EnumAnimBundle( key, anims, true );
+			for( size_t i = 0; i < anims.size(); ++i )
+			{
+				RCString path = String_Concat( key, ":", anims[ i ] );
+				RCString name = String_Concat( val.after( ":" ), ":", anims[ i ] );
+				AddEntry( path, name, path );
+			}
+		}
+	}
 }
 
-bool IMGUIAnimPicker::HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+void IMGUIAnimPicker::AppendEntry()
 {
-	if( name == "." || name == ".." )
-		return true;
-	char bfr[ 256 ];
-	sgrx_snprintf( bfr, 256, "%s/%s", StackString<256>(loc).str, StackString<256>(name).str );
-	LOG << "[An]: " << bfr;
-	StringView fullname = bfr;
-	if( isdir )
-	{
-		FS_IterateDirectory( fullname, this );
-	}
-	else if( name.ends_with( ".anb" ) )
-	{
-		GR_EnumAnimBundle( fullname, m_entries );
-	}
-	return true;
+	m_entries.push_back( new BaseEntry );
+}
+
+void IMGUIAnimPicker::InitEntryPreview( BaseEntry* e )
+{
+	// no preview
+}
+
+void IMGUIAnimPicker::_DrawItem( int i, int x0, int y0, int x1, int y1 )
+{
+	// no preview
+}
+
+bool IMGUIAnimPicker::EntryUI( size_t i, String& str )
+{
+	return IMGUIPickerCore::EntryUI( i, str );
 }
 
 

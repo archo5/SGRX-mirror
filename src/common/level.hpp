@@ -948,6 +948,7 @@ enum EditorType
 	ET_MapEditor,
 	ET_AssetEditor,
 	ET_PSysEditor,
+	ET_CharEditor,
 };
 
 struct BaseEditor

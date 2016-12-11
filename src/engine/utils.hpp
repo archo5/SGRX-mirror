@@ -2576,8 +2576,9 @@ struct StackUnWString
 #endif
 
 
-ENGINE_EXPORT String String_Concat( const StringView& a, const StringView& b );
-ENGINE_EXPORT String String_Replace( const StringView& base, const StringView& sub, const StringView& rep );
+ENGINE_EXPORT String String_Concat( StringView a, StringView b );
+ENGINE_EXPORT String String_Concat( StringView a, StringView b, StringView c );
+ENGINE_EXPORT String String_Replace( StringView base, StringView sub, StringView rep );
 
 //
 // PARSING

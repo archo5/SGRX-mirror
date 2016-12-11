@@ -348,10 +348,12 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : SGRX_RCRsrc, MEVariableInterface
 		uint8_t playMode;
 		ValExpr speed;
 		float fade_time;
+		bool fade_speed;
 		// editor data
 		Vec2 editor_pos;
 		
-		State() : playMode(ANIM_PLAY_LOOP), fade_time(0.5f){ speed.expr = "1"; speed.Recompile(NULL); }
+		State() : playMode(ANIM_PLAY_LOOP), fade_time(0.5f), fade_speed(true)
+		{ speed.expr = "1"; speed.Recompile(NULL); }
 		StringView GetName()
 		{
 			if( name.size() ) return name;
@@ -376,6 +378,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : SGRX_RCRsrc, MEVariableInterface
 				playMode = playMode ? ANIM_PLAY_LOOP : ANIM_PLAY_ONCE;
 			arch << speed;
 			arch << fade_time;
+			arch( fade_speed, arch.version >= 10, true );
 			arch << editor_pos;
 		}
 		template< class T > static State* UnserializeCreate( T& arch )
@@ -654,7 +657,8 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : SGRX_RCRsrc, MEVariableInterface
 		// 7: added main player node & anim mapping, removed layers
 		// 8: added skins
 		// 9: State::loop -> playMode enum
-		SerializeVersionHelper<T> arch( basearch, 9 );
+		// 10: added State::fade_speed
+		SerializeVersionHelper<T> arch( basearch, 10 );
 		
 		arch( mesh );
 		arch( bones );

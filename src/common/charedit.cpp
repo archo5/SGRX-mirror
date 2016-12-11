@@ -1272,12 +1272,24 @@ static void GenAnimPrintName( char bfr[128], StringView anim, const char* def )
 {
 	if( anim )
 	{
-		StringView bundlepath = anim.until( ":" );
-		StringView animname = anim.after( ":" );
-		StringView bundlename = bundlepath.after_last( "/" );
-		StringView bundledir = bundlepath.until_last( "/" );
-		sgrx_snprintf( bfr, 128, "%s@%s|%s", StackPath(animname).str,
-			StackPath(bundlename).str, StackPath(bundledir).str );
+		RCString* bundle = g_NUIAnimPicker->m_nameMap.getptr( anim );
+		if( bundle )
+		{
+			anim = *bundle;
+			StringView bundlepath = anim.until( ":" );
+			StringView animname = anim.after( ":" );
+			StringView bundlename = bundlepath.after_last( "/" );
+			StringView bundledir = bundlepath.until_last( "/" );
+			sgrx_snprintf( bfr, 128, "%s@%s|%s", StackPath(animname).str,
+				StackPath(bundlename).str, StackPath(bundledir).str );
+		}
+		else
+		{
+			StringView bundlepath = anim.until( ":" );
+			StringView animname = anim.after( ":" );
+			sgrx_snprintf( bfr, 128, "%s@%s", StackPath(animname).str,
+				StackPath(bundlepath).str );
+		}
 	}
 	else
 		strcpy( bfr, def );
@@ -1762,6 +1774,7 @@ void EditACStateProps()
 		IMGUIComboBox( "Playback mode", g_SelState->playMode, "Loop\0Once\0Clamp\0" );
 		EditValExpr( "Speed", g_SelState->speed );
 		IMGUIEditFloat( "Fade time", g_SelState->fade_time, 0, 1000 );
+		IMGUIEditBool( "Fade using speed", g_SelState->fade_speed );
 		
 		IMGUI_GROUP( "Transitions from anywhere", true,
 		{
@@ -2867,5 +2880,10 @@ struct CharEditor : IGame
 extern "C" EXPORT IGame* CreateGame()
 {
 	return new CharEditor;
+}
+
+extern "C" EXPORT void SetBaseGame( void* game )
+{
+	// g_Game->SetBaseGame( game );
 }
 

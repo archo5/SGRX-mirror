@@ -161,18 +161,21 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 	{
 		LOG_FUNCTION_ARG( "PHY_MESH" );
 		
-		// TODO: temporarily ignore material data
-		Array< uint32_t > fixedidcs;
-		for( size_t i = 0; i < phyMesh.indices.size(); i += 4 )
+		if( phyMesh.positions.size() && phyMesh.indices.size() >= 4 )
 		{
-			fixedidcs.append( &phyMesh.indices[ i ], 3 );
+			// TODO: temporarily ignore material data
+			Array< uint32_t > fixedidcs;
+			for( size_t i = 0; i < phyMesh.indices.size(); i += 4 )
+			{
+				fixedidcs.append( &phyMesh.indices[ i ], 3 );
+			}
+			
+			SGRX_PhyRigidBodyInfo rbinfo;
+			rbinfo.shape = m_level->GetPhyWorld()->CreateTriMeshShape(
+				phyMesh.positions.data(), phyMesh.positions.size(),
+				fixedidcs.data(), fixedidcs.size(), true );
+			m_levelBodies.push_back( m_level->GetPhyWorld()->CreateRigidBody( rbinfo ) );
 		}
-		
-		SGRX_PhyRigidBodyInfo rbinfo;
-		rbinfo.shape = m_level->GetPhyWorld()->CreateTriMeshShape(
-			phyMesh.positions.data(), phyMesh.positions.size(),
-			fixedidcs.data(), fixedidcs.size(), true );
-		m_levelBodies.push_back( m_level->GetPhyWorld()->CreateRigidBody( rbinfo ) );
 	}
 	
 	// create physics geometry - boxes

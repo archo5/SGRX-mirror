@@ -432,9 +432,9 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 		
 		Anim& A = m_currentAnims[ i ];
 		SGRX_Animation* AN = A.anim;
+		A.prev_at = A.at;
 		A.at += deltaTime * A.speed;
-		A.prev_fade_at = A.fade_at;
-		A.fade_at += deltaTime * fabsf( A.speed );
+		A.fade_at += A.fadeusespeed ? deltaTime * fabsf( A.speed ) : deltaTime;
 		
 		if( AN == NULL )
 		{
@@ -455,6 +455,10 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 				A.at = fmodf( A.at, animTime );
 				if( A.at < 0 )
 					A.at += animTime;
+			}
+			else if( A.playMode == ANIM_PLAY_CLAMP )
+			{
+				A.at = TCLAMP( A.at, 0.0f, animTime );
 			}
 			// permanent animation faded fully in, no need to keep previous tracks
 			if( A.fade_at > A.fadetime )
@@ -525,14 +529,14 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 		m_pose[ i ].fq *= m_blendFactors[ i ];
 }
 
-void AnimPlayer::Play( const AnimHandle& anim, uint8_t playMode, float fadetime )
+void AnimPlayer::Play( const AnimHandle& anim, uint8_t playMode, float fadetime, bool fadeusespeed )
 {
 	if( playMode != ANIM_PLAY_ONCE &&
 		m_currentAnims.size() &&
 		m_currentAnims.last().playMode == playMode &&
 		m_currentAnims.last().anim == anim )
 		return; // ignore repetitive invocations
-	Anim A = { anim, NULL, 0, 0, 0, fadetime, 1, playMode };
+	Anim A = { anim, NULL, 0, 0, 0, fadetime, fadeusespeed, 1, playMode };
 	m_currentAnims.push_back( A );
 }
 
@@ -549,8 +553,8 @@ bool AnimPlayer::CheckMarker( const StringView& name )
 		SGRX_Animation* AN = A.anim;
 		if( !AN )
 			continue;
-		float fp0 = A.prev_fade_at * AN->speed;
-		float fp1 = A.fade_at * AN->speed;
+		float fp0 = A.prev_at * AN->speed;
+		float fp1 = A.at * AN->speed;
 		if( fp0 == fp1 )
 			continue; // prevent 'thrilling' markers
 		if( A.playMode != ANIM_PLAY_ONCE )
@@ -944,7 +948,7 @@ bool GR_ReadAnimBundle( const StringView& path, SGRX_AnimBundle& out )
 	return !br.error;
 }
 
-bool GR_EnumAnimBundle( const StringView& path, Array< RCString >& out )
+bool GR_EnumAnimBundle( const StringView& path, Array< RCString >& out, bool rawnames )
 {
 	LOG_FUNCTION;
 	
@@ -970,12 +974,17 @@ bool GR_EnumAnimBundle( const StringView& path, Array< RCString >& out )
 		// read the name
 		anr.smallString( tmpname );
 		
-		// compose full key
-		char bfr[ 1024 ];
-		tmpname.push_back( '\0' );
-		sgrx_snprintf( bfr, 1024, "%s:%s", spath.str, tmpname.data() );
-		
-		out.push_back( bfr );
+		if( rawnames )
+			out.push_back( tmpname );
+		else
+		{
+			// compose full key
+			char bfr[ 1024 ];
+			tmpname.push_back( '\0' );
+			sgrx_snprintf( bfr, 1024, "%s:%s", spath.str, tmpname.data() );
+			
+			out.push_back( bfr );
+		}
 	}
 	return !anr.error;
 }
