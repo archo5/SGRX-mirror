@@ -2512,6 +2512,7 @@ struct CharEditor : IGame
 	CharEditor(){}
 	bool OnInitialize()
 	{
+		Window_EnableResizing( true );
 		LOG_FUNCTION_ARG( "CharEditor" );
 		
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );

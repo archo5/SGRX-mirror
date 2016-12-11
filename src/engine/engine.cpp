@@ -274,6 +274,11 @@ void Window_EnableDragDrop( bool enable )
 	SDL_EventState( SDL_DROPFILE, enable ? SDL_ENABLE : SDL_DISABLE );
 }
 
+void Window_EnableResizing( bool enable )
+{
+	SDL_SetWindowResizable( g_Window, enable ? SDL_TRUE : SDL_FALSE );
+}
+
 
 
 CObj::~CObj()
@@ -763,6 +768,13 @@ void Game_OnEvent( const Event& e )
 		case SDL_WINDOWEVENT_FOCUS_LOST: g_HasFocus = false; break;
 		case SDL_WINDOWEVENT_MINIMIZED: g_WindowVisible = false; break;
 		case SDL_WINDOWEVENT_RESTORED: g_WindowVisible = true; break;
+		case SDL_WINDOWEVENT_RESIZED: {
+			RenderSettings rs;
+			GR_GetVideoMode( rs );
+			rs.width = e.window.data1;
+			rs.height = e.window.data2;
+			GR_SetVideoMode( rs );
+			} break;
 		}
 	}
 	
@@ -1720,10 +1732,9 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	
 	/* initialize SDL */
 	if( SDL_Init(
-		SDL_INIT_TIMER | SDL_INIT_VIDEO |
+		SDL_INIT_VIDEO |
 		SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC |
-		SDL_INIT_GAMECONTROLLER |
-		SDL_INIT_EVENTS | SDL_INIT_NOPARACHUTE
+		SDL_INIT_GAMECONTROLLER
 	) < 0 )
 	{
 		LOG_ERROR << "Couldn't initialize SDL: " << SDL_GetError();

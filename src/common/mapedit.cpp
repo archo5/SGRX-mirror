@@ -2347,6 +2347,7 @@ bool MapEditor::OnInitialize()
 {
 	LOG_FUNCTION_ARG( "MapEditor" );
 	
+	Window_EnableResizing( true );
 	GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 	GR2D_SetFont( "core", 12 );
 	

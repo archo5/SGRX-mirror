@@ -39,6 +39,7 @@ ENGINE_EXPORT bool Window_HasClipboardText();
 ENGINE_EXPORT bool Window_GetClipboardText( String& out );
 ENGINE_EXPORT bool Window_SetClipboardText( const StringView& text );
 ENGINE_EXPORT void Window_EnableDragDrop( bool enable );
+ENGINE_EXPORT void Window_EnableResizing( bool enable );
 
 typedef SDL_Event Event;
 

@@ -148,6 +148,15 @@ void SGRX_IMGUI_Event( const Event& e )
 		int key = e.key.keysym.sym & ~SDLK_SCANCODE_MASK;
 		io.KeysDown[ key ] = (e.type == SDL_KEYDOWN);
 	}
+	else if( e.type == SDL_WINDOWEVENT )
+	{
+		if( e.window.event == SDL_WINDOWEVENT_RESIZED )
+		{
+			ImGuiIO& io = ImGui::GetIO();
+			io.DisplaySize.x = GR_GetWidth();
+			io.DisplaySize.y = GR_GetHeight();
+		}
+	}
 }
 
 void SGRX_IMGUI_NewFrame( float dt )
