@@ -1245,9 +1245,12 @@ void GameLevel::FixedTick( float deltaTime )
 		
 		m_eventType = LEV_FixedUpdate;
 		
-		int ITERS = 2;
-		for( int i = 0; i < ITERS; ++i )
-			m_phyWorld->Step( deltaTime / ITERS );
+		if( m_phyWorld )
+		{
+			int ITERS = 2;
+			for( int i = 0; i < ITERS; ++i )
+				m_phyWorld->Step( deltaTime / ITERS );
+		}
 		
 		_PreCallbackFixup();
 		
@@ -1274,7 +1277,7 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 	m_tickDeltaTime = deltaTime;
 	
 	CameraResource* mainCamera = GetMainCamera();
-	if( mainCamera )
+	if( mainCamera && m_soundSys )
 	{
 		Mat4 mtx = mainCamera->GetWorldMatrix();
 		SGRX_Sound3DAttribs attr =
@@ -1355,7 +1358,7 @@ void GameLevel::DebugDraw()
 	{
 		m_eventType = LEV_DebugDraw;
 		
-		if( gcv_dbg_physics.value )
+		if( gcv_dbg_physics.value && m_phyWorld )
 			m_phyWorld->DebugDraw();
 		
 		for( size_t i = 0; i < m_systems.size(); ++i )
@@ -1472,7 +1475,10 @@ bool GameLevel::sgsQueryOBB( sgsVariable optProc, uint32_t mask, Mat4 mtx, Vec3 
 void GameLevel::PlaySound( StringView name, Vec3 pos, Vec3 dir )
 {
 	if( !m_soundSys )
+	{
+		LOG_WARNING << "GameLevel::PlaySound - no sound system";
 		return;
+	}
 	
 	SoundEventInstanceHandle ev = m_soundSys->CreateEventInstance( name );
 	if( ev )
@@ -1778,12 +1784,44 @@ void BaseGame::ParseConfigFile( bool init )
 		}
 		else
 		{
-			if( key == "soundbank" )
+			if( key == "sound" )
 			{
+				if( value == "none" )
+				{
+					m_soundPlugin = NULL;
+				}
+				else
+				{
+					char name[ 128 ];
+					sgrx_snprintf( name, sizeof(name), "sgrx-sound-%s.dll", StackPath( value ).str );
+					m_soundPlugin = new Plugin( name );
+					if( !m_soundPlugin->Loaded() )
+						m_soundPlugin = NULL;
+				}
+			}
+			else if( key == "physics" )
+			{
+				if( value == "none" )
+				{
+					m_physicsPlugin = NULL;
+				}
+				else
+				{
+					char name[ 128 ];
+					sgrx_snprintf( name, sizeof(name), "sgrx-physics-%s.dll", StackPath( value ).str );
+					m_physicsPlugin = new Plugin( name );
+					if( !m_physicsPlugin->Loaded() )
+						m_physicsPlugin = NULL;
+				}
+			}
+			else if( key == "soundbank" )
+			{
+				InitSoundSystem();
 				m_soundSys->Load( value );
 			}
 			else if( key == "soundvolume" )
 			{
+				InitSoundSystem();
 				m_soundSys->SetVolume( value.until( "=" ),
 					String_ParseFloat( value.after( "=" ) ) );
 			}
@@ -1838,14 +1876,35 @@ void BaseGame::RegisterSystem( StringView name, GameLevelSystemCreateFunc func )
 	m_systemCreateFuncs.set( name, func );
 }
 
+SoundSystemHandle BaseGame::CreateSoundSystem()
+{
+	if( m_soundPlugin )
+	{
+		return m_soundPlugin->GetFunction<SoundSystemHandle(int,bool)>( "SND_CreateSystem" )( 32, true );
+	}
+	else return NULL;
+}
+
+PhyWorldHandle BaseGame::CreatePhyWorld()
+{
+	if( m_physicsPlugin )
+	{
+		return m_physicsPlugin->GetFunction<PhyWorldHandle()>( "PHY_CreateWorld" )();
+	}
+	else return NULL;
+}
+
 GameLevel* BaseGame::CreateLevel()
 {
+	LOG_FUNCTION;
+	
 	InitSoundSystem();
 	GameLevel* level = new GameLevel( CreatePhyWorld() );
 	level->m_soundSys = m_soundSys;
 	sgs_RegFuncConsts( level->GetSGSC(), basegame_api, -1 );
 	level->SetGlobalToSelf();
-	level->GetPhyWorld()->SetGravity( V3( 0, 0, -9.81f ) );
+	if( level->GetPhyWorld() )
+		level->GetPhyWorld()->SetGravity( V3( 0, 0, -9.81f ) );
 	
 	StringView it = m_levelSystems;
 	while( it.size() )
@@ -1891,7 +1950,10 @@ void BaseGame::Game_Render()
 
 void BaseGame::OnTick( float dt, uint32_t gametime )
 {
-	m_soundSys->Update();
+	if( m_soundSys )
+	{
+		m_soundSys->Update();
+	}
 	
 	// events
 	if( m_level->m_nextLevel.size() )
@@ -1919,7 +1981,8 @@ void BaseGame::SetOverlayMusic( StringView path )
 {
 	if( !m_soundSys )
 	{
-		LOG_WARNING << "BaseGame::SetOverlayMusic - no sound system";
+		if( path )
+			LOG_WARNING << "BaseGame::SetOverlayMusic - no sound system";
 		return;
 	}
 	

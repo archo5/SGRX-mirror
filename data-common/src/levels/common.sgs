@@ -16,20 +16,17 @@ function PropInfo_XForm( eptr )
 	EE_AddFieldVec3( eptr, "scale", "Scale", 1, 2, 0.01, 100 );
 }
 
-global Entity = {};
-
-function Entity.get_transform()
-{
-	return EE_GenMatrix_SRaP( this.scale, this.rotationXYZ, this.position );
-}
-
 global ED_ENTITY_TYPES = {};
-function ENTITY( name )
+class Entity
 {
-	data = _G[ name ];
-	class( data, Entity );
-	sym_register( name, data );
-	ED_ENTITY_TYPES[ name ] = data;
+	function get_transform()
+	{
+		return EE_GenMatrix_SRaP( this.scale, this.rotationXYZ, this.position );
+	}
+	function __inherited( name )
+	{
+		ED_ENTITY_TYPES[ name ] = sym_get( name );
+	}
 }
 
 function PropInfo_Entity( eptr )
@@ -57,17 +54,9 @@ function ED_SYSTEM_TYPES.AIDBSystem( ui )
 //
 // Game object extension functions
 //
-function BEHAVIOR( name, inhname )
+function GOBehavior.__inherited( name )
 {
-	data = _G[ name ];
-	data.
-	{
-		__inherit = inhname,
-		__getindex = mm_getindex_router,
-		__setindex = mm_setindex_router
-	};
-	sym_register( name, data );
-	level.behavior_types[ name ] = data;
+	level.behavior_types[ name ] = sym_get( name );
 }
 
 
@@ -265,7 +254,7 @@ function BhControllerBase.EditorGUI( ui )
 }
 
 // === RESOURCE - MOVE OBJECT === //
-BEHAVIOR( "BhResourceMoveObject", "GOBehavior" );
+level.behavior_types.{ BhResourceMoveObject };
 function BhResourceMoveObject.EditorGUI( ui )
 {
 	ui.PickLocalRsrc( "Resource", this, "resource", this.object );
@@ -274,7 +263,7 @@ function BhResourceMoveObject.EditorGUI( ui )
 	ui.EditFlag( "Transfer scale", this, "mask", 0x04 );
 }
 // === RESOURCE - MOVE RESOURCE === //
-BEHAVIOR( "BhResourceMoveResource", "GOBehavior" );
+level.behavior_types.{ BhResourceMoveResource };
 function BhResourceMoveResource.EditorGUI( ui )
 {
 	ui.PickLocalRsrc( "Resource", this, "resource", this.object );
@@ -285,19 +274,20 @@ function BhResourceMoveResource.EditorGUI( ui )
 }
 
 // === OBJECT ROTATOR === //
-global BhObjectRotate = {};
-BEHAVIOR( "BhObjectRotate", "GOBehavior" );
-function BhObjectRotate.Init()
+class BhObjectRotate : GOBehavior
 {
-	this.speed = vec3(0,0,180);
-}
-function BhObjectRotate.Update()
-{
-//	this.object.rotationXYZ += this.speed * level.deltaTime;
-}
-function BhObjectRotate.EditorGUI( ui )
-{
-	ui.EditVec3( "Speed", this, "speed", -100000, 100000 );
+	function Init()
+	{
+		this.speed = vec3(0,0,180);
+	}
+	function Update()
+	{
+	//	this.object.rotationXYZ += this.speed * level.deltaTime;
+	}
+	function EditorGUI( ui )
+	{
+		ui.EditVec3( "Speed", this, "speed", -100000, 100000 );
+	}
 }
 
 // === OBJECT SINE MOVER === //
@@ -330,7 +320,6 @@ class BhObjectMoveSine : GOBehavior
 		BR_Pos( this.object.position - this.axis );
 	}
 }
-BEHAVIOR( "BhObjectMoveSine", "GOBehavior" );
 
 // === OBJECT DOOR MOVER === //
 class BhObjectMoveDoorSlide : GOBehavior
@@ -368,12 +357,10 @@ class BhObjectMoveDoorSlide : GOBehavior
 		BR_Pos( this.object.position + this.object.LocalToWorldDir( this.offset ) );
 	}
 }
-BEHAVIOR( "BhObjectMoveDoorSlide", "GOBehavior" );
 
 class BhTrigger : GOBehavior
 {
 }
-BEHAVIOR( "BhTrigger", "GOBehavior" );
 
 // === BOX TRIGGER === //
 class BhBoxTrigger : BhTrigger
@@ -426,7 +413,6 @@ class BhBoxTrigger : BhTrigger
 		BR_AABB( -1, 1, this._GetTransform() );
 	}
 }
-BEHAVIOR( "BhBoxTrigger", "BhTrigger" );
 
 // === SPHERE TRIGGER === //
 class BhSphereTrigger : BhTrigger
@@ -485,63 +471,6 @@ class BhSphereTrigger : BhTrigger
 		BR_Col( 0.1, 0.8, 0.9, 0.8 );
 		BR_SphereOutline( this.object.LocalToWorld( this.offset ), this.radius, 32 );
 	}
-}
-BEHAVIOR( "BhSphereTrigger", "BhTrigger" );
-
-// === MESH ARRAY === //
-global BhMeshArray = {};
-BEHAVIOR( "BhMeshArray", "GOBehavior" );
-BhMeshArray._props = [
-	"isStatic", "visible", "mesh", "localMatrix",
-	"matrixMode", "lightingMode", "lmQuality", "castLMS"
-];
-function BhMeshArray.Init()
-{
-	this.object.RequireResource( "ma_0", GO_RSRC_MESH );
-	this.offset = mat4().translate( 0, 0, 1 );
-	this.count = 1;
-}
-function BhMeshArray.Rebuild()
-{
-	this.object.RequireResource( "ma_0", GO_RSRC_MESH );
-	r0 = this.resources[ "ma_0" ];
-	
-	// remove the too many meshes
-	names = this.resources.GetNames();
-	foreach( name : names )
-	{
-		if( string_part( name, 0, 3 ) == "ma_" )
-		{
-			which = toint( string_part( name, 3 ) );
-			if( which >= this.count )
-			{
-				this.object.RemoveResource( name );
-			}
-		}
-	}
-	
-	_props = this._props;
-	xfadd = mat4(this.offset);
-	for( i = 1; i < this.count; ++i )
-	{
-		name = "ma_" $ i;
-		this.object.RequireResource( name, GO_RSRC_MESH );
-		r = this.resources[ name ];
-		for( j = 0; j < _props.size; ++j )
-		{
-			prop = _props[ j ];
-			r.(prop) = r0.(prop);
-		}
-		r.localMatrix = r.localMatrix.multiply( xfadd );
-		xfadd.multiply( this.offset );
-	}
-}
-function BhMeshArray.EditorGUI( ui )
-{
-	ui.EditXFMat4( "Offset", this, "offset" );
-	ui.EditInt( "Count", this, "count", 1, 1000 );
-	if( ui.Button( "Regenerate" ) )
-		this.Rebuild();
 }
 
 // === BREAKABLE === //
@@ -621,166 +550,165 @@ class BhBreakable : GOBehavior
 		ui.EditFlag( "Trigger particle FX on hit", this, "flags", 0x08 );
 	}
 }
-BEHAVIOR( "BhBreakable", "GOBehavior" );
 
 
 //
 // Entity Editor Extensions
 //
 
-global Marker = {};
-ENTITY( "Marker" );
-
-Marker.ED_Icon = "editor/icons/marker.png";
-function Marker.ED_PropInfo( eptr )
+class Marker : Entity
 {
-	EE_AddFieldString( eptr, "name", "Name", "" );
-	EE_AddFieldVec3( eptr, "position", "Position", 0, 2, EDPI_Pos_Min, EDPI_Pos_Max );
-}
-function Marker.EditorDrawWorld()
-{
-	BR_Reset();
-	BR_Col( 0.9, 0.2, 0.1, 0.8 );
-	BR_Tick( this.position, 0.1 );
-}
-
-
-global LightSample = {};
-ENTITY( "LightSample" );
-
-LightSample.ED_Icon = "editor/icons/ltsample.png";
-function LightSample.ED_PropInfo( eptr )
-{
-	EE_AddFieldVec3( eptr, "position", "Position", 0, 2, EDPI_Pos_Min, EDPI_Pos_Max );
-}
-function LightSample.EditorDrawWorld()
-{
-}
-
-
-global MapLayer = {};
-ENTITY( "MapLayer" );
-
-MapLayer.ED_Icon = "editor/icons/marker.png";
-function MapLayer.ED_PropInfo( eptr )
-{
-	EE_AddFieldVec3( eptr, "position", "Position", 0, 2, EDPI_Pos_Min, EDPI_Pos_Max );
-}
-function MapLayer.EditorDrawWorld()
-{
-}
-
-
-global SolidBox = {};
-ENTITY( "SolidBox" );
-
-SolidBox.ED_Icon = "editor/icons/trigger.png";
-function SolidBox.ED_PropInfo( eptr )
-{
-	PropInfo_XForm( eptr );
-}
-function SolidBox.EditorDrawWorld()
-{
-	BR_Reset();
-	BR_Col( 0.2, 0.3, 0.8, 0.8 );
-	BR_AABB( -1, 1, this.get_transform() );
-}
-
-
-global AICover = {};
-ENTITY( "AICover" );
-
-AICover.ED_Icon = "editor/icons/trigger.png";
-function AICover.ED_PropInfo( eptr )
-{
-	PropInfo_Entity( eptr );
-	EE_AddFieldBool( eptr, "negative", "Is negative (excluding)?", false );
-}
-function AICover.EditorDrawWorld()
-{
-	BR_Reset();
-	BR_Col( 0.2, 0.3, 0.8, 0.8 );
-	BR_AABB( -1, 1, this.get_transform() );
-}
-
-
-global AIPathArea = {};
-ENTITY( "AIPathArea" );
-
-AIPathArea.ED_Icon = "editor/icons/trigger.png";
-function AIPathArea.ED_PropInfo( eptr )
-{
-	PropInfo_XForm( eptr );
-}
-function AIPathArea.EditorDrawWorld()
-{
-	BR_Reset();
-	BR_Col( 0.2, 0.6, 0.8, 0.8 );
-	BR_AABB( -1, 1, this.get_transform() );
-}
-
-
-global AIRoom = {};
-ENTITY( "AIRoom" );
-function AIRoom.Init()
-{
-	this.negative = false;
-	this.cellSize = 1.0;
-}
-
-AIRoom.ED_Icon = "editor/icons/trigger.png";
-function AIRoom.ED_PropInfo( eptr )
-{
-	PropInfo_Entity( eptr );
-	EE_AddFieldBool( eptr, "negative", "Is negative (excluding)?", false );
-	EE_AddFieldFloat( eptr, "cellSize", "Cell size", 0.5, 2, 0.01, 100 );
-}
-function AIRoom.EditorDrawWorld()
-{
-	scale = this.scale;
-	mtx = this.get_transform();
-	BR_Reset();
-	BR_Col( 0.2, 0.9, 0.8, 0.8 );
-	BR_AABB( -1, 1, mtx );
-	if( this.negative == false && this.cellSize > 0.01 )
+	global ED_Icon = "editor/icons/marker.png";
+	function ED_PropInfo( eptr )
 	{
-		xcount = floor( scale.x / this.cellSize );
-		ycount = floor( scale.y / this.cellSize );
-		xncs = this.cellSize / scale.x;
-		yncs = this.cellSize / scale.y;
-		for( y = 0; y < ycount; ++y )
+		EE_AddFieldString( eptr, "name", "Name", "" );
+		EE_AddFieldVec3( eptr, "position", "Position", 0, 2, EDPI_Pos_Min, EDPI_Pos_Max );
+	}
+	function EditorDrawWorld()
+	{
+		BR_Reset();
+		BR_Col( 0.9, 0.2, 0.1, 0.8 );
+		BR_Tick( this.position, 0.1 );
+	}
+}
+
+
+class LightSample : Entity
+{
+	global ED_Icon = "editor/icons/ltsample.png";
+	function ED_PropInfo( eptr )
+	{
+		EE_AddFieldVec3( eptr, "position", "Position", 0, 2, EDPI_Pos_Min, EDPI_Pos_Max );
+	}
+	function EditorDrawWorld()
+	{
+	}
+}
+
+
+class MapLayer : Entity
+{
+	global ED_Icon = "editor/icons/marker.png";
+	function ED_PropInfo( eptr )
+	{
+		EE_AddFieldVec3( eptr, "position", "Position", 0, 2, EDPI_Pos_Min, EDPI_Pos_Max );
+	}
+	function EditorDrawWorld()
+	{
+	}
+}
+
+
+class SolidBox : Entity
+{
+	global ED_Icon = "editor/icons/trigger.png";
+	function ED_PropInfo( eptr )
+	{
+		PropInfo_XForm( eptr );
+	}
+	function EditorDrawWorld()
+	{
+		BR_Reset();
+		BR_Col( 0.2, 0.3, 0.8, 0.8 );
+		BR_AABB( -1, 1, this.get_transform() );
+	}
+}
+
+
+class AICover : Entity
+{
+	global ED_Icon = "editor/icons/trigger.png";
+	function ED_PropInfo( eptr )
+	{
+		PropInfo_Entity( eptr );
+		EE_AddFieldBool( eptr, "negative", "Is negative (excluding)?", false );
+	}
+	function EditorDrawWorld()
+	{
+		BR_Reset();
+		BR_Col( 0.2, 0.3, 0.8, 0.8 );
+		BR_AABB( -1, 1, this.get_transform() );
+	}
+}
+
+
+class AIPathArea : Entity
+{
+	global ED_Icon = "editor/icons/trigger.png";
+	function ED_PropInfo( eptr )
+	{
+		PropInfo_XForm( eptr );
+	}
+	function EditorDrawWorld()
+	{
+		BR_Reset();
+		BR_Col( 0.2, 0.6, 0.8, 0.8 );
+		BR_AABB( -1, 1, this.get_transform() );
+	}
+}
+
+
+class AIRoom : Entity
+{
+	global ED_Icon = "editor/icons/trigger.png";
+	function Init()
+	{
+		this.negative = false;
+		this.cellSize = 1.0;
+	}
+	function ED_PropInfo( eptr )
+	{
+		PropInfo_Entity( eptr );
+		EE_AddFieldBool( eptr, "negative", "Is negative (excluding)?", false );
+		EE_AddFieldFloat( eptr, "cellSize", "Cell size", 0.5, 2, 0.01, 100 );
+	}
+	function EditorDrawWorld()
+	{
+		scale = this.scale;
+		mtx = this.get_transform();
+		BR_Reset();
+		BR_Col( 0.2, 0.9, 0.8, 0.8 );
+		BR_AABB( -1, 1, mtx );
+		if( this.negative == false && this.cellSize > 0.01 )
 		{
-			for( x = 0; x < xcount; ++x )
+			xcount = floor( scale.x / this.cellSize );
+			ycount = floor( scale.y / this.cellSize );
+			xncs = this.cellSize / scale.x;
+			yncs = this.cellSize / scale.y;
+			for( y = 0; y < ycount; ++y )
 			{
-				pos = vec3( ( x * 2 - (xcount-1) ) * xncs, ( y * 2 - (ycount-1) ) * yncs, 0 );
-				BR_Tick( mtx.transform_pos( pos ), this.cellSize * 0.9 );
+				for( x = 0; x < xcount; ++x )
+				{
+					pos = vec3( ( x * 2 - (xcount-1) ) * xncs, ( y * 2 - (ycount-1) ) * yncs, 0 );
+					BR_Tick( mtx.transform_pos( pos ), this.cellSize * 0.9 );
+				}
 			}
 		}
 	}
 }
 
 
-global AIZone = {};
-ENTITY( "AIZone" );
-function AIZone.Init()
+class AIZone : Entity
 {
-	this.restrictedGroups = 1;
-	this.suspicionFactor = 1;
-	this.priority = 0;
-}
-
-AIZone.ED_Icon = "editor/icons/trigger.png";
-function AIZone.ED_PropInfo( eptr )
-{
-	PropInfo_XForm( eptr );
-	EE_AddFieldInt( eptr, "restrictedGroups", "Restricted groups", 1 );
-	EE_AddFieldFloat( eptr, "suspicionFactor", "Suspicion factor", 1, 2, 0, 100000 );
-	EE_AddFieldInt( eptr, "priority", "Priority", 0 );
-}
-function AIZone.EditorDrawWorld()
-{
-	BR_Reset();
-	BR_Col( 0.9, 0.9, 0.7, 0.8 );
-	BR_AABB( -1, 1, this.get_transform() );
+	global ED_Icon = "editor/icons/trigger.png";
+	function Init()
+	{
+		this.restrictedGroups = 1;
+		this.suspicionFactor = 1;
+		this.priority = 0;
+	}
+	function ED_PropInfo( eptr )
+	{
+		PropInfo_XForm( eptr );
+		EE_AddFieldInt( eptr, "restrictedGroups", "Restricted groups", 1 );
+		EE_AddFieldFloat( eptr, "suspicionFactor", "Suspicion factor", 1, 2, 0, 100000 );
+		EE_AddFieldInt( eptr, "priority", "Priority", 0 );
+	}
+	function EditorDrawWorld()
+	{
+		BR_Reset();
+		BR_Col( 0.9, 0.9, 0.7, 0.8 );
+		BR_AABB( -1, 1, this.get_transform() );
+	}
 }
 

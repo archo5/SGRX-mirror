@@ -171,9 +171,19 @@ void EDGO_EditUI( GameObject* obj )
 			
 			for( size_t i = 0; i < g_Level->m_goResourceMap.size(); ++i )
 			{
-				if( SV(g_Level->m_goResourceMap.item( i ).value.name).match_loose( rsrctypename ) &&
-					ImGui::Selectable( g_Level->m_goResourceMap.item( i ).value.name ) )
-					rsrc = obj->AddResource( g_Level->m_goResourceMap.item( i ).key );
+				const GOResourceInfo& RI = g_Level->m_goResourceMap.item( i ).value;
+				if( SV(RI.name).match_loose( rsrctypename ) )
+				{
+					if( RI.available )
+					{
+						if( ImGui::Selectable( RI.name ) )
+							rsrc = obj->AddResource( g_Level->m_goResourceMap.item( i ).key );
+					}
+					else
+					{
+						ImGui::TextDisabled( "Not available: %s", RI.name );
+					}
+				}
 			}
 			
 			if( rsrc )

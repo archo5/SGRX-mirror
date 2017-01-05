@@ -232,6 +232,6 @@ struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyWorld : SGRX_RefCounted
 typedef Handle< SGRX_IPhyWorld > PhyWorldHandle;
 
 
-PHYSICS_EXPORT PhyWorldHandle PHY_CreateWorld();
+extern "C" PHYSICS_EXPORT PhyWorldHandle PHY_CreateWorld();
 
 

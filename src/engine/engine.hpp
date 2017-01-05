@@ -41,6 +41,26 @@ ENGINE_EXPORT bool Window_SetClipboardText( const StringView& text );
 ENGINE_EXPORT void Window_EnableDragDrop( bool enable );
 ENGINE_EXPORT void Window_EnableResizing( bool enable );
 
+struct Plugin : SGRX_RefCounted
+{
+	Plugin( const char* path )
+	{
+		lib = Sys_LoadLib( path );
+	}
+	~Plugin()
+	{
+		Sys_UnloadLib( lib );
+	}
+	bool Loaded() const { return lib != NULL; }
+	template< class T >
+	T* GetFunction( const char* name ) const
+	{
+		return (T*) Sys_GetProc( lib, name );
+	}
+	
+	void* lib;
+};
+
 typedef SDL_Event Event;
 
 

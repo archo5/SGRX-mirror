@@ -19,7 +19,7 @@ void ScriptVarIterator::_Init( SGS_CTX, sgs_Variable* var )
 	if( !C )
 		return;
 	sgs_Variable it;
-	if( SGS_SUCCEEDED( sgs_GetIterator( C, *var, &it ) ) )
+	if( SGS_SUCCEEDED( sgs_CreateIterator( C, &it, *var ) ) )
 	{
 		m_iter = sgsVariable( C, &it );
 		sgs_Release( C, &it );

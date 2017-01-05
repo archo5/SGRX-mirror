@@ -15,9 +15,6 @@ struct TACStrikeGame : BaseGame
 		RegisterCommonGameCVars();
 	}
 	
-	SoundSystemHandle CreateSoundSystem(){ return SND_CreateSystem(); }
-	PhyWorldHandle CreatePhyWorld(){ return PHY_CreateWorld(); }
-	
 	Vec2 cursor_dt;
 	void OnEvent( const Event& e )
 	{

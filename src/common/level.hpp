@@ -288,6 +288,7 @@ struct GOResourceInfo
 {
 	const char* name;
 	struct GOResource* (*createFunc)( struct GameObject* );
+	bool available;
 };
 
 typedef struct GOBehavior* GOBehaviorCreateFunc( struct GameObject* );
@@ -295,8 +296,8 @@ typedef struct GOBehavior* GOBehaviorCreateFunc( struct GameObject* );
 #define IMPLEMENT_RESOURCE( cls, id, nm ) \
 	static GOResource* _Create( GameObject* go ){ return new cls( go ); } \
 	static void Register( GameLevel* lev ){ \
-		GOResourceInfo ri = { nm, _Create }; \
 		lev->RegisterNativeClass< cls >( _sgs_interface->name ); \
+		GOResourceInfo ri = { nm, _Create, IsAvailable( lev ) }; \
 		lev->m_goResourceMap.set( id, ri ); }
 
 #define IMPLEMENT_BEHAVIOR( cls ) \
@@ -313,6 +314,7 @@ typedef IGameLevelSystem* GameLevelSystemCreateFunc( GameLevel* );
 
 EXP_STRUCT GOResource : LevelScrObj
 {
+	static bool IsAvailable( GameLevel* lev ){ return true; }
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
 	ENT_SGS_IMPLEMENT;
 	typedef sgsHandle< GOResource > ScrHandle;
@@ -972,8 +974,8 @@ EXP_STRUCT BaseGame : IGame
 	GFW_EXPORT void ParseConfigFile( bool init );
 	template< class T > void RegisterSystem(){ RegisterSystem( T::_Name(), T::_Create ); }
 	GFW_EXPORT void RegisterSystem( StringView name, GameLevelSystemCreateFunc func );
-	GFW_EXPORT virtual SoundSystemHandle CreateSoundSystem() = 0;
-	GFW_EXPORT virtual PhyWorldHandle CreatePhyWorld() = 0;
+	GFW_EXPORT virtual SoundSystemHandle CreateSoundSystem();
+	GFW_EXPORT virtual PhyWorldHandle CreatePhyWorld();
 	GFW_EXPORT virtual GameLevel* CreateLevel();
 	GFW_EXPORT virtual void OnLevelChange();
 	GFW_EXPORT virtual void Game_FixedTick( float dt );
@@ -987,6 +989,8 @@ EXP_STRUCT BaseGame : IGame
 	float m_fixedTickSize;
 	float m_accum;
 	float m_timeMultiplier;
+	Handle< Plugin > m_soundPlugin;
+	Handle< Plugin > m_physicsPlugin;
 	SoundSystemHandle m_soundSys;
 	SoundEventInstanceHandle m_ovrMusic;
 	String m_ovrMusicPath;

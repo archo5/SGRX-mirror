@@ -60,5 +60,5 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_ISoundSystem : SGRX_RefCounted
 typedef Handle< SGRX_ISoundSystem > SoundSystemHandle;
 
 
-SOUND_EXPORT SoundSystemHandle SND_CreateSystem( int maxchannels = 32, bool rh3d = true );
+extern "C" SOUND_EXPORT SoundSystemHandle SND_CreateSystem( int maxchannels = 32, bool rh3d = true );
 

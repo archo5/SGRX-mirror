@@ -229,6 +229,7 @@ EXP_STRUCT ParticleSystemResource : GOResource
 
 EXP_STRUCT SoundSourceResource : GOResource
 {
+	static bool IsAvailable( GameLevel* lev ){ return lev->GetSoundSys() != NULL; }
 	SGS_OBJECT_INHERIT( GOResource );
 	ENT_SGS_IMPLEMENT;
 	IMPLEMENT_RESOURCE( SoundSourceResource, GO_RSRC_SNDSRC, "Sound source" );

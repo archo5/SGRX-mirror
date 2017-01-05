@@ -731,9 +731,16 @@ void IMGUISoundPicker::Reload()
 {
 	LOG_FUNCTION_ARG("IMGUISoundPicker");
 	
-	LOG << "Enumerating sound events";
-	sys->EnumerateSoundEvents( m_entries );
-	LOG << "... " << m_entries.size() << " events found";
+	if( sys )
+	{
+		LOG << "Enumerating sound events";
+		sys->EnumerateSoundEvents( m_entries );
+		LOG << "... " << m_entries.size() << " events found";
+	}
+	else
+	{
+		LOG_WARNING << "No sound system specified, cannot enumerate events!";
+	}
 	_Search( m_searchString );
 }
 
