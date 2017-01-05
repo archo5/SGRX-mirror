@@ -117,14 +117,14 @@ static int ident_equal( const char* ptr, int size, const char* what, int wlen )
 {
 	return size == wlen && memcmp( ptr, what, (size_t) size ) == 0;
 }
-static void readident( SGS_CTX, sgs_MemBuf* out, const char* code, int32_t* at, int32_t length )
+static void readident( SGS_CTX, sgs_MemBuf* out, const char* code, int32_t* at, int32_t length, char xsym )
 {
 	int32_t sz = 0;
 	int32_t i = *at;
 	int32_t pos_rev = (int32_t) out->size;
 	sgs_membuf_appchr( out, C, SGS_ST_IDENT );
 	sgs_membuf_appchr( out, C, 0 );
-	while( i < length && ( sgs_isalnum( code[ i ] ) || code[ i ] == '_' ) )
+	while( i < length && ( sgs_isalnum( code[ i ] ) || code[ i ] == '_' || code[ i ] == xsym ) )
 	{
 		sz++;
 		if( sz < 256 )
@@ -312,6 +312,7 @@ sgs_TokenList sgsT_Gen( SGS_CTX, const char* code, size_t length )
 {
 	int32_t i, ilen = (int32_t) length; /* WP: code limit */
 	sgs_LineNum line = 1;
+	sgs_ParserConfig pcfg = C->shared->parser_cfg;
 	sgs_MemBuf s = sgs_membuf_create();
 	sgs_membuf_reserve( &s, C, SGS_TOKENLIST_PREALLOC );
 	
@@ -332,10 +333,11 @@ sgs_TokenList sgsT_Gen( SGS_CTX, const char* code, size_t length )
 					|| code[ i + 1 ] == '*' ) )   skipcomment( C, &line, code, &i, ilen );
 		
 		/* special symbol */
-		else if( sgs_isoneof( fc, "()[]{},;:" ) ) sgs_membuf_appchr( &s, C, fc );
+		else if( sgs_isoneof( fc, "()[]{},;:#" ) ) sgs_membuf_appchr( &s, C, fc );
 		
 		/* identifier */
-		else if( fc == '_' || sgs_isalpha( fc ) ) readident( C, &s, code, &i, ilen );
+		else if( fc == '_' || sgs_isalpha( fc ) || ( fc == '$' && pcfg.ident_dollar_sign ) )
+			readident( C, &s, code, &i, ilen, pcfg.ident_dollar_sign ? '$' : '_' );
 		
 		/* number */
 		else if( sgs_isdigit( fc ) )
@@ -349,17 +351,39 @@ sgs_TokenList sgsT_Gen( SGS_CTX, const char* code, size_t length )
 				C->state |= SGS_HAS_ERRORS;
 				sgs_Msg( C, SGS_ERROR, "[line %d] failed to parse numeric constant", line );
 			}
-			else if( res == 1 )
+			else
 			{
-				sgs_membuf_appchr( &s, C, SGS_ST_NUMINT );
-				sgs_membuf_appbuf( &s, C, &vi, sizeof( vi ) );
+				if( pos < code + length && ( *pos == 'f' || *pos == '.' ) )
+				{
+					pos++;
+					if( res == 1 )
+					{
+						res = 2;
+						vr = vi;
+					}
+				}
+				else if( pos < code + length && res == 1 && *pos == 'p' )
+				{
+					pos++;
+					res = 3;
+				}
+				if( res == 1 )
+				{
+					sgs_membuf_appchr( &s, C, SGS_ST_NUMINT );
+					sgs_membuf_appbuf( &s, C, &vi, sizeof( vi ) );
+				}
+				else if( res == 2 )
+				{
+					sgs_membuf_appchr( &s, C, SGS_ST_NUMREAL );
+					sgs_membuf_appbuf( &s, C, &vr, sizeof( vr ) );
+				}
+				/* not an original return value */
+				else if( res == 3 )
+				{
+					sgs_membuf_appchr( &s, C, SGS_ST_NUMPTR );
+					sgs_membuf_appbuf( &s, C, &vi, sizeof( vi ) );
+				}
 			}
-			else if( res == 2 )
-			{
-				sgs_membuf_appchr( &s, C, SGS_ST_NUMREAL );
-				sgs_membuf_appbuf( &s, C, &vr, sizeof( vr ) );
-			}
-			else{ sgs_BreakIf( "Invalid return value from util_strtonum." ); }
 			/* WP: code limit */
 			i = (int32_t) ( pos - code );
 			i--;
@@ -407,6 +431,7 @@ sgs_TokenList sgsT_Next( sgs_TokenList tok )
 		return tok + tok[ 1 ] + 2 + sizeof( sgs_LineNum );
 	case SGS_ST_NUMREAL:
 	case SGS_ST_NUMINT:
+	case SGS_ST_NUMPTR:
 		return tok + 9 + sizeof( sgs_LineNum );
 	case SGS_ST_STRING:
 		{
@@ -489,6 +514,15 @@ static void tp_token( SGS_CTX, sgs_MemBuf* out, sgs_TokenList t )
 			sgs_membuf_appbuf( out, C, tmp, strlen( tmp ) );
 		}
 		break;
+	case SGS_ST_NUMPTR:
+		{
+			sgs_Int val;
+			char tmp[ 24 ];
+			SGS_AS_INTEGER( val, t+1 );
+			sprintf( tmp, "%" PRIx64 "p", val );
+			sgs_membuf_appbuf( out, C, tmp, strlen( tmp ) );
+		}
+		break;
 	case SGS_ST_STRING:
 		{
 			int32_t i, size;
@@ -563,7 +597,7 @@ static int tp_tt2i( sgs_TokenType t )
 	/* 0 ident | 1 const | 2 punct | 3 op */
 	if( SGS_ST_ISOP( t ) ) return 3;
 	if( t == SGS_ST_IDENT || t == SGS_ST_KEYWORD ) return 0;
-	if( t == SGS_ST_NUMREAL || t == SGS_ST_NUMINT || t == SGS_ST_STRING ) return 1;
+	if( t == SGS_ST_NUMREAL || t == SGS_ST_NUMINT || t == SGS_ST_NUMPTR || t == SGS_ST_STRING ) return 1;
 	return 2;
 }
 
@@ -606,7 +640,7 @@ void sgsT_TokenString( SGS_CTX, sgs_MemBuf* out, sgs_TokenList tlist, sgs_TokenL
 }
 
 
-void sgsT_DumpToken( sgs_TokenList tok )
+void sgsT_DumpToken( SGS_CTX, sgs_TokenList tok )
 {
 	switch( *tok )
 	{
@@ -619,42 +653,49 @@ void sgsT_DumpToken( sgs_TokenList tok )
 	case SGS_ST_ARGSEP:
 	case SGS_ST_STSEP:
 	case SGS_ST_PICKSEP:
-		printf( "%c", *tok );
+		sgs_ErrWritef( C, "%c", *tok );
 		break;
 	case SGS_ST_IDENT:
-		fwrite( "id(", 1, 3, stdout );
-		fwrite( tok + 2, 1, tok[ 1 ], stdout );
-		fwrite( ")", 1, 1, stdout );
+		sgs_ErrWritef( C, "id(" );
+		sgs_WriteSafe( (sgs_ErrorOutputFunc) sgs_ErrWritef, C, (const char*) tok + 2, tok[ 1 ] );
+		sgs_ErrWritef( C, ")" );
 		break;
 	case SGS_ST_KEYWORD:
-		fwrite( "[", 1, 1, stdout );
-		fwrite( tok + 2, 1, tok[ 1 ], stdout );
-		fwrite( "]", 1, 1, stdout );
+		sgs_ErrWritef( C, "[" );
+		sgs_WriteSafe( (sgs_ErrorOutputFunc) sgs_ErrWritef, C, (const char*) tok + 2, tok[ 1 ] );
+		sgs_ErrWritef( C, "]" );
 		break;
 	case SGS_ST_NUMREAL:
 		{
 			sgs_Real val;
 			SGS_AS_REAL( val, tok + 1 );
-			printf( "real(%f)", val );
+			sgs_ErrWritef( C, "real(%f)", val );
 		}
 		break;
 	case SGS_ST_NUMINT:
 		{
 			sgs_Int val;
 			SGS_AS_INTEGER( val, tok + 1 );
-			printf( "int(%" PRId64 ")", val );
+			sgs_ErrWritef( C, "int(%" PRId64 ")", val );
+		}
+		break;
+	case SGS_ST_NUMPTR:
+		{
+			sgs_Int val;
+			SGS_AS_INTEGER( val, tok + 1 );
+			sgs_ErrWritef( C, "ptr(%" PRIx64 ")", val );
 		}
 		break;
 	case SGS_ST_STRING:
 		{
 			int32_t len;
 			SGS_ST_READINT( len, tok + 1 );
-			fwrite( "str(", 1, 4, stdout );
-			sgs_print_safe( stdout, (const char*) tok + 5, (size_t) len );
-			fwrite( ")", 1, 1, stdout );
+			sgs_ErrWritef( C, "str(" );
+			sgs_WriteSafe( (sgs_ErrorOutputFunc) sgs_ErrWritef, C, (const char*) tok + 5, (size_t) len );
+			sgs_ErrWritef( C, ")" );
 		}
 		break;
-#define OPR( op ) printf( "%s", op );
+#define OPR( op ) sgs_ErrWritef( C, "%s", op );
 	case SGS_ST_OP_RWCMP: OPR( "<=>" ); break;
 	case SGS_ST_OP_SEQ: OPR( "===" ); break;
 	case SGS_ST_OP_SNEQ: OPR( "!==" ); break;
@@ -699,18 +740,19 @@ void sgsT_DumpToken( sgs_TokenList tok )
 	case SGS_ST_OP_DEC: OPR( "--" ); break;
 #undef OPR
 	default:
-		fwrite( "<invalid>", 1, 9, stdout );
+		sgs_ErrWritef( C, "<invalid>" );
 		break;
 	}
+	sgs_ErrWritef( C, "@%d", sgsT_LineNum( tok ) );
 }
-void sgsT_DumpList( sgs_TokenList tlist, sgs_TokenList tend )
+void sgsT_DumpList( SGS_CTX, sgs_TokenList tlist, sgs_TokenList tend )
 {
-	printf( "\n" );
+	sgs_ErrWritef( C, "\n" );
 	while( tlist != tend && *tlist != 0 )
 	{
-		printf( "   " );
-		sgsT_DumpToken( tlist );
+		sgs_ErrWritef( C, "   " );
+		sgsT_DumpToken( C, tlist );
 		tlist = sgsT_Next( tlist );
 	}
-	printf( "\n\n" );
+	sgs_ErrWritef( C, "\n\n" );
 }

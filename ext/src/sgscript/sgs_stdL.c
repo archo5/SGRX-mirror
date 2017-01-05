@@ -1431,35 +1431,45 @@ static int sgsstd_fmtstreamI_check( SGS_CTX )
 
 
 
-static int sgsstd_fmtstream_getindex( SGS_ARGS_GETINDEXFUNC )
+static int sgsstd_fmtstream_prop_at_end_read( SGS_CTX, sgs_VarObj* obj )
 {
 	SGSFS_HDR;
-	SGS_BEGIN_INDEXFUNC
-		/* functions */
-		SGS_CASE( "read" )             return sgs_PushCFunc( C, sgsstd_fmtstreamI_read );
-		SGS_CASE( "getchar" )          return sgs_PushCFunc( C, sgsstd_fmtstreamI_getchar );
-		SGS_CASE( "readcc" )           return sgs_PushCFunc( C, sgsstd_fmtstreamI_readcc );
-		SGS_CASE( "skipcc" )           return sgs_PushCFunc( C, sgsstd_fmtstreamI_skipcc );
-		SGS_CASE( "read_real" )        return sgs_PushCFunc( C, sgsstd_fmtstreamI_read_real );
-		SGS_CASE( "read_int" )         return sgs_PushCFunc( C, sgsstd_fmtstreamI_read_int );
-		SGS_CASE( "read_binary_int" )  return sgs_PushCFunc( C, sgsstd_fmtstreamI_read_binary_int );
-		SGS_CASE( "read_octal_int" )   return sgs_PushCFunc( C, sgsstd_fmtstreamI_read_octal_int );
-		SGS_CASE( "read_decimal_int" ) return sgs_PushCFunc( C, sgsstd_fmtstreamI_read_decimal_int );
-		SGS_CASE( "read_hex_int" )     return sgs_PushCFunc( C, sgsstd_fmtstreamI_read_hex_int );
-		SGS_CASE( "check" )            return sgs_PushCFunc( C, sgsstd_fmtstreamI_check );
-		/* properties */
-		SGS_CASE( "at_end" )           return sgs_PushBool( C, hdr->state == FMTSTREAM_STATE_END );
-		SGS_CASE( "stream_offset" )    return sgs_PushInt( C, hdr->streamoff + hdr->bufpos );
-	SGS_END_INDEXFUNC
+	sgs_PushBool( C, hdr->state == FMTSTREAM_STATE_END );
+	return SGS_SUCCESS;
 }
 
+static int sgsstd_fmtstream_prop_stream_offset_read( SGS_CTX, sgs_VarObj* obj )
+{
+	SGSFS_HDR;
+	sgs_PushInt( C, hdr->streamoff + hdr->bufpos );
+	return SGS_SUCCESS;
+}
+
+static sgs_ObjProp sgsstd_fmtstream_props[] =
+{
+	SGS_OBJPROP_CALLBACK( "at_end", sgsstd_fmtstream_prop_at_end_read, NULL, 0 ),
+	SGS_OBJPROP_CALLBACK( "stream_offset", sgsstd_fmtstream_prop_stream_offset_read, NULL, 0 ),
+	SGS_OBJPROP_CFUNC( "read", sgsstd_fmtstreamI_read ),
+	SGS_OBJPROP_CFUNC( "getchar", sgsstd_fmtstreamI_getchar ),
+	SGS_OBJPROP_CFUNC( "readcc", sgsstd_fmtstreamI_readcc ),
+	SGS_OBJPROP_CFUNC( "skipcc", sgsstd_fmtstreamI_skipcc ),
+	SGS_OBJPROP_CFUNC( "read_real", sgsstd_fmtstreamI_read_real ),
+	SGS_OBJPROP_CFUNC( "read_int", sgsstd_fmtstreamI_read_int ),
+	SGS_OBJPROP_CFUNC( "read_binary_int", sgsstd_fmtstreamI_read_binary_int ),
+	SGS_OBJPROP_CFUNC( "read_octal_int", sgsstd_fmtstreamI_read_octal_int ),
+	SGS_OBJPROP_CFUNC( "read_decimal_int", sgsstd_fmtstreamI_read_decimal_int ),
+	SGS_OBJPROP_CFUNC( "read_hex_int", sgsstd_fmtstreamI_read_hex_int ),
+	SGS_OBJPROP_CFUNC( "check", sgsstd_fmtstreamI_check ),
+	SGS_OBJPROP_END(),
+};
 static sgs_ObjInterface sgsstd_fmtstream_iface[1] =
 {{
 	"fmtstream",
 	sgsstd_fmtstream_destroy, NULL,
-	sgsstd_fmtstream_getindex, NULL,
+	NULL, NULL,
 	NULL, NULL, NULL, NULL,
-	NULL, NULL
+	NULL, NULL,
+	sgsstd_fmtstream_props,
 }};
 
 static int sgsstd_fmt_parser( SGS_CTX )
@@ -1805,20 +1815,20 @@ static int sgsstd_io_stat( SGS_CTX )
 			return 0;
 		
 		/* --- */
-		sgs_PushString( C, "atime" );
+		sgs_PushStringLit( C, "atime" );
 		sgs_PushInt( C, data.st_atime );
-		sgs_PushString( C, "ctime" );
+		sgs_PushStringLit( C, "ctime" );
 		sgs_PushInt( C, data.st_ctime );
-		sgs_PushString( C, "mtime" );
+		sgs_PushStringLit( C, "mtime" );
 		sgs_PushInt( C, data.st_mtime );
-		sgs_PushString( C, "type" );
+		sgs_PushStringLit( C, "type" );
 		if( data.st_mode & S_IFDIR )
 			sgs_PushInt( C, FST_DIR );
 		else if( data.st_mode & S_IFREG )
 			sgs_PushInt( C, FST_FILE );
 		else
 			sgs_PushInt( C, FST_UNKNOWN );
-		sgs_PushString( C, "size" );
+		sgs_PushStringLit( C, "size" );
 		sgs_PushInt( C, data.st_size );
 		return sgs_CreateDict( C, NULL, 10 );
 	}
@@ -1976,67 +1986,6 @@ static int sgsstd_io_file_read( SGS_CTX )
 	SGS_UNUSED( data );
 
 
-static int sgsstd_fileP_offset( SGS_CTX, FILE* fp )
-{
-	int64_t pos;
-	if( !fp )
-		STDLIB_WARN( "file.offset - file is not opened" )
-	
-	pos = ftell( fp );
-	sgs_Errno( C, pos >= 0 );
-	sgs_PushInt( C, pos );
-	return SGS_SUCCESS;
-}
-
-static int sgsstd_fileP_size( SGS_CTX, FILE* fp )
-{
-	if( !fp )
-		STDLIB_WARN( "file.size - file is not opened" )
-	
-	{
-		int64_t size;
-		fpos_t pos;
-		if( fgetpos( fp, &pos ) < 0 )
-		{
-			sgs_Errno( C, 0 );
-			return SGS_EINPROC;
-		}
-		fseek( fp, 0, SEEK_END );
-		if( ( size = ftell( fp ) ) < 0 )
-		{
-			sgs_Errno( C, 0 );
-			return SGS_EINPROC;
-		}
-		sgs_PushInt( C, size );
-		if( fsetpos( fp, &pos ) != 0 )
-		{
-			sgs_Errno( C, 0 );
-			return SGS_EINPROC;
-		}
-		sgs_Errno( C, 1 );
-		return SGS_SUCCESS;
-	}
-}
-
-static int sgsstd_fileP_error( SGS_CTX, FILE* fp )
-{
-	if( !fp )
-		STDLIB_WARN( "file.error - file is not opened" )
-	
-	sgs_PushBool( C, ferror( fp ) );
-	return SGS_SUCCESS;
-}
-
-static int sgsstd_fileP_eof( SGS_CTX, FILE* fp )
-{
-	if( !fp )
-		STDLIB_WARN( "file.eof - file is not opened" )
-	
-	sgs_PushBool( C, feof( fp ) );
-	return SGS_SUCCESS;
-}
-
-
 static const char* g_io_fileflagmodes[] = { NULL, "rb", "wb", "wb+" };
 
 static int sgsstd_fileI_open( SGS_CTX )
@@ -2181,23 +2130,74 @@ static int sgsstd_fileI_setbuf( SGS_CTX )
 }
 
 
-static int sgsstd_file_getindex( SGS_ARGS_GETINDEXFUNC )
+static int sgsstd_file_prop_is_open_read( SGS_CTX, sgs_VarObj* obj )
 {
-	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "is_open" ) return sgs_PushBool( C, !!IFVAR );
-		SGS_CASE( "offset" )  return sgsstd_fileP_offset( C, IFVAR );
-		SGS_CASE( "size" )    return sgsstd_fileP_size( C, IFVAR );
-		SGS_CASE( "error" )   return sgsstd_fileP_error( C, IFVAR );
-		SGS_CASE( "eof" )     return sgsstd_fileP_eof( C, IFVAR );
-		
-		SGS_CASE( "open" )    return sgs_PushCFunc( C, sgsstd_fileI_open );
-		SGS_CASE( "close" )   return sgs_PushCFunc( C, sgsstd_fileI_close );
-		SGS_CASE( "read" )    return sgs_PushCFunc( C, sgsstd_fileI_read );
-		SGS_CASE( "write" )   return sgs_PushCFunc( C, sgsstd_fileI_write );
-		SGS_CASE( "seek" )    return sgs_PushCFunc( C, sgsstd_fileI_seek );
-		SGS_CASE( "flush" )   return sgs_PushCFunc( C, sgsstd_fileI_flush );
-		SGS_CASE( "setbuf" )  return sgs_PushCFunc( C, sgsstd_fileI_setbuf );
-	SGS_END_INDEXFUNC
+	sgs_PushBool( C, !!IFVAR );
+	return SGS_SUCCESS;
+}
+
+static int sgsstd_file_prop_offset_read( SGS_CTX, sgs_VarObj* obj )
+{
+	int64_t pos;
+	FILE* fp = IFVAR;
+	if( !fp )
+		STDLIB_WARN( "file.offset - file is not opened" )
+	
+	pos = ftell( fp );
+	sgs_Errno( C, pos >= 0 );
+	sgs_PushInt( C, pos );
+	return SGS_SUCCESS;
+}
+
+static int sgsstd_file_prop_size_read( SGS_CTX, sgs_VarObj* obj )
+{
+	FILE* fp = IFVAR;
+	if( !fp )
+		STDLIB_WARN( "file.size - file is not opened" )
+	
+	{
+		int64_t size;
+		fpos_t pos;
+		if( fgetpos( fp, &pos ) < 0 )
+		{
+			sgs_Errno( C, 0 );
+			return SGS_EINPROC;
+		}
+		fseek( fp, 0, SEEK_END );
+		if( ( size = ftell( fp ) ) < 0 )
+		{
+			sgs_Errno( C, 0 );
+			return SGS_EINPROC;
+		}
+		sgs_PushInt( C, size );
+		if( fsetpos( fp, &pos ) != 0 )
+		{
+			sgs_Errno( C, 0 );
+			return SGS_EINPROC;
+		}
+		sgs_Errno( C, 1 );
+		return SGS_SUCCESS;
+	}
+}
+
+static int sgsstd_file_prop_error_read( SGS_CTX, sgs_VarObj* obj )
+{
+	FILE* fp = IFVAR;
+	if( !fp )
+		STDLIB_WARN( "file.error - file is not opened" )
+	
+	sgs_PushBool( C, ferror( fp ) );
+	return SGS_SUCCESS;
+}
+
+static int sgsstd_file_prop_eof_read( SGS_CTX, sgs_VarObj* obj )
+{
+	FILE* fp = IFVAR;
+	if( !fp )
+		STDLIB_WARN( "file.eof - file is not opened" )
+	
+	sgs_PushBool( C, feof( fp ) );
+	return SGS_SUCCESS;
 }
 
 static int sgsstd_file_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -2220,13 +2220,30 @@ static int sgsstd_file_convert( SGS_CTX, sgs_VarObj* obj, int type )
 }
 
 
+static sgs_ObjProp sgsstd_file_props[] =
+{
+	SGS_OBJPROP_CALLBACK( "is_open", sgsstd_file_prop_is_open_read, NULL, 0 ),
+	SGS_OBJPROP_CALLBACK( "offset", sgsstd_file_prop_offset_read, NULL, 0 ),
+	SGS_OBJPROP_CALLBACK( "size", sgsstd_file_prop_size_read, NULL, 0 ),
+	SGS_OBJPROP_CALLBACK( "error", sgsstd_file_prop_error_read, NULL, 0 ),
+	SGS_OBJPROP_CALLBACK( "eof", sgsstd_file_prop_eof_read, NULL, 0 ),
+	SGS_OBJPROP_CFUNC( "open", sgsstd_fileI_open ),
+	SGS_OBJPROP_CFUNC( "close", sgsstd_fileI_close ),
+	SGS_OBJPROP_CFUNC( "read", sgsstd_fileI_read ),
+	SGS_OBJPROP_CFUNC( "write", sgsstd_fileI_write ),
+	SGS_OBJPROP_CFUNC( "seek", sgsstd_fileI_seek ),
+	SGS_OBJPROP_CFUNC( "flush", sgsstd_fileI_flush ),
+	SGS_OBJPROP_CFUNC( "setbuf", sgsstd_fileI_setbuf ),
+	SGS_OBJPROP_END(),
+};
 static sgs_ObjInterface sgsstd_file_iface[1] =
 {{
 	"file",
 	sgsstd_file_destruct, NULL,
-	sgsstd_file_getindex, NULL,
+	NULL, NULL,
 	sgsstd_file_convert, NULL, NULL, NULL,
-	NULL, NULL
+	NULL, NULL,
+	sgsstd_file_props,
 }};
 
 static int sgsstd_io_file( SGS_CTX )
@@ -2817,21 +2834,21 @@ static int sgsstd_os_parse_time( SGS_CTX )
 		time( &ttv );
 	T = *localtime( &ttv );
 	
-	sgs_PushString( C, "year" );
+	sgs_PushStringLit( C, "year" );
 	sgs_PushInt( C, T.tm_year + 1900 );
-	sgs_PushString( C, "month" );
+	sgs_PushStringLit( C, "month" );
 	sgs_PushInt( C, T.tm_mon + 1 );
-	sgs_PushString( C, "day" );
+	sgs_PushStringLit( C, "day" );
 	sgs_PushInt( C, T.tm_mday );
-	sgs_PushString( C, "weekday" );
+	sgs_PushStringLit( C, "weekday" );
 	sgs_PushInt( C, T.tm_wday ? T.tm_wday : 7 );
-	sgs_PushString( C, "yearday" );
+	sgs_PushStringLit( C, "yearday" );
 	sgs_PushInt( C, T.tm_yday + 1 );
-	sgs_PushString( C, "hours" );
+	sgs_PushStringLit( C, "hours" );
 	sgs_PushInt( C, T.tm_hour );
-	sgs_PushString( C, "minutes" );
+	sgs_PushStringLit( C, "minutes" );
 	sgs_PushInt( C, T.tm_min );
-	sgs_PushString( C, "seconds" );
+	sgs_PushStringLit( C, "seconds" );
 	sgs_PushInt( C, T.tm_sec );
 	sgs_CreateDict( C, NULL, sgs_StackSize( C ) - ssz );
 	return 1;
@@ -3841,7 +3858,7 @@ static int sgsstd_string_implode( SGS_CTX )
 	
 	if( !asize )
 	{
-		sgs_PushString( C, "" );
+		sgs_PushStringLit( C, "" );
 		return 1;
 	}
 	for( i = 0; i < asize; ++i )
@@ -4178,21 +4195,6 @@ static int utf8it_destruct( SGS_CTX, sgs_VarObj* obj )
 	return SGS_SUCCESS;
 }
 
-static int utf8it_getindex( SGS_ARGS_GETINDEXFUNC )
-{
-	U8I_HDR;
-	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "string" )
-		{
-			sgs_Variable var;
-			var.type = SGS_VT_STRING;
-			var.data.S = IT->str;
-			return sgs_PushVariable( C, var );
-		}
-		SGS_CASE( "offset" ) return sgs_PushInt( C, IT->i );
-	SGS_END_INDEXFUNC;
-}
-
 static int utf8it_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	U8I_HDR;
@@ -4277,13 +4279,20 @@ static int utf8it_getnext( SGS_CTX, sgs_VarObj* obj, int what )
 	}
 }
 
+static sgs_ObjProp utf8_iterator_props[] =
+{
+	SGS_OBJPROP_OFFSET( "string", offsetof( utf8iter, str ), SGS_OBJPROPTYPE_VARSTR, SGS_OBJPROP_NOWRITE ),
+	SGS_OBJPROP_OFFSET( "offset", offsetof( utf8iter, i ), SGS_OBJPROPTYPE_U32, 0 ),
+	SGS_OBJPROP_END(),
+};
 static sgs_ObjInterface utf8_iterator_iface[1] =
 {{
 	"utf8_iterator",
 	utf8it_destruct, NULL,
-	utf8it_getindex, utf8it_setindex,
+	NULL, utf8it_setindex,
 	utf8it_convert, utf8it_serialize, NULL, utf8it_getnext,
 	NULL, NULL,
+	utf8_iterator_props,
 }};
 
 static int sgsstd_string_utf8_iterator( SGS_CTX )

@@ -61,11 +61,13 @@ extern "C" {
 #define SGS_ST_ARGSEP   ','
 #define SGS_ST_STSEP    ';'
 #define SGS_ST_PICKSEP  ':'
+#define SGS_ST_HASH     '#'
 /*     other            id    additional data */
 #define SGS_ST_IDENT    'N' /* 1 byte (string size), N bytes (string), not null-terminated */
 #define SGS_ST_KEYWORD  'K' /* same as IDENT */
 #define SGS_ST_NUMREAL  'R' /* 8 bytes (double) */
 #define SGS_ST_NUMINT   'I' /* 8 bytes (int64) */
+#define SGS_ST_NUMPTR   'P' /* 8 bytes (int64) */
 #define SGS_ST_STRING   'S' /* 4 bytes (string size), N bytes (string), not null-terminated */
 /*     operators        id    type  */
 #define SGS_ST_OP_SEQ   200 /* ===  */
@@ -126,7 +128,7 @@ extern "C" {
 	(chr) == SGS_ST_OP_BLAND || (chr) == SGS_ST_OP_BLOR )
 #define SGS_ST_OP_FNN( chr )    ( (chr) == SGS_ST_OP_NLOEQ || (chr) == SGS_ST_OP_NLOR )
 
-#define SGS_ST_ISSPEC( chr )    sgs_isoneof( (chr), "()[]{},;:" )
+#define SGS_ST_ISSPEC( chr )    sgs_isoneof( (chr), "()[]{},;:#" )
 
 #define SGS_ST_READINT( tgt, pos )   SGS_AS_INT32( tgt, pos )
 #define SGS_ST_READLN( tgt, pos )    SGS_AS_( tgt, pos, sgs_LineNum )
@@ -148,8 +150,8 @@ SGS_APIFUNC size_t sgsT_ListMemSize( sgs_TokenList tlist );
 
 SGS_APIFUNC void sgsT_TokenString( SGS_CTX, sgs_MemBuf* out, sgs_TokenList tlist, sgs_TokenList tend, int xs );
 
-SGS_APIFUNC void sgsT_DumpToken( sgs_TokenList tok );
-SGS_APIFUNC void sgsT_DumpList( sgs_TokenList tlist, sgs_TokenList tend );
+SGS_APIFUNC void sgsT_DumpToken( SGS_CTX, sgs_TokenList tok );
+SGS_APIFUNC void sgsT_DumpList( SGS_CTX, sgs_TokenList tlist, sgs_TokenList tend );
 
 
 /*
@@ -196,6 +198,8 @@ SGS_APIFUNC void sgsT_DumpList( sgs_TokenList tlist, sgs_TokenList tend );
 #define SGS_SFT_CLSGLOB 34
 #define SGS_SFT_CLSPFX  35
 #define SGS_SFT_NEWCALL 36 /* new */
+#define SGS_SFT_FORNUMI 37 /* numeric 'for' with integers */
+#define SGS_SFT_FORNUMR 38 /* numeric 'for' with real values */
 /* threading addons */
 #define SGS_SFT_THRCALL 40 /* thread */
 #define SGS_SFT_STHCALL 41 /* subthread */
@@ -213,14 +217,17 @@ struct sgs_FTNode
 SGS_APIFUNC void sgsFT_Destroy( SGS_CTX, sgs_FTNode* tree );
 
 SGS_APIFUNC sgs_FTNode* sgsFT_Compile( SGS_CTX, sgs_TokenList tlist );
-SGS_APIFUNC void sgsFT_Dump( sgs_FTNode* tree );
+SGS_APIFUNC void sgsFT_Dump( SGS_CTX, sgs_FTNode* tree );
 
 
 
 /* - bytecode generator */
+typedef uint32_t sgs_instr_t;
 SGS_APIFUNC sgs_iFunc* sgsBC_Generate( SGS_CTX, sgs_FTNode* tree );
-SGS_APIFUNC void sgsBC_DumpEx( const char* constptr, size_t constsize,
-	const char* codeptr, size_t codesize );
+SGS_APIFUNC void sgsBC_DumpOpcode( SGS_CTX, const sgs_instr_t* ptr, size_t count,
+	const sgs_instr_t* numstart, const sgs_LineNum* lines );
+SGS_APIFUNC void sgsBC_DumpEx( SGS_CTX, const char* constptr, size_t constsize,
+	const char* codeptr, size_t codesize, const sgs_LineNum* lines, const char* varinfo );
 
 
 /*
@@ -270,6 +277,8 @@ typedef enum sgs_Instruction
 	SGS_SI_FORPREP,  /* (A:out, B:src)          retrieves the iterator to work the object */
 	SGS_SI_FORLOAD,  /* (A:iter, B:oky, C:ovl)  retrieves current key & value from iterator */
 	SGS_SI_FORJUMP,  /* (C:iter, E:off)         advances and jumps if next key exists */
+	SGS_SI_NFORPREP, /* (C:firstreg, E:off)    sets up a numeric for loop */
+	SGS_SI_NFORJUMP, /* -- || --               advances a numeric for loop */
 
 	SGS_SI_LOADCONST,/* (C:out, E:off)          load a constant to a register */
 	SGS_SI_GETVAR,   /* (A:out, B:name)         <varname> => <value> */
@@ -293,7 +302,6 @@ typedef enum sgs_Instruction
 	*/
 	SGS_SI_SET,      /* B */
 	SGS_SI_MCONCAT,  /* (A:out, B:N) */
-	SGS_SI_CONCAT,   /* A */
 	SGS_SI_NEGATE,   /* B */
 	SGS_SI_BOOL_INV,
 	SGS_SI_INVERT,
@@ -338,8 +346,8 @@ typedef enum sgs_Instruction
 }
 sgs_Instruction;
 
+SGS_CASSERT( SGS_SI_COUNT <= 64, too_many_instructions );
 
-typedef uint32_t sgs_instr_t;
 
 /*
 	instruction data: 32 bits
@@ -394,6 +402,8 @@ struct sgs_iFunc
 	sgs_LineNum* lineinfo;
 	sgs_iStr* sfuncname;
 	sgs_iStr* sfilename;
+	/* uint32 size, [uint32 from, uint32 to, int16 pos, uint8 length, char[] name] x count */
+	char* dbg_varinfo;
 };
 
 SGS_CASSERT( sizeof(sgs_Variable) % 4 == 0, variable_object_chaining_issue );
@@ -568,7 +578,8 @@ void fstk_pop( SGS_CTX, sgs_StkIdx num );
 void fstk_pop1( SGS_CTX );
 
 size_t sgsVM_VarSize( const sgs_Variable* var );
-void sgsVM_VarDump( const sgs_Variable* var );
+SGS_APIFUNC void sgsVM_VarDump( SGS_CTX, const sgs_Variable* var );
+SGS_APIFUNC void sgsVM_DumpFunction( SGS_CTX, sgs_iFunc* F, int recursive );
 
 void sgsVM_StackDump( SGS_CTX );
 
@@ -658,6 +669,8 @@ struct sgs_ShCtx
 	sgs_OutputFunc erroutput_fn; /* error output function */
 	void*         erroutput_ctx; /* error output context */
 	
+	sgs_ParserConfig parser_cfg;
+	
 	/* memory */
 	sgs_MemFunc   memfunc;
 	void*         mfuserdata;
@@ -704,6 +717,9 @@ struct sgs_ShCtx
 #define SGS_STATE_LASTFUNCABORT 0x0020U
 #define SGS_STATE_INSIDE_API    0x0040U
 #define SGS_STATE_COROSTART     0x0080U /* function is pushed to stack */
+
+#define SGS_STATE__INITIAL     (0)
+#define SGS_STATE__PARSERMASK  (SGS_MUST_STOP)
 
 struct sgs_Context
 {
@@ -788,15 +804,18 @@ static const char* sgs_OpNames[] =
 {
 	"nop", "push", "int",
 	"ret1", "return", "jump", "jump_if_true", "jump_if_false", "jump_if_null", "call",
-	"for_prep", "for_load", "for_jump", "loadconst", "getvar", "setvar",
+	"for_prep", "for_load", "for_jump",
+	"num_for_prep", "num_for_jump",
+	"loadconst", "getvar", "setvar",
 	"getprop", "setprop", "getindex", "setindex", "arrpush",
 	"clsrinfo", "makeclsr", "getclsr", "setclsr",
-	"set", "mconcat", "concat", "negate", "bool_inv", "invert",
+	"set", "mconcat", "negate", "bool_inv", "invert",
 	"inc", "dec", "add", "sub", "mul", "div", "mod",
 	"and", "or", "xor", "lsh", "rsh",
 	"seq", "sneq", "eq", "neq", "lt", "gte", "gt", "lte", "rawcmp",
 	"array", "dict", "map", "class", "new", "rsym", "cotrt", "cotrf", "coabort", "yldjmp",
 };
+SGS_CASSERT( SGS_ARRAY_SIZE( sgs_OpNames ) == SGS_SI_COUNT, good_instr_name_count );
 
 #endif
 

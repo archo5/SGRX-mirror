@@ -47,11 +47,6 @@ extern "C" {
 #  define SGS_DEBUG_DATA 0
 #endif
 
-/* function entry/exit tagging */
-#ifndef SGS_DEBUG_FLOW
-#  define SGS_DEBUG_FLOW 0
-#endif
-
 /* instruction logging */
 #ifndef SGS_DEBUG_INSTR
 #  define SGS_DEBUG_INSTR 0
@@ -440,6 +435,21 @@ typedef SGSRESULT (*sgs_ScriptFSFunc) (
 );
 
 
+/* syntax modification */
+typedef SGSBOOL (*sgs_TokenEditFunc) (
+	void* /* userdata */,
+	sgs_Context* /* ctx / SGS_CTX */,
+	unsigned char** /* pptokens */
+);
+typedef struct sgs_ParserConfig
+{
+	sgs_TokenEditFunc token_editor;
+	void* token_editor_userdata;
+	uint32_t ident_dollar_sign : 1;
+}
+sgs_ParserConfig;
+
+
 /* for state/query functions */
 #define SGS_TRUE 1
 #define SGS_FALSE 0
@@ -503,6 +513,67 @@ typedef int (*sgs_ObjCallback) ( sgs_Context*, sgs_VarObj* );
 typedef int (*sgs_OC_Self) ( sgs_Context*, sgs_VarObj* );
 typedef int (*sgs_OC_SlPr) ( sgs_Context*, sgs_VarObj*, int );
 
+#define SGS_OBJPROPTYPE_U8BOOL   0
+#define SGS_OBJPROPTYPE_U32BOOL  1
+#define SGS_OBJPROPTYPE_ICHAR    2
+#define SGS_OBJPROPTYPE_UCHAR    3
+#define SGS_OBJPROPTYPE_I8       4
+#define SGS_OBJPROPTYPE_U8       5
+#define SGS_OBJPROPTYPE_ISHORT   6
+#define SGS_OBJPROPTYPE_USHORT   7
+#define SGS_OBJPROPTYPE_I16      8
+#define SGS_OBJPROPTYPE_U16      9
+#define SGS_OBJPROPTYPE_IINT    10
+#define SGS_OBJPROPTYPE_UINT    11
+#define SGS_OBJPROPTYPE_ILONG   12
+#define SGS_OBJPROPTYPE_ULONG   13
+#define SGS_OBJPROPTYPE_I32     14
+#define SGS_OBJPROPTYPE_U32     15
+#define SGS_OBJPROPTYPE_I2LONG  16
+#define SGS_OBJPROPTYPE_I64     17
+/* U64/U2LONG cannot be represented by the language types */
+/* for most purposes, interpreting memory as signed int should work */
+#define SGS_OBJPROPTYPE_FLOAT   18
+#define SGS_OBJPROPTYPE_DOUBLE  19
+/* (20-31) reserved for platform-specific basic types */
+#define SGS_OBJPROPTYPE_VOIDP   32 /* void* */
+#define SGS_OBJPROPTYPE_VAR     33 /* sgs_Variable */
+#define SGS_OBJPROPTYPE_VAROBJ  34 /* sgs_VarObj* */
+#define SGS_OBJPROPTYPE_VARSTR  35 /* sgs_iStr* */
+#define SGS_OBJPROPTYPE_THREAD  36 /* sgs_Context* */
+#define SGS_OBJPROPTYPE_OBJBOOL 37 /* special case: obj->data { true = obj, false = NULL } */
+#define SGS_OBJPROPTYPE_CBFUNC 254 /* sgs_CFunc from 'offset_or_cb' */
+#define SGS_OBJPROPTYPE_CUSTOM 255 /* callback */
+
+#define SGS_OBJPROP_NOREAD   0x01
+#define SGS_OBJPROP_NOWRITE  0x02
+#define SGS_OBJPROP_NOLIST   0x04 /* don't show in lists */
+#define SGS_OBJPROP_NODUMP   0x08 /* don't show in dumps */
+#define SGS_OBJPROP_NOGCMARK 0x10
+#define SGS_OBJPROP_STRICT   0x20 /* don't accept null for writes */
+
+typedef int (*sgs_OC_Prop) ( sgs_Context*, sgs_VarObj* );
+
+typedef struct sgs_ObjProp
+{
+	const char* name;
+	uint8_t     nmlength;
+	uint8_t     type;
+	uint16_t    flags;
+	void*       offset_or_getcb; /* sgs_OC_Prop / sgs_CFunc */
+	void*       setcb; /* sgs_OC_Prop */
+}
+sgs_ObjProp;
+
+#define SGS_OBJPROP_OFFSET( name, offset, type, flags ) \
+	{ (name), sizeof(name)-1, (type), (flags), (void*) (offset), NULL }
+#define SGS_OBJPROP_CALLBACK( name, getcb, setcb, flags ) \
+	{ (name), sizeof(name)-1, SGS_OBJPROPTYPE_CUSTOM, (flags), (void*)(getcb), (void*)(setcb) }
+#define SGS_OBJPROP_CFUNC( name, func ) \
+	{ (name), sizeof(name)-1, SGS_OBJPROPTYPE_CBFUNC, \
+		(SGS_OBJPROP_NOLIST|SGS_OBJPROP_NODUMP), (void*)(func), NULL }
+#define SGS_OBJPROP_END() { NULL, 0, 0, 0, NULL, NULL }
+
 typedef struct sgs_ObjInterface
 {
 	const char* name;
@@ -520,6 +591,8 @@ typedef struct sgs_ObjInterface
 	
 	sgs_OC_Self call;
 	sgs_OC_Self expr;
+	
+	sgs_ObjProp* proplist;
 }
 sgs_ObjInterface;
 
@@ -634,6 +707,9 @@ SGS_APIFUNC void sgs_SetErrOutputFunc( SGS_CTX, sgs_OutputFunc func, void* ctx )
 SGS_APIFUNC void sgs_ErrWrite( SGS_CTX, const void* ptr, size_t size );
 SGS_APIFUNC SGSBOOL sgs_ErrWritef( SGS_CTX, const char* what, ... );
 
+SGS_APIFUNC void sgs_GetParserConfig( SGS_CTX, sgs_ParserConfig* out );
+SGS_APIFUNC void sgs_SetParserConfig( SGS_CTX, sgs_ParserConfig* cfg );
+
 #define SGSMSGFN_DEFAULT ((sgs_MsgFunc)-1)
 #define SGSMSGFN_DEFAULT_NOABORT ((sgs_MsgFunc)-2)
 SGS_APIFUNC void sgs_GetMsgFunc( SGS_CTX, sgs_MsgFunc* outf, void** outc );
@@ -647,11 +723,12 @@ typedef int (*sgs_ErrorOutputFunc) ( void*, const char*, ... );
 SGS_APIFUNC void sgs_WriteErrorInfo( SGS_CTX, int flags,
 	sgs_ErrorOutputFunc func, void* ctx, int type, const char* msg );
 SGS_APIFUNC void sgs_PushErrorInfo( SGS_CTX, int flags, int type, const char* msg );
+SGS_APIFUNC void sgs_WriteSafe( sgs_ErrorOutputFunc func, void* ctx, const char* buf, size_t size );
 
-SGS_APIFUNC SGSBOOL sgs_GetHookFunc( SGS_CTX, sgs_HookFunc* outf, void** outc );
+SGS_APIFUNC void sgs_GetHookFunc( SGS_CTX, sgs_HookFunc* outf, void** outc );
 SGS_APIFUNC void sgs_SetHookFunc( SGS_CTX, sgs_HookFunc func, void* ctx );
 
-SGS_APIFUNC SGSBOOL sgs_GetScriptFSFunc( SGS_CTX, sgs_ScriptFSFunc* outf, void** outc );
+SGS_APIFUNC void sgs_GetScriptFSFunc( SGS_CTX, sgs_ScriptFSFunc* outf, void** outc );
 SGS_APIFUNC void sgs_SetScriptFSFunc( SGS_CTX, sgs_ScriptFSFunc func, void* ctx );
 
 SGS_APIFUNC void* sgs_Memory( SGS_CTX, void* ptr, size_t size );
@@ -665,6 +742,7 @@ SGS_APIFUNC void* sgs_Memory( SGS_CTX, void* ptr, size_t size );
 #define sgs_Dealloc( ptr ) sgs_Free( C, ptr )
 
 
+SGS_APIFUNC SGSRESULT sgs_PushSGSFunctionBuf( SGS_CTX, const char* buf, size_t size );
 SGS_APIFUNC SGSRESULT sgs_EvalBuffer( SGS_CTX, const char* buf, size_t size );
 SGS_APIFUNC SGSRESULT sgs_EvalFile( SGS_CTX, const char* file );
 SGS_APIFUNC SGSRESULT sgs_AdjustStack( SGS_CTX, int expected, int ret );
@@ -683,8 +761,9 @@ SGS_APIFUNC sgs_StackFrame* sgs_GetFramePtr( SGS_CTX, sgs_StackFrame* from, int 
 #ifndef SGS_STRINGLENGTHFUNC
 #define SGS_STRINGLENGTHFUNC strlen
 #endif
-#define SGS_STRLITBUF( lit ) lit, sizeof(lit) - 1
+#define SGS_STRLITBUF( lit ) (lit), sizeof(lit) - 1
 
+#define sgs_PushSGSFunction( C, str ) sgs_PushSGSFunctionBuf( C, str, SGS_STRINGLENGTHFUNC( str ) )
 #define sgs_ExecBuffer( C, buf, sz ) sgs_AdjustStack( C, 0, sgs_EvalBuffer( C, buf, sz ) )
 #define sgs_ExecString( C, str ) sgs_ExecBuffer( C, str, SGS_STRINGLENGTHFUNC( str ) )
 #define sgs_EvalString( C, str ) sgs_EvalBuffer( C, str, SGS_STRINGLENGTHFUNC( str ) )
@@ -782,6 +861,7 @@ static SGS_INLINE sgs_Variable sgs_MakePtr( void* v )
 }
 
 SGS_APIFUNC void sgs_InitStringBuf( SGS_CTX, sgs_Variable* out, const char* str, sgs_SizeVal size );
+#define sgs_InitStringLit( C, out, strlit ) (sgs_InitStringBuf( (C), (out), SGS_STRLITBUF(strlit) ))
 SGS_APIFUNC void sgs_InitString( SGS_CTX, sgs_Variable* out, const char* str );
 SGS_APIFUNC void sgs_InitObjectPtr( sgs_Variable* out, sgs_VarObj* obj );
 SGS_APIFUNC void sgs_InitThreadPtr( sgs_Variable* out, sgs_Context* T );
@@ -805,6 +885,7 @@ SGS_APIFUNC SGSONE sgs_PushBool( SGS_CTX, sgs_Bool value );
 SGS_APIFUNC SGSONE sgs_PushInt( SGS_CTX, sgs_Int value );
 SGS_APIFUNC SGSONE sgs_PushReal( SGS_CTX, sgs_Real value );
 SGS_APIFUNC SGSONE sgs_PushStringBuf( SGS_CTX, const char* str, sgs_SizeVal size );
+#define sgs_PushStringLit( C, strlit ) (sgs_PushStringBuf( (C), SGS_STRLITBUF(strlit) ))
 SGS_APIFUNC SGSONE sgs_PushString( SGS_CTX, const char* str );
 SGS_APIFUNC SGSONE sgs_PushCFunc( SGS_CTX, sgs_CFunc func );
 SGS_APIFUNC SGSONE sgs_PushObjectPtr( SGS_CTX, sgs_VarObj* obj );
@@ -840,6 +921,9 @@ SGS_APIFUNC SGSBOOL sgs_SetGlobal( SGS_CTX, sgs_Variable idx, sgs_Variable val )
 SGS_APIFUNC SGSBOOL sgs_PushGlobalByName( SGS_CTX, const char* name );
 SGS_APIFUNC SGSBOOL sgs_GetGlobalByName( SGS_CTX, const char* name, sgs_Variable* out );
 SGS_APIFUNC void sgs_SetGlobalByName( SGS_CTX, const char* name, sgs_Variable val );
+
+/* property list enumeration */
+SGS_APIFUNC SGSONE sgs_CreatePropList( SGS_CTX, sgs_Variable* out, sgs_Variable obj );
 
 #define SGS_REG_ROOT 0
 #define SGS_REG_SYM 1
@@ -998,8 +1082,8 @@ SGS_APIFUNC char* sgs_GlobalStringBuf( SGS_CTX, const char* name, sgs_SizeVal* o
 #define sgs_GlobalString( C, name ) sgs_GlobalStringBuf( C, name, NULL )
 
 /* iterator interface fns */
-SGS_APIFUNC SGSBOOL sgs_PushIterator( SGS_CTX, sgs_Variable var );
-SGS_APIFUNC SGSBOOL sgs_GetIterator( SGS_CTX, sgs_Variable var, sgs_Variable* out );
+#define sgs_PushIterator( C, var ) sgs_CreateIterator( (C), NULL, (var) )
+SGS_APIFUNC SGSBOOL sgs_CreateIterator( SGS_CTX, sgs_Variable* out, sgs_Variable var );
 SGS_APIFUNC SGSBOOL sgs_IterAdvance( SGS_CTX, sgs_Variable var );
 SGS_APIFUNC void sgs_IterPushData( SGS_CTX, sgs_Variable var, int key, int value );
 SGS_APIFUNC void sgs_IterGetData( SGS_CTX, sgs_Variable var, sgs_Variable* key, sgs_Variable* value );
@@ -1015,11 +1099,8 @@ SGS_APIFUNC SGSBOOL sgs_ForceHideThis( SGS_CTX );
 SGS_APIFUNC int sgs_ObjectArg( SGS_CTX );
 
 SGS_APIFUNC void sgs_Acquire( SGS_CTX, sgs_Variable* var );
-SGS_APIFUNC void sgs_AcquireArray( SGS_CTX, sgs_Variable* var, sgs_SizeVal count );
 SGS_APIFUNC void sgs_Release( SGS_CTX, sgs_Variable* var );
-SGS_APIFUNC void sgs_ReleaseArray( SGS_CTX, sgs_Variable* var, sgs_SizeVal count );
 SGS_APIFUNC void sgs_GCMark( SGS_CTX, sgs_Variable* var );
-SGS_APIFUNC void sgs_GCMarkArray( SGS_CTX, sgs_Variable* var, sgs_SizeVal count );
 SGS_APIFUNC void sgs_ObjAcquire( SGS_CTX, sgs_VarObj* obj );
 SGS_APIFUNC void sgs_ObjRelease( SGS_CTX, sgs_VarObj* obj );
 SGS_APIFUNC void sgs_ObjGCMark( SGS_CTX, sgs_VarObj* obj );

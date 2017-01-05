@@ -48,7 +48,10 @@ static void sgsstd_array_reserve( SGS_CTX, sgsstd_array_header_t* hdr, sgs_SizeV
 
 static void sgsstd_array_clear( SGS_CTX, sgsstd_array_header_t* hdr )
 {
-	sgs_ReleaseArray( C, SGSARR_PTR( hdr ), hdr->size );
+	sgs_Variable* var = SGSARR_PTR( hdr );
+	sgs_Variable* vend = var + hdr->size;
+	while( var < vend )
+		sgs_Release( C, var++ );
 	hdr->size = 0;
 }
 
@@ -103,7 +106,12 @@ static void sgsstd_array_erase( SGS_CTX, sgsstd_array_header_t* hdr, sgs_SizeVal
 	
 	sgs_BreakIf( from < 0 || from >= hdr->size || to < 0 || to >= hdr->size || from > to );
 	
-	sgs_ReleaseArray( C, ptr + from, to - from + 1 );
+	{
+		sgs_Variable* a = ptr + from;
+		sgs_Variable* b = ptr + to1;
+		while( a < b )
+			sgs_Release( C, a++ );
+	}
 	if( to1 < hdr->size )
 		memmove( ptr + from, ptr + to1, SGSARR_ALLOCSIZE( hdr->size - to1 ) );
 	hdr->size -= cnt;
@@ -645,57 +653,65 @@ static int sgsstd_array_iface_gen( SGS_CTX )
 	return 1;
 }
 
-static int sgsstd_array_getprop( SGS_CTX, void* data )
+static int sgsstd_array_prop_first_read( SGS_CTX, sgs_VarObj* obj )
 {
-	char* name;
-	SGSARR_HDR;
-	if( sgs_ParseString( C, 0, &name, NULL ) )
+	SGSARR_HDR_OI;
+	if( hdr->size )
 	{
-		if( 0 == strcmp( name, "size" ) )
-		{
-			sgs_PushInt( C, hdr->size );
-			return SGS_SUCCESS;
-		}
-		else if( 0 == strcmp( name, "capacity" ) )
-		{
-			sgs_PushInt( C, hdr->mem );
-			return SGS_SUCCESS;
-		}
-		else if( 0 == strcmp( name, "first" ) )
-		{
-			if( hdr->size )
-			{
-				fstk_push( C, &SGSARR_PTR( hdr )[ 0 ] );
-			}
-			else
-			{
-				fstk_push_null( C );
-				sgs_Msg( C, SGS_WARNING, "array is empty, cannot get first item" );
-			}
-			return SGS_SUCCESS;
-		}
-		else if( 0 == strcmp( name, "last" ) )
-		{
-			if( hdr->size )
-			{
-				fstk_push( C, &SGSARR_PTR( hdr )[ hdr->size - 1 ] );
-			}
-			else
-			{
-				fstk_push_null( C );
-				sgs_Msg( C, SGS_WARNING, "array is empty, cannot get last item" );
-			}
-			return SGS_SUCCESS;
-		}
+		sgs_PushVariable( C, SGSARR_PTR( hdr )[ 0 ] );
 	}
-	return SGS_ENOTFND;
+	else
+	{
+		sgs_Msg( C, SGS_WARNING, "array is empty, cannot get first item" );
+	}
+	return SGS_SUCCESS;
+}
+
+static int sgsstd_array_prop_first_write( SGS_CTX, sgs_VarObj* obj )
+{
+	SGSARR_HDR_OI;
+	if( hdr->size )
+	{
+		sgs_GetStackItem( C, 0, &SGSARR_PTR( hdr )[ 0 ] );
+	}
+	else
+	{
+		sgs_Msg( C, SGS_WARNING, "array is empty, cannot set first item" );
+	}
+	return SGS_SUCCESS;
+}
+
+static int sgsstd_array_prop_last_read( SGS_CTX, sgs_VarObj* obj )
+{
+	SGSARR_HDR_OI;
+	if( hdr->size )
+	{
+		sgs_PushVariable( C, SGSARR_PTR( hdr )[ hdr->size - 1 ] );
+	}
+	else
+	{
+		sgs_Msg( C, SGS_WARNING, "array is empty, cannot get last item" );
+	}
+	return SGS_SUCCESS;
+}
+
+static int sgsstd_array_prop_last_write( SGS_CTX, sgs_VarObj* obj )
+{
+	SGSARR_HDR_OI;
+	if( hdr->size )
+	{
+		sgs_GetStackItem( C, 0, &SGSARR_PTR( hdr )[ hdr->size - 1 ] );
+	}
+	else
+	{
+		sgs_Msg( C, SGS_WARNING, "array is empty, cannot set last item" );
+	}
+	return SGS_SUCCESS;
 }
 
 int sgsstd_array_getindex( SGS_ARGS_GETINDEXFUNC )
 {
-	if( C->object_arg )
-		return sgsstd_array_getprop( C, obj->data );
-	else
+	if( C->object_arg == 0 )
 	{
 		SGSARR_HDR_OI;
 		sgs_Variable* ptr = SGSARR_PTR( hdr );
@@ -708,6 +724,7 @@ int sgsstd_array_getindex( SGS_ARGS_GETINDEXFUNC )
 		fstk_push( C, &ptr[ i ] );
 		return SGS_SUCCESS;
 	}
+	return SGS_ENOTFND;
 }
 
 static int sgsstd_array_setindex( SGS_ARGS_SETINDEXFUNC )
@@ -743,7 +760,7 @@ static int sgsstd_array_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{
 			for( i = 0; i < hdr->size; ++i )
 			{
-				sgs_PushString( C, "\n" );
+				sgs_PushStringLit( C, "\n" );
 				sgs_DumpVar( C, SGSARR_PTR( hdr )[ i ], depth );
 			}
 			sgs_StringConcat( C, hdr->size * 2 );
@@ -752,10 +769,10 @@ static int sgsstd_array_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	}
 	else
 	{
-		sgs_PushString( C, "\n..." );
+		sgs_PushStringLit( C, "\n..." );
 		sgs_PadString( C );
 	}
-	sgs_PushString( C, "\n]" );
+	sgs_PushStringLit( C, "\n]" );
 	sgs_StringConcat( C, stk_size( C ) - ssz );
 	return SGS_SUCCESS;
 }
@@ -763,7 +780,10 @@ static int sgsstd_array_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 static int sgsstd_array_gcmark( SGS_CTX, sgs_VarObj* obj )
 {
 	SGSARR_HDR_OI;
-	sgs_GCMarkArray( C, SGSARR_PTR( hdr ), hdr->size );
+	sgs_Variable* var = SGSARR_PTR( hdr );
+	sgs_Variable* vend = var + hdr->size;
+	while( var < vend )
+		sgs_GCMark( C, var++ );
 	return SGS_SUCCESS;
 }
 
@@ -842,16 +862,16 @@ static int sgsstd_array_convert( SGS_CTX, sgs_VarObj* obj, int type )
 		sgs_Variable* var = SGSARR_PTR( obj->data );
 		sgs_Variable* vend = var + hdr->size;
 		
-		sgs_PushString( C, "[" );
+		sgs_PushStringLit( C, "[" );
 		while( var < vend )
 		{
 			fstk_push( C, var );
 			sgs_ToStringFast( C, -1 );
 			var++;
 			if( var < vend )
-				sgs_PushString( C, "," );
+				sgs_PushStringLit( C, "," );
 		}
-		sgs_PushString( C, "]" );
+		sgs_PushStringLit( C, "]" );
 		sgs_StringConcat( C, hdr->size * 2 + 1 + !hdr->size );
 		return SGS_SUCCESS;
 	}
@@ -918,13 +938,22 @@ static int sgsstd_array_destruct( SGS_CTX, sgs_VarObj* obj )
 	return 0;
 }
 
+static sgs_ObjProp sgsstd_array_props[] =
+{
+	SGS_OBJPROP_OFFSET( "size", offsetof( sgsstd_array_header_t, size ), SGS_OBJPROPTYPE_I32, SGS_OBJPROP_NOWRITE ),
+	SGS_OBJPROP_OFFSET( "capacity", offsetof( sgsstd_array_header_t, mem ), SGS_OBJPROPTYPE_I32, SGS_OBJPROP_NOWRITE ),
+	SGS_OBJPROP_CALLBACK( "first", sgsstd_array_prop_first_read, sgsstd_array_prop_first_write, SGS_OBJPROP_NOGCMARK ),
+	SGS_OBJPROP_CALLBACK( "last", sgsstd_array_prop_last_read, sgsstd_array_prop_last_write, SGS_OBJPROP_NOGCMARK ),
+	SGS_OBJPROP_END(),
+};
 SGS_APIFUNC sgs_ObjInterface sgsstd_array_iface[1] =
 {{
 	"array",
 	sgsstd_array_destruct, sgsstd_array_gcmark,
 	sgsstd_array_getindex, sgsstd_array_setindex,
 	sgsstd_array_convert, sgsstd_array_serialize, sgsstd_array_dump, NULL,
-	NULL, NULL
+	NULL, NULL,
+	sgsstd_array_props
 }};
 
 static int sgsstd_array( SGS_CTX )
@@ -1035,7 +1064,7 @@ static int sgsstd_vht_dump( SGS_CTX, sgs_VarObj* obj, int depth, const char* nam
 		{
 			while( pair < pend )
 			{
-				sgs_PushString( C, "\n" );
+				sgs_PushStringLit( C, "\n" );
 				if( pair->key.type == SGS_VT_STRING )
 				{
 					fstk_push( C, &pair->key );
@@ -1045,7 +1074,7 @@ static int sgsstd_vht_dump( SGS_CTX, sgs_VarObj* obj, int depth, const char* nam
 				{
 					sgs_DumpVar( C, pair->key, depth );
 				}
-				sgs_PushString( C, " = " );
+				sgs_PushStringLit( C, " = " );
 				sgs_DumpVar( C, pair->val, depth );
 				pair++;
 			}
@@ -1056,10 +1085,10 @@ static int sgsstd_vht_dump( SGS_CTX, sgs_VarObj* obj, int depth, const char* nam
 	}
 	else
 	{
-		sgs_PushString( C, "\n..." );
+		sgs_PushStringLit( C, "\n..." );
 		sgs_PadString( C );
 	}
-	sgs_PushString( C, "\n}" );
+	sgs_PushStringLit( C, "\n}" );
 	sgs_StringConcat( C, stk_size( C ) - ssz );
 	return SGS_SUCCESS;
 }
@@ -1219,19 +1248,19 @@ static int sgsstd_dict_convert( SGS_CTX, sgs_VarObj* obj, int type )
 	{
 		sgs_VHTVar *pair = ht->vars, *pend = ht->vars + sgs_vht_size( ht );
 		int cnt = 0;
-		sgs_PushString( C, "{" );
+		sgs_PushStringLit( C, "{" );
 		while( pair < pend )
 		{
 			if( cnt )
-				sgs_PushString( C, "," );
+				sgs_PushStringLit( C, "," );
 			fstk_push( C, &pair->key );
-			sgs_PushString( C, "=" );
+			sgs_PushStringLit( C, "=" );
 			fstk_push( C, &pair->val );
 			sgs_ToStringFast( C, -1 );
 			cnt++;
 			pair++;
 		}
-		sgs_PushString( C, "}" );
+		sgs_PushStringLit( C, "}" );
 		sgs_StringConcat( C, cnt * 4 + 1 + !cnt );
 		return SGS_SUCCESS;
 	}
@@ -1331,20 +1360,20 @@ static int sgsstd_map_convert( SGS_CTX, sgs_VarObj* obj, int type )
 	{
 		sgs_VHTVar *pair = ht->vars, *pend = ht->vars + sgs_vht_size( ht );
 		int cnt = 0;
-		sgs_PushString( C, "[map]{" );
+		sgs_PushStringLit( C, "[map]{" );
 		while( pair < pend )
 		{
 			if( cnt )
-				sgs_PushString( C, "," );
+				sgs_PushStringLit( C, "," );
 			fstk_push( C, &pair->key );
 			sgs_ToStringFast( C, -1 );
-			sgs_PushString( C, "=" );
+			sgs_PushStringLit( C, "=" );
 			fstk_push( C, &pair->val );
 			sgs_ToStringFast( C, -1 );
 			cnt++;
 			pair++;
 		}
-		sgs_PushString( C, "}" );
+		sgs_PushStringLit( C, "}" );
 		sgs_StringConcat( C, cnt * 4 + 1 + !cnt );
 		return SGS_SUCCESS;
 	}
@@ -1453,20 +1482,6 @@ static int sgsstd_closure_destruct( SGS_CTX, sgs_VarObj* obj )
 	return SGS_SUCCESS;
 }
 
-static int sgsstd_closure_getindex( SGS_ARGS_GETINDEXFUNC )
-{
-	char* str;
-	if( sgs_ParseString( C, 0, &str, NULL ) )
-	{
-		if( !strcmp( str, "apply" ) )
-		{
-			sgs_PushCFunc( C, sgs_specfn_apply );
-			return SGS_SUCCESS;
-		}
-	}
-	return SGS_ENOTFND;
-}
-
 static int sgsstd_closure_call( SGS_CTX, sgs_VarObj* obj )
 {
 	sgs_BreakIf( "implemented elsewhere" );
@@ -1496,10 +1511,10 @@ static int sgsstd_closure_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	sgs_clsrcount_t i, cc = *SGS_ASSUME_ALIGNED( cl + sizeof(sgs_Variable), sgs_clsrcount_t );
 	sgs_Closure** cls = SGS_ASSUME_ALIGNED( cl + sizeof(sgs_Variable) + sizeof(sgs_clsrcount_t), sgs_Closure* );
 	
-	sgs_PushString( C, "closure\n{" );
+	sgs_PushStringLit( C, "closure\n{" );
 	
 	ssz = stk_size( C );
-	sgs_PushString( C, "\nfunc: " );
+	sgs_PushStringLit( C, "\nfunc: " );
 	sgs_DumpVar( C, *SGS_ASSUME_ALIGNED( cl, sgs_Variable ), depth ); /* function */
 	for( i = 0; i < cc; ++i )
 	{
@@ -1511,18 +1526,24 @@ static int sgsstd_closure_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	sgs_StringConcat( C, stk_size( C ) - ssz );
 	sgs_PadString( C );
 	
-	sgs_PushString( C, "\n}" );
+	sgs_PushStringLit( C, "\n}" );
 	sgs_StringConcat( C, 3 );
 	return SGS_SUCCESS;
 }
 
+static sgs_ObjProp sgsstd_closure_props[] =
+{
+	SGS_OBJPROP_CFUNC( "apply", sgs_specfn_apply ),
+	SGS_OBJPROP_END(),
+};
 SGS_APIFUNC sgs_ObjInterface sgsstd_closure_iface[1] =
 {{
 	"closure",
 	sgsstd_closure_destruct, sgsstd_closure_gcmark,
-	sgsstd_closure_getindex, NULL,
+	NULL, NULL,
 	NULL, NULL, sgsstd_closure_dump, NULL,
-	sgsstd_closure_call, NULL
+	sgsstd_closure_call, NULL,
+	sgsstd_closure_props
 }};
 
 sgs_Closure** sgsSTD_MakeClosure( SGS_CTX, sgs_Variable* out, sgs_Variable* func, sgs_clsrcount_t clc )
@@ -1803,6 +1824,15 @@ static int sgsstd_get_values( SGS_CTX )
 {
 	SGSFN( "get_values" );
 	return _foreach_lister( C, 1 );
+}
+
+static int sgsstd_get_props( SGS_CTX )
+{
+	SGSFN( "get_props" );
+	if( !sgs_LoadArgs( C, ">." ) )
+		return 0;
+	sgs_CreatePropList( C, NULL, *stk_poff( C, 0 ) );
+	return 1;
 }
 
 static int sgsstd_get_concat( SGS_CTX )
@@ -2300,7 +2330,7 @@ static int sgsstd_va_get_args( SGS_CTX )
 	/* WP: argument count limit */
 	
 	/* accepted arguments */
-	inexp = SGS_SF_ARGC_EXPECTED( sf );
+	inexp = (uint8_t) SGS_SF_ARGC_EXPECTED( sf );
 	pcnt = SGS_MIN( sf->argcount, inexp );
 	stk_mpush( C, &C->stack_base[ sf->argbeg + SGS_SF_ARG_COUNT( sf ) - pcnt ], pcnt );
 	/* extra arguments */
@@ -2335,7 +2365,7 @@ static int sgsstd_va_get_arg( SGS_CTX )
 	i = (uint8_t) argnum;
 	
 	/* accepted arguments */
-	inexp = SGS_SF_ARGC_EXPECTED( sf );
+	inexp = (uint8_t) SGS_SF_ARGC_EXPECTED( sf );
 	pcnt = SGS_MIN( sf->argcount, inexp );
 	if( i < pcnt )
 	{
@@ -2423,7 +2453,7 @@ static int sgsstd_metamethods_test( SGS_CTX )
 	return 1;
 }
 
-static int sgsstd_mm_getindex_router( SGS_CTX )
+int sgsstd_mm_getindex_router( SGS_CTX )
 {
 	sgs_Variable func, movar;
 	SGSFN( "mm_getindex_router" );
@@ -2433,7 +2463,7 @@ static int sgsstd_mm_getindex_router( SGS_CTX )
 	if( !( movar.data.O = sgs_ObjGetMetaObj( sgs_GetObjectStruct( C, 0 ) ) ) ) goto fail;
 	movar.type = SGS_VT_OBJECT;
 	
-	sgs_PushString( C, "__get_" );
+	sgs_PushStringLit( C, "__get_" );
 	sgs_PushItem( C, 1 );
 	sgs_StringConcat( C, 2 );
 	if( sgs_GetIndex( C, movar, *stk_gettop( C ), &func, SGS_FALSE ) == SGS_FALSE ) goto fail;
@@ -2448,7 +2478,7 @@ fail:
 	return 0;
 }
 
-static int sgsstd_mm_setindex_router( SGS_CTX )
+int sgsstd_mm_setindex_router( SGS_CTX )
 {
 	sgs_Variable func, movar;
 	SGSFN( "mm_setindex_router" );
@@ -2458,7 +2488,7 @@ static int sgsstd_mm_setindex_router( SGS_CTX )
 	if( !( movar.data.O = sgs_ObjGetMetaObj( sgs_GetObjectStruct( C, 0 ) ) ) ) goto fail;
 	movar.type = SGS_VT_OBJECT;
 	
-	sgs_PushString( C, "__set_" );
+	sgs_PushStringLit( C, "__set_" );
 	sgs_PushItem( C, 1 );
 	sgs_StringConcat( C, 2 );
 	if( sgs_GetIndex( C, movar, *stk_gettop( C ), &func, SGS_FALSE ) == SGS_FALSE ) goto fail;
@@ -2475,27 +2505,6 @@ fail:
 }
 
 
-
-static int sgsstd_event_getindex( SGS_ARGS_GETINDEXFUNC )
-{
-	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "signaled" ) return sgs_PushBool( C, obj->data != NULL );
-	SGS_END_INDEXFUNC;
-}
-
-static int sgsstd_event_setindex( SGS_ARGS_SETINDEXFUNC )
-{
-	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "signaled" )
-		{
-			sgs_Bool val = SGS_FALSE;
-			if( sgs_ParseBool( C, 1, &val ) == SGS_FALSE )
-				return SGS_EINVAL;
-			obj->data = val ? obj : NULL;
-			return SGS_SUCCESS;
-		}
-	SGS_END_INDEXFUNC;
-}
 
 static int sgsstd_event_convert( SGS_CTX, sgs_VarObj* obj, int type )
 {
@@ -2521,13 +2530,19 @@ static int sgsstd_event_dump( SGS_CTX, sgs_VarObj* obj, int maxdepth )
 	return sgs_PushString( C, bfr );
 }
 
+static sgs_ObjProp sgsstd_event_props[] =
+{
+	SGS_OBJPROP_OFFSET( "signaled", 0, SGS_OBJPROPTYPE_OBJBOOL, 0 ),
+	SGS_OBJPROP_END(),
+};
 SGS_APIFUNC sgs_ObjInterface sgsstd_event_iface[1] =
 {{
 	"event",
 	NULL, NULL,
-	sgsstd_event_getindex, sgsstd_event_setindex,
+	NULL, NULL,
 	sgsstd_event_convert, sgsstd_event_serialize, sgsstd_event_dump, NULL,
-	NULL, NULL
+	NULL, NULL,
+	sgsstd_event_props,
 }};
 
 SGSONE sgs_CreateEvent( SGS_CTX, sgs_Variable* out )
@@ -3049,9 +3064,9 @@ static void _sgsstd_compile_pfn( void* data, SGS_CTX, int type, const char* msg 
 	
 	fstk_push( C, pvar );
 	
-	sgs_PushString( C, "type" );
+	sgs_PushStringLit( C, "type" );
 	sgs_PushInt( C, type );
-	sgs_PushString( C, "msg" );
+	sgs_PushStringLit( C, "msg" );
 	sgs_PushString( C, msg );
 	sgs_CreateDict( C, NULL, 4 );
 	
@@ -3250,12 +3265,12 @@ static int _push_curdir( SGS_CTX )
 		if( fend == file )
 		{
 #ifdef _WIN32
-			sgs_PushString( C, "." );
+			sgs_PushStringLit( C, "." );
 #else
 			if( *file == '/' )
-				sgs_PushString( C, "" );
+				sgs_PushStringLit( C, "" );
 			else
-				sgs_PushString( C, "." );
+				sgs_PushStringLit( C, "." );
 #endif
 		}
 		else
@@ -3467,7 +3482,7 @@ static int sgsstd_include( SGS_CTX )
 			goto success;
 		}
 		
-		sgs_PushString( C, " - include" );
+		sgs_PushStringLit( C, " - include" );
 		sgs_StringConcat( C, 2 );
 		SGSFN( p_cstr( stk_gettop( C ) ) );
 		ret = sgs_ExecFile( C, mb.ptr );
@@ -3683,14 +3698,14 @@ static int sgsstd_sys_backtrace( SGS_CTX )
 				break;
 			sgs_StackFrameInfo( C, p, &name, &file, &ln );
 			
-			sgs_PushString( C, "func" );
+			sgs_PushStringLit( C, "func" );
 			sgs_PushString( C, name );
-			sgs_PushString( C, "line" );
+			sgs_PushStringLit( C, "line" );
 			if( ln )
 				sgs_PushInt( C, ln );
 			else
 				fstk_push_null( C );
-			sgs_PushString( C, "file" );
+			sgs_PushStringLit( C, "file" );
 			sgs_PushString( C, file );
 			
 			sgs_CreateDict( C, NULL, 6 );
@@ -3865,7 +3880,7 @@ static int sgsstd_dumpvar( SGS_CTX )
 	for( i = 0; i < ssz; ++i )
 	{
 		sgs_DumpVar( C, sgs_StackItem( C, i ), 5 );
-		sgs_PushString( C, "\n" );
+		sgs_PushStringLit( C, "\n" );
 		rc += 2;
 	}
 	if( rc )
@@ -3981,8 +3996,8 @@ static sgs_RegFuncConst regfuncs[] =
 	STDLIB_FN( array_filter ), STDLIB_FN( array_process ),
 	STDLIB_FN( dict_filter ), STDLIB_FN( map_filter ), STDLIB_FN( map_process ),
 	STDLIB_FN( dict_size ), STDLIB_FN( map_size ), STDLIB_FN( isset ), STDLIB_FN( unset ), STDLIB_FN( clone ),
-	STDLIB_FN( get_keys ), STDLIB_FN( get_values ), STDLIB_FN( get_concat ),
-	STDLIB_FN( get_merged ), STDLIB_FN( get_merged_map ),
+	STDLIB_FN( get_keys ), STDLIB_FN( get_values ), STDLIB_FN( get_props ),
+	STDLIB_FN( get_concat ), STDLIB_FN( get_merged ), STDLIB_FN( get_merged_map ),
 	STDLIB_FN( get_iterator ), STDLIB_FN( iter_advance ), STDLIB_FN( iter_getdata ),
 	/* types */
 	STDLIB_FN( tobool ), STDLIB_FN( toint ), STDLIB_FN( toreal ), STDLIB_FN( tostring ), STDLIB_FN( toptr ),
@@ -4583,7 +4598,7 @@ SGSBOOL sgs_IncludeExt( SGS_CTX, const char* name, const char* searchpath )
 	else if( pathrep == 2 )
 	{
 		sgs_PushEnv( C );
-		sgs_PushString( C, "SGS_PATH" );
+		sgs_PushStringLit( C, "SGS_PATH" );
 		sgs_Unset( C, sgs_StackItem( C, -2 ), *stk_gettop( C ) );
 	}
 	

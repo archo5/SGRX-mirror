@@ -18,89 +18,89 @@ static int isoneofN( char ch, const char* what, int size )
 /* debugging */
 
 
-static void dumpnode( sgs_FTNode* N )
+static void dumpnode( SGS_CTX, sgs_FTNode* N )
 {
 	switch( N->type )
 	{
-	case SGS_SFT_FCALL: printf( "FCALL" ); break;
-	case SGS_SFT_INDEX: printf( "INDEX" ); break;
-	case SGS_SFT_MIDXSET: printf( "MULTI_INDEX_SET" ); break;
-	case SGS_SFT_MPROPSET: printf( "MULTI_PROPERTY_SET" ); break;
-	case SGS_SFT_ARGMT: printf( "ARG " ); sgsT_DumpToken( N->token ); break;
-	case SGS_SFT_ARGLIST: printf( "ARG_LIST" ); break;
-	case SGS_SFT_VARLIST: printf( "VAR_LIST" ); break;
-	case SGS_SFT_GVLIST: printf( "GLOBAL_VAR_LIST" ); break;
-	case SGS_SFT_USELIST: printf( "USE_LIST" ); break;
-	case SGS_SFT_EXPLIST: printf( "EXPR_LIST" ); break;
-	case SGS_SFT_ARRLIST: printf( "ARRAY_LIST" ); break;
-	case SGS_SFT_DCTLIST: printf( "DICT_LIST" ); break;
-	case SGS_SFT_MAPLIST: printf( "MAP_LIST" ); break;
-	case SGS_SFT_RETURN: printf( "RETURN" ); break;
-	case SGS_SFT_BLOCK: printf( "BLOCK" ); break;
-	case SGS_SFT_IFELSE: printf( "IF/ELSE" ); break;
-	case SGS_SFT_WHILE: printf( "WHILE" ); break;
-	case SGS_SFT_DOWHILE: printf( "DO/WHILE" ); break;
-	case SGS_SFT_FOR: printf( "FOR" ); break;
-	case SGS_SFT_FOREACH: printf( "FOR_EACH" ); break;
-	case SGS_SFT_BREAK: printf( "BREAK" );
+	case SGS_SFT_FCALL: sgs_ErrWritef( C, "FCALL" ); break;
+	case SGS_SFT_INDEX: sgs_ErrWritef( C, "INDEX" ); break;
+	case SGS_SFT_MIDXSET: sgs_ErrWritef( C, "MULTI_INDEX_SET" ); break;
+	case SGS_SFT_MPROPSET: sgs_ErrWritef( C, "MULTI_PROPERTY_SET" ); break;
+	case SGS_SFT_ARGMT: sgs_ErrWritef( C, "ARG " ); sgsT_DumpToken( C, N->token ); break;
+	case SGS_SFT_ARGLIST: sgs_ErrWritef( C, "ARG_LIST" ); break;
+	case SGS_SFT_VARLIST: sgs_ErrWritef( C, "VAR_LIST" ); break;
+	case SGS_SFT_GVLIST: sgs_ErrWritef( C, "GLOBAL_VAR_LIST" ); break;
+	case SGS_SFT_USELIST: sgs_ErrWritef( C, "USE_LIST" ); break;
+	case SGS_SFT_EXPLIST: sgs_ErrWritef( C, "EXPR_LIST" ); break;
+	case SGS_SFT_ARRLIST: sgs_ErrWritef( C, "ARRAY_LIST" ); break;
+	case SGS_SFT_DCTLIST: sgs_ErrWritef( C, "DICT_LIST" ); break;
+	case SGS_SFT_MAPLIST: sgs_ErrWritef( C, "MAP_LIST" ); break;
+	case SGS_SFT_RETURN: sgs_ErrWritef( C, "RETURN" ); break;
+	case SGS_SFT_BLOCK: sgs_ErrWritef( C, "BLOCK" ); break;
+	case SGS_SFT_IFELSE: sgs_ErrWritef( C, "IF/ELSE" ); break;
+	case SGS_SFT_WHILE: sgs_ErrWritef( C, "WHILE" ); break;
+	case SGS_SFT_DOWHILE: sgs_ErrWritef( C, "DO/WHILE" ); break;
+	case SGS_SFT_FOR: sgs_ErrWritef( C, "FOR" ); break;
+	case SGS_SFT_FOREACH: sgs_ErrWritef( C, "FOR_EACH" ); break;
+	case SGS_SFT_BREAK: sgs_ErrWritef( C, "BREAK" );
 		if( *sgsT_Next( N->token ) == SGS_ST_NUMINT )
 		{
 			sgs_Int val;
 			SGS_AS_INTEGER( val, sgsT_Next( N->token ) + 1 );
-			printf( " %" PRId64, val );
+			sgs_ErrWritef( C, " %" PRId64, val );
 		}
 		break;
-	case SGS_SFT_CONT: printf( "CONTINUE" );
+	case SGS_SFT_CONT: sgs_ErrWritef( C, "CONTINUE" );
 		if( *sgsT_Next( N->token ) == SGS_ST_NUMINT )
 		{
 			sgs_Int val;
 			SGS_AS_INTEGER( val, sgsT_Next( N->token ) + 1 );
-			printf( " %" PRId64, val );
+			sgs_ErrWritef( C, " %" PRId64, val );
 		}
 		break;
-	case SGS_SFT_DEFER: printf( "DEFER" ); break;
-	case SGS_SFT_FUNC: printf( "FUNC" ); break;
-	case SGS_SFT_CLASS: printf( "CLASS" ); break;
-	case SGS_SFT_CLSINH: printf( "CLASS_INHERIT" ); break;
-	case SGS_SFT_CLSINC: printf( "CLASS_INCLUDE" ); break;
-	case SGS_SFT_CLSGLOB: printf( "CLASS_GLOBALS" ); break;
-	case SGS_SFT_NEWCALL: printf( "NEW" ); break;
-	case SGS_SFT_THRCALL: printf( "THREAD" ); break;
-	case SGS_SFT_STHCALL: printf( "SUBTHREAD" ); break;
+	case SGS_SFT_DEFER: sgs_ErrWritef( C, "DEFER" ); break;
+	case SGS_SFT_FUNC: sgs_ErrWritef( C, "FUNC" ); break;
+	case SGS_SFT_CLASS: sgs_ErrWritef( C, "CLASS" ); break;
+	case SGS_SFT_CLSINH: sgs_ErrWritef( C, "CLASS_INHERIT" ); break;
+	case SGS_SFT_CLSINC: sgs_ErrWritef( C, "CLASS_INCLUDE" ); break;
+	case SGS_SFT_CLSGLOB: sgs_ErrWritef( C, "CLASS_GLOBALS" ); break;
+	case SGS_SFT_NEWCALL: sgs_ErrWritef( C, "NEW" ); break;
+	case SGS_SFT_THRCALL: sgs_ErrWritef( C, "THREAD" ); break;
+	case SGS_SFT_STHCALL: sgs_ErrWritef( C, "SUBTHREAD" ); break;
 	default:
-		if( N->token ) sgsT_DumpToken( N->token );
-		if( N->type == SGS_SFT_OPER_P ) printf( " [post]" );
+		if( N->token ) sgsT_DumpToken( C, N->token );
+		if( N->type == SGS_SFT_OPER_P ) sgs_ErrWritef( C, " [post]" );
 		break;
 	}
 }
 
-static void ft_dump( sgs_FTNode* node, int level )
+static void ft_dump( SGS_CTX, sgs_FTNode* node, int level )
 {
 	int i;
 	sgs_FTNode* N = node;
 	if( !node ) return;
 
-	for( i = 0; i < level; ++i ) printf( "  " );
-	dumpnode( N );
-	printf( "\n" );
+	for( i = 0; i < level; ++i ) sgs_ErrWritef( C, "  " );
+	dumpnode( C, N );
+	sgs_ErrWritef( C, "\n" );
 
 	if( node->child )
 	{
-		for( i = 0; i < level; ++i ) printf( "  " );
-		printf( "{\n" );
+		for( i = 0; i < level; ++i ) sgs_ErrWritef( C, "  " );
+		sgs_ErrWritef( C, "{\n" );
 
-		ft_dump( node->child, level + 1 );
+		ft_dump( C, node->child, level + 1 );
 
-		for( i = 0; i < level; ++i ) printf( "  " );
-		printf( "}\n" );
+		for( i = 0; i < level; ++i ) sgs_ErrWritef( C, "  " );
+		sgs_ErrWritef( C, "}\n" );
 	}
 
-	ft_dump( node->next, level );
+	ft_dump( C, node->next, level );
 }
 
-void sgsFT_Dump( sgs_FTNode* tree )
+void sgsFT_Dump( SGS_CTX, sgs_FTNode* tree )
 {
-	ft_dump( tree, 0 );
+	ft_dump( C, tree, 0 );
 }
 
 
@@ -193,8 +193,6 @@ SFTRET parse_arg( SFTC, int argid, char end )
 	char toks[ 3 ] = { ',', 0, 0 };
 	toks[1] = end;
 
-	SGS_FN_BEGIN;
-
 	if( SFTC_IS(0) )
 	{
 		SFTC_UNEXP;
@@ -229,13 +227,11 @@ SFTRET parse_arg( SFTC, int argid, char end )
 			goto fail;
 	}
 
-	SGS_FN_END;
 	return node;
 
 fail:
 	if( node ) SFTC_DESTROY( node );
 	SFTC_SETERR;
-	SGS_FN_END;
 	return 0;
 }
 
@@ -250,8 +246,6 @@ SFTRET parse_arglist( SFTC, char end )
 	sgs_FTNode* curnode = NULL;
 	sgs_FTNode* argnode;
 	int id = 1;
-
-	SGS_FN_BEGIN;
 
 	for(;;)
 	{
@@ -286,7 +280,6 @@ SFTRET parse_arglist( SFTC, char end )
 		}
 	}
 
-	SGS_FN_END;
 	return arglist;
 
 fail:
@@ -381,12 +374,10 @@ static int level_exp( SFTC, sgs_FTNode** tree )
 	int weight = 0, isfcall, binary, count = 0;
 	int pfxfuncmode = PFXFUNC_NONE;
 
-	SGS_FN_BEGIN;
 	sgs_BreakIf( !tree );
 
 	if( !*tree )
 	{
-		SGS_FN_END;
 		return 0;
 	}
 	
@@ -470,14 +461,12 @@ _continue:
 				se1i = se1i->next;
 			}
 			
-			SGS_FN_ENTER;
 			ret1 = level_exp( F, &se1 );
 			if( !ret1 )
 			{
 				*tree = NULL;
 				if( se1 ) SFTC_DESTROY( se1 );
 				if( se2 ) SFTC_DESTROY( se2 );
-				SGS_FN_END;
 				return 0;
 			}
 			
@@ -492,14 +481,12 @@ _continue:
 				goto retsuccess;
 			}
 			
-			SGS_FN_ENTER;
 			ret2 = level_exp( F, &se2 );
 			if( !ret2 )
 			{
 				*tree = NULL;
 				if( se1 ) SFTC_DESTROY( se1 );
 				if( se2 ) SFTC_DESTROY( se2 );
-				SGS_FN_END;
 				return 0;
 			}
 			if( *mpp_token == SGS_ST_SBRKL )
@@ -512,7 +499,6 @@ _continue:
 					*tree = NULL;
 					if( se1 ) SFTC_DESTROY( se1 );
 					/* if( se2 ) */ SFTC_DESTROY( se2 );
-					SGS_FN_END;
 					return 0;
 				}
 				se1->next = se2->child;
@@ -553,7 +539,6 @@ _continue:
 				}
 				mpp->next = NULL;
 				
-				SGS_FN_ENTER;
 				ret1 = level_exp( F, &se1 );
 				if( !ret1 )
 				{
@@ -561,7 +546,6 @@ _continue:
 					if( se1 ) SFTC_DESTROY( se1 );
 					if( se2 ) SFTC_DESTROY( se2 );
 					SFTC_DESTROY( mpp );
-					SGS_FN_END;
 					return 0;
 				}
 				
@@ -573,26 +557,22 @@ _continue:
 					mpp->child->next = se2;
 					mpp->next = NULL;
 					*tree = mpp;
-					SGS_FN_END;
 					goto retsuccess;
 				}
 				
 				SFTC_DESTROY( mpp );
 				
-				SGS_FN_ENTER;
 				ret2 = level_exp( F, &se2 );
 				if( !ret2 )
 				{
 					*tree = NULL;
 					if( se1 ) SFTC_DESTROY( se1 );
 					if( se2 ) SFTC_DESTROY( se2 );
-					SGS_FN_END;
 					return 0;
 				}
 				
 				se1->next = se2;
 				*tree = make_node( SGS_SFT_OPER, mpptoken, NULL, se1 );
-				SGS_FN_END;
 				
 				if( *mpptoken == SGS_ST_OP_CAT || *mpptoken == SGS_ST_OP_CATEQ )
 				{
@@ -656,11 +636,9 @@ _continue:
 					mpp->child = mpp->next;
 					mpp->next = NULL;
 				}
-				SGS_FN_ENTER;
 				ret1 = level_exp( F, &mpp->child );
 				if( !ret1 )
 				{
-					SGS_FN_END;
 					return 0;
 				}
 				goto retsuccess;
@@ -704,7 +682,6 @@ retsuccess:
 			break;
 		}
 		
-		SGS_FN_END;
 		return 1;
 	}
 
@@ -712,9 +689,8 @@ retsuccess:
 	sgs_Msg( F->C, SGS_ERROR, "[line %d] Missing operators or separators", predictlinenum( *tree ) );
 	F->C->state |= SGS_HAS_ERRORS;
 #if SGS_DEBUG && SGS_DEBUG_DATA
-	sgsFT_Dump( *tree );
+	sgsFT_Dump( F->C, *tree );
 #endif
-	SGS_FN_END;
 	return 0;
 
 fail:
@@ -723,9 +699,8 @@ fail:
 	sgs_Msg( F->C, SGS_ERROR, "[line %d] Invalid expression", mpp ? sgsT_LineNum( mpp->token ) : 0 );
 fail_no_err:
 #if SGS_DEBUG && SGS_DEBUG_DATA
-	sgsFT_Dump( *tree );
+	sgsFT_Dump( F->C, *tree );
 #endif
-	SGS_FN_END;
 	return 0;
 }
 
@@ -820,13 +795,10 @@ SFTRET parse_exp( SFTC, char* endtoklist, int etlsize )
 	sgs_FTNode* node, *cur;
 	char prev = 0;
 
-	SGS_FN_BEGIN;
-
 	if( SFTC_IS( 0 ) )
 	{
 		SFTC_UNEXP;
 		SFTC_SETERR;
-		SGS_FN_END;
 		return NULL;
 	}
 
@@ -837,7 +809,6 @@ SFTRET parse_exp( SFTC, char* endtoklist, int etlsize )
 		node = parse_arglist( F, endtoklist[ endtoklist[0] == ',' ] );
 		if( node )
 			node->type = SGS_SFT_VARLIST;
-		SGS_FN_END;
 		return node;
 	}
 	if( SFTC_ISKEY( "global" ) )
@@ -846,7 +817,6 @@ SFTRET parse_exp( SFTC, char* endtoklist, int etlsize )
 		node = parse_arglist( F, endtoklist[ endtoklist[0] == ',' ] );
 		if( node )
 			node->type = SGS_SFT_GVLIST;
-		SGS_FN_END;
 		return node;
 	}
 
@@ -865,7 +835,8 @@ SFTRET parse_exp( SFTC, char* endtoklist, int etlsize )
 		}
 		else if( SFTC_IS( SGS_ST_STRING )
 			  || SFTC_IS( SGS_ST_NUMINT )
-			  || SFTC_IS( SGS_ST_NUMREAL ) )
+			  || SFTC_IS( SGS_ST_NUMREAL )
+			  || SFTC_IS( SGS_ST_NUMPTR ) )
 			cur = cur->next = make_node( SGS_SFT_CONST, SFTC_AT, NULL, NULL );
 		else if( SFTC_IS( SGS_ST_IDENT ) )
 		{
@@ -921,7 +892,6 @@ SFTRET parse_exp( SFTC, char* endtoklist, int etlsize )
 							break;
 						}
 
-						SGS_FN_ENTER;
 						expr = parse_exp( F, endcstr, 2 );
 						if( !expr )
 						{
@@ -973,7 +943,6 @@ SFTRET parse_exp( SFTC, char* endtoklist, int etlsize )
 		if( F->C->state & SGS_MUST_STOP )
 		{
 			SFTC_DESTROY( node );
-			SGS_FN_END;
 			return NULL;
 		}
 		
@@ -998,13 +967,11 @@ SFTRET parse_exp( SFTC, char* endtoklist, int etlsize )
 	if( !level_exp( F, &node ) )
 		goto fail;
 	
-	SGS_FN_END;
 	return node;
 
 fail:
 	SFTC_SETERR;
 	if( node ) SFTC_DESTROY( node );
-	SGS_FN_END;
 	return NULL;
 }
 
@@ -1018,8 +985,6 @@ SFTRET parse_explist( SFTC, char endtok )
 	sgs_FTNode* curexp = NULL, *node;
 	char endtoklist[] = { ',', 0, 0 };
 	endtoklist[1] = endtok;
-
-	SGS_FN_BEGIN;
 
 	for(;;)
 	{
@@ -1052,13 +1017,11 @@ SFTRET parse_explist( SFTC, char endtok )
 		}
 	}
 
-	SGS_FN_END;
 	return explist;
 
 fail:
 	SFTC_SETERR;
 	SFTC_DESTROY( explist );
-	SGS_FN_END;
 	return NULL;
 }
 
@@ -1066,8 +1029,6 @@ SFTRET parse_if( SFTC )
 {
 	sgs_FTNode *node = NULL, *nexp = NULL, *nif = NULL, *nelse = NULL;
 	sgs_TokenList begin = SFTC_AT;
-
-	SGS_FN_BEGIN;
 
 	SFTC_NEXT;
 	if( !SFTC_IS( '(' ) )
@@ -1096,7 +1057,6 @@ SFTRET parse_if( SFTC )
 	nif->next = nelse;
 	node = make_node( SGS_SFT_IFELSE, begin, NULL, nexp );
 
-	SGS_FN_END;
 	return node;
 
 fail:
@@ -1104,7 +1064,6 @@ fail:
 	if( nif ) SFTC_DESTROY( nif );
 	if( nelse ) SFTC_DESTROY( nelse );
 	SFTC_SETERR;
-	SGS_FN_END;
 	return NULL;
 }
 
@@ -1112,8 +1071,6 @@ SFTRET parse_while( SFTC )
 {
 	sgs_FTNode *node, *nexp = NULL, *nwhile = NULL;
 	sgs_TokenList begin = SFTC_AT;
-
-	SGS_FN_BEGIN;
 
 	SFTC_NEXT;
 	if( !SFTC_IS( '(' ) )
@@ -1134,14 +1091,12 @@ SFTRET parse_while( SFTC )
 	nexp->next = nwhile;
 	node = make_node( SGS_SFT_WHILE, begin, NULL, nexp );
 
-	SGS_FN_END;
 	return node;
 
 fail:
 	if( nexp ) SFTC_DESTROY( nexp );
 	if( nwhile ) SFTC_DESTROY( nwhile );
 	SFTC_SETERR;
-	SGS_FN_END;
 	return NULL;
 }
 
@@ -1149,8 +1104,6 @@ SFTRET parse_dowhile( SFTC )
 {
 	sgs_FTNode *node, *nexp = NULL, *nwhile = NULL;
 	sgs_TokenList begin = SFTC_AT;
-
-	SGS_FN_BEGIN;
 
 	SFTC_NEXT;
 	nwhile = parse_stmt( F );
@@ -1178,63 +1131,112 @@ SFTRET parse_dowhile( SFTC )
 	nexp->next = nwhile;
 	node = make_node( SGS_SFT_DOWHILE, begin, NULL, nexp );
 
-	SGS_FN_END;
 	return node;
 
 fail:
 	if( nexp ) SFTC_DESTROY( nexp );
 	if( nwhile ) SFTC_DESTROY( nwhile );
 	SFTC_SETERR;
-	SGS_FN_END;
 	return NULL;
 }
 
 SFTRET parse_for( SFTC )
 {
-	sgs_FTNode *node, *ninit = NULL, *nexp = NULL, *nincr = NULL, *nwhile = NULL;
 	sgs_TokenList begin = SFTC_AT;
 
-	SGS_FN_BEGIN;
-
 	SFTC_NEXT;
-	if( !SFTC_IS( '(' ) )
+	
+	if( SFTC_IS( '(' ) )
 	{
-		SFTC_PRINTERR( "Expected '(' after 'for'" );
-		goto fail;
+		sgs_FTNode *ninit = NULL, *nexp = NULL, *nincr = NULL, *nwhile = NULL;
+		
+		SFTC_NEXT;
+
+		ninit = parse_explist( F, ';' );
+		if( !ninit ) goto fail;
+		SFTC_NEXT;
+
+		nexp = parse_explist( F, ';' );
+		if( !nexp ) goto fail;
+		SFTC_NEXT;
+
+		nincr = parse_explist( F, ')' );
+		if( !nincr ) goto fail;
+		SFTC_NEXT;
+
+		nwhile = parse_stmt( F );
+		if( !nwhile ) goto fail;
+
+		ninit->next = nexp;
+		nexp->next = nincr;
+		nincr->next = nwhile;
+		return make_node( SGS_SFT_FOR, begin, NULL, ninit );
+		
+	fail:
+		if( ninit ) SFTC_DESTROY( ninit );
+		if( nexp ) SFTC_DESTROY( nexp );
+		if( nincr ) SFTC_DESTROY( nincr );
+		if( nwhile ) SFTC_DESTROY( nwhile );
 	}
+	else if( SFTC_IS( SGS_ST_IDENT ) )
+	{
+		int realnum = 0;
+		sgs_FTNode *nname = NULL, *nrange = NULL, *nwhile = NULL;
+		
+		nname = make_node( SGS_SFT_IDENT, SFTC_AT, NULL, NULL );
+		
+		SFTC_NEXT;
+		
+		if( !SFTC_IS( ':' ) )
+		{
+			SFTC_PRINTERR( "Expected ':' after identifier in 'numeric for'" );
+			goto fail_numfor;
+		}
+		SFTC_NEXT;
+		if( SFTC_IS( SGS_ST_OP_MMBR ) )
+		{
+			realnum = 1;
+			SFTC_NEXT;
+		}
+		
+		if( !SFTC_IS( '(' ) )
+		{
+			SFTC_PRINTERR( "Expected '(' after ':'/':.' in 'numeric for'" );
+			goto fail_numfor;
+		}
+		SFTC_NEXT;
+		
+		nrange = parse_explist( F, ')' );
+		if( !nrange ) goto fail_numfor;
+		SFTC_NEXT;
+		
+		if( nrange->child == NULL ||
+			( nrange->child->next &&
+			nrange->child->next->next &&
+			nrange->child->next->next->next ) )
+		{
+			SFTC_PRINTERR( "Expected 1-3 values in 'numeric for'" );
+			goto fail_numfor;
+		}
 
-	SFTC_NEXT;
-
-	ninit = parse_explist( F, ';' );
-	if( !ninit ) goto fail;
-	SFTC_NEXT;
-
-	nexp = parse_explist( F, ';' );
-	if( !nexp ) goto fail;
-	SFTC_NEXT;
-
-	nincr = parse_explist( F, ')' );
-	if( !nincr ) goto fail;
-	SFTC_NEXT;
-
-	nwhile = parse_stmt( F );
-	if( !nwhile ) goto fail;
-
-	ninit->next = nexp;
-	nexp->next = nincr;
-	nincr->next = nwhile;
-	node = make_node( SGS_SFT_FOR, begin, NULL, ninit );
-
-	SGS_FN_END;
-	return node;
-
-fail:
-	if( ninit ) SFTC_DESTROY( ninit );
-	if( nexp ) SFTC_DESTROY( nexp );
-	if( nincr ) SFTC_DESTROY( nincr );
-	if( nwhile ) SFTC_DESTROY( nwhile );
+		nwhile = parse_stmt( F );
+		if( !nwhile ) goto fail_numfor;
+		
+		nname->next = nrange;
+		nrange->next = nwhile;
+		return make_node( realnum ? SGS_SFT_FORNUMR : SGS_SFT_FORNUMI, begin, NULL, nname );
+		
+	fail_numfor:
+		if( nname ) SFTC_DESTROY( nname );
+		if( nrange ) SFTC_DESTROY( nrange );
+		if( nwhile ) SFTC_DESTROY( nwhile );
+	}
+	else
+	{
+		SFTC_PRINTERR( "Expected '(' or identifier after 'for'" );
+	}
+	
 	SFTC_SETERR;
-	SGS_FN_END;
 	return NULL;
 }
 
@@ -1245,10 +1247,8 @@ SFTRET parse_foreach( SFTC )
 		(x,x: => ident=>ident
 		(x,: => ident=>null
 	*/
-	sgs_FTNode *node, *nvar = NULL, *nkey = NULL, *nexp = NULL, *nwhile = NULL;
+	sgs_FTNode *nvar = NULL, *nkey = NULL, *nexp = NULL, *nwhile = NULL;
 	sgs_TokenList begin = SFTC_AT;
-
-	SGS_FN_BEGIN;
 
 	SFTC_NEXT;
 	if( !SFTC_IS( '(' ) )
@@ -1316,27 +1316,21 @@ SFTRET parse_foreach( SFTC )
 	nkey->next = nvar;
 	nvar->next = nexp;
 	nexp->next = nwhile;
-	node = make_node( SGS_SFT_FOREACH, begin, NULL, nkey );
-
-	SGS_FN_END;
-	return node;
+	return make_node( SGS_SFT_FOREACH, begin, NULL, nkey );
 
 fail:
 	if( nvar ) SFTC_DESTROY( nvar );
 	if( nkey ) SFTC_DESTROY( nkey );
 	if( nexp ) SFTC_DESTROY( nexp );
 	if( nwhile ) SFTC_DESTROY( nwhile );
-	SGS_FN_END;
 	return NULL;
 }
 
 SFTRET parse_function( SFTC, int inexp, sgs_TokenList namepfx )
 {
 	int hasname = 0;
-	sgs_FTNode *node, *nname = NULL, *nargs = NULL, *nbody = NULL, *nclos = NULL;
+	sgs_FTNode *nname = NULL, *nargs = NULL, *nbody = NULL, *nclos = NULL;
 	sgs_TokenList begin = SFTC_AT;
-	
-	SGS_FN_BEGIN;
 	
 	SFTC_NEXT;
 	if( !inexp && !namepfx )
@@ -1430,10 +1424,7 @@ SFTRET parse_function( SFTC, int inexp, sgs_TokenList namepfx )
 	nargs->next = nclos;
 	nclos->next = nbody;
 	nbody->next = nname;
-	node = make_node( SGS_SFT_FUNC, begin, NULL, nargs );
-	
-	SGS_FN_END;
-	return node;
+	return make_node( SGS_SFT_FUNC, begin, NULL, nargs );
 	
 fail:
 	if( nname ) SFTC_DESTROY( nname );
@@ -1441,7 +1432,6 @@ fail:
 	if( nclos ) SFTC_DESTROY( nclos );
 	if( nbody ) SFTC_DESTROY( nbody );
 	SFTC_SETERR;
-	SGS_FN_END;
 	return NULL;
 }
 
@@ -1509,13 +1499,11 @@ SFTRET parse_class( SFTC )
 		}
 	}
 	
-	SGS_FN_END;
 	return node;
 	
 fail:
 	if( node ) SFTC_DESTROY( node );
 	SFTC_SETERR;
-	SGS_FN_END;
 	return NULL;
 }
 
@@ -1524,7 +1512,6 @@ SFTRET parse_command( SFTC, int multi )
 	sgs_FTNode *nargs = NULL;
 	sgs_TokenList begin = SFTC_AT;
 
-	SGS_FN_BEGIN;
 	SFTC_NEXT;
 	
 	nargs = parse_explist( F, ';' );
@@ -1539,7 +1526,6 @@ SFTRET parse_command( SFTC, int multi )
 		if( !p )
 		{
 			if( nargs ) SFTC_DESTROY( nargs );
-			SGS_FN_END;
 			return make_node( SGS_SFT_BLOCK, begin, NULL, NULL );
 		}
 		
@@ -1567,14 +1553,12 @@ SFTRET parse_command( SFTC, int multi )
 	{
 		/* one function call */
 		sgs_FTNode* nname = make_node( SGS_SFT_IDENT, begin, nargs, NULL );
-		SGS_FN_END;
 		return make_node( SGS_SFT_FCALL, begin, NULL, nname );
 	}
 	
 fail:
 	if( nargs ) SFTC_DESTROY( nargs );
 	SFTC_SETERR;
-	SGS_FN_END;
 	return NULL;
 }
 
@@ -1582,30 +1566,22 @@ SFTRET parse_stmt( SFTC )
 {
 	sgs_FTNode* node;
 
-	SGS_FN_BEGIN;
-
 	if( SFTC_IS(0) )
 	{
 		SFTC_UNEXP;
 		goto fail;
 	}
 
-	/* IF / ELSE */
-	if( SFTC_ISKEY( "if" ) ) { node = parse_if( F ); SGS_FN_END; return node; }
+	if( SFTC_ISKEY( "if" ) ) { return parse_if( F ); }
 	else if( SFTC_ISKEY( "else" ) )
 	{
 		SFTC_PRINTERR( "Found 'else' without matching 'if'" );
 		goto fail;
 	}
-	/* WHILE */
-	else if( SFTC_ISKEY( "while" ) ) { node = parse_while( F ); SGS_FN_END; return node; }
-	/* DO / WHILE */
-	else if( SFTC_ISKEY( "do" ) ) { node = parse_dowhile( F ); SGS_FN_END; return node; }
-	/* FOR */
-	else if( SFTC_ISKEY( "for" ) ) { node = parse_for( F ); SGS_FN_END; return node; }
-	/* FOREACH */
-	else if( SFTC_ISKEY( "foreach" ) ) { node = parse_foreach( F ); SGS_FN_END; return node; }
-	/* BREAK */
+	else if( SFTC_ISKEY( "while" ) ) { return parse_while( F ); }
+	else if( SFTC_ISKEY( "do" ) ) { return parse_dowhile( F ); }
+	else if( SFTC_ISKEY( "for" ) ) { return parse_for( F ); }
+	else if( SFTC_ISKEY( "foreach" ) ) { return parse_foreach( F ); }
 	else if( SFTC_ISKEY( "break" ) )
 	{
 		sgs_TokenList orig = SFTC_AT;
@@ -1630,12 +1606,8 @@ SFTRET parse_stmt( SFTC )
 		}
 		SFTC_NEXT;
 
-		node = make_node( SGS_SFT_BREAK, orig, NULL, NULL );
-
-		SGS_FN_END;
-		return node;
+		return make_node( SGS_SFT_BREAK, orig, NULL, NULL );
 	}
-	/* CONTINUE */
 	else if( SFTC_ISKEY( "continue" ) )
 	{
 		sgs_TokenList orig = SFTC_AT;
@@ -1660,14 +1632,9 @@ SFTRET parse_stmt( SFTC )
 		}
 		SFTC_NEXT;
 
-		node = make_node( SGS_SFT_CONT, orig, NULL, NULL );
-
-		SGS_FN_END;
-		return node;
+		return make_node( SGS_SFT_CONT, orig, NULL, NULL );
 	}
-	/* FUNCTION */
-	else if( SFTC_ISKEY( "function" ) ) { node = parse_function( F, 0, NULL ); SGS_FN_END; return node; }
-	/* RETURN */
+	else if( SFTC_ISKEY( "function" ) ) { return parse_function( F, 0, NULL ); }
 	else if( SFTC_ISKEY( "return" ) )
 	{
 		SFTC_NEXT;
@@ -1678,10 +1645,8 @@ SFTRET parse_stmt( SFTC )
 		node->type = SGS_SFT_RETURN;
 
 		SFTC_NEXT;
-		SGS_FN_END;
 		return node;
 	}
-	/* VAR / GLOBAL - reuse code in parse_exp */
 	else if( SFTC_ISKEY( "var" ) || SFTC_ISKEY( "global" ) )
 	{
 		node = parse_exp( F, ";", 1 );
@@ -1695,10 +1660,8 @@ SFTRET parse_stmt( SFTC )
 		}
 
 		SFTC_NEXT;
-		SGS_FN_END;
 		return node;
 	}
-	/* DEFERRED BLOCKS (scope destruction) */
 	else if( SFTC_ISKEY( "defer" ) )
 	{
 		sgs_TokenList orig = SFTC_AT;
@@ -1706,13 +1669,9 @@ SFTRET parse_stmt( SFTC )
 		node = parse_stmt( F );
 		if( !node )
 			goto fail;
-		node = make_node( SGS_SFT_DEFER, orig, NULL, node );
-		SGS_FN_END;
-		return node;
+		return make_node( SGS_SFT_DEFER, orig, NULL, node );
 	}
-	/* COMMAND HELPERS */
 #define NOT_FCALL ( !sgsT_Next( F->at ) || '(' != *sgsT_Next( F->at ) )
-	/* CLASS */
 	else if( SFTC_IS_ID( "class" ) && NOT_FCALL )
 	{
 		SFTC_NEXT;
@@ -1720,7 +1679,6 @@ SFTRET parse_stmt( SFTC )
 		if( !node )
 			goto fail;
 		SFTC_NEXT;
-		SGS_FN_END;
 		return node;
 	}
 	/* SIMPLE COMMANDS */
@@ -1730,16 +1688,12 @@ SFTRET parse_stmt( SFTC )
 		SFTC_IS_ID( "yield" )
 		) && NOT_FCALL )
 	{
-		node = parse_command( F, 0 );
-		SGS_FN_END;
-		return node;
+		return parse_command( F, 0 );
 	}
 	/* MULTIPLIED COMMANDS */
 	else if( SFTC_IS_ID( "include" ) && NOT_FCALL )
 	{
-		node = parse_command( F, 1 );
-		SGS_FN_END;
-		return node;
+		return parse_command( F, 1 );
 	}
 	/* BLOCK OF STATEMENTS */
 	else if( SFTC_IS( SGS_ST_CBRKL ) )
@@ -1749,7 +1703,6 @@ SFTRET parse_stmt( SFTC )
 		if( !node ) goto fail;
 
 		SFTC_NEXT;
-		SGS_FN_END;
 		return node;
 	}
 	/* SEPARATED STATEMENTS */
@@ -1759,7 +1712,6 @@ SFTRET parse_stmt( SFTC )
 		if( node )
 		{
 			SFTC_NEXT;
-			SGS_FN_END;
 			return node;
 		}
 		else
@@ -1768,7 +1720,6 @@ SFTRET parse_stmt( SFTC )
 
 fail:
 	SFTC_SETERR;
-	SGS_FN_END;
 	return NULL;
 }
 
@@ -1776,8 +1727,6 @@ SFTRET parse_stmtlist( SFTC, char end )
 {
 	sgs_FTNode* stmtlist = make_node( SGS_SFT_BLOCK, NULL, NULL, NULL );
 	sgs_FTNode* curstmt = NULL;
-
-	SGS_FN_BEGIN;
 
 	for(;;)
 	{
@@ -1805,13 +1754,11 @@ SFTRET parse_stmtlist( SFTC, char end )
 			goto fail;
 	}
 
-	SGS_FN_END;
 	return stmtlist;
 
 fail:
 	SFTC_DESTROY( stmtlist );
 	SFTC_SETERR;
-	SGS_FN_END;
 	return NULL;
 }
 

@@ -32,10 +32,10 @@ SGS_APIFUNC void sgs_BreakIfFunc( const char* code, const char* file, int line )
 
 
 /* text/character ops */
-int sgs_isoneof( int chr, const char* str );
+SGS_APIFUNC int sgs_isoneof( int chr, const char* str );
 SGS_APIFUNC int sgs_hexchar( int c );
 SGS_APIFUNC int sgs_gethex( int c );
-int sgs_tolower( int c );
+SGS_APIFUNC int sgs_tolower( int c );
 #define sgs_decchar( c ) ((c) >= '0' && (c) <= '9')
 #define sgs_getdec( c ) ((c) - '0')
 #define sgs_octchar( c ) ((c) >= '0' && (c) <= '7')
@@ -63,26 +63,6 @@ int sgs_tolower( int c );
 
 #define SGS_AS_INTEGER( tgt, ptr ) SGS_AS_( tgt, ptr, sgs_Int )
 #define SGS_AS_REAL( tgt, ptr ) SGS_AS_( tgt, ptr, sgs_Real )
-
-
-/* flow/data debugging */
-#if SGS_DEBUG && SGS_DEBUG_FLOW
-#  define SGS_FN_HIT( what ) \
-	printf( "Hit \"%s\" line %d in function \"%s\"\n", what, __LINE__, __FUNCTION__ );
-#  define SGS_FN_ENTER \
-	printf( "Entering a function from \"%s\" at line %d\n", __FUNCTION__, __LINE__ );
-#  define SGS_FN_BEGIN \
-	printf( "Inside \"%s\"\n", __FUNCTION__ );
-#  define SGS_FN_END \
-	printf( "Out of \"%s\" at line %d\n", __FUNCTION__, __LINE__ );
-#else
-#  define SGS_FN_HIT( what )
-#  define SGS_FN_ENTER
-#  define SGS_FN_BEGIN
-#  define SGS_FN_END
-#endif
-
-SGS_APIFUNC void sgs_print_safe( FILE* fp, const char* buf, size_t size );
 
 
 /* string buffer */
